@@ -8,6 +8,19 @@ struct cr_surface_t {
   uint32_t width, height;
 };
 
+struct cr_swapchain_t {
+  VkSwapchainKHR swapchain_handle;
+
+  VkExtent2D dimensions;
+  VkFormat fmt;
+  VkSurfaceFormatKHR surf_fmt;
+  VkPresentModeKHR present_mode;
+
+  uint32_t n_imgs;
+  VkImage* imgs;
+  VkImageView* img_views;
+};
+
 typedef bool (*cr_surface_create_func_t)(
     VkInstance instance,
     struct cr_surface_t* o_surf,
@@ -37,11 +50,13 @@ struct cr_log_state_t {
 struct cr_context_t {
   VkInstance instance;
   VkPhysicalDevice phys_dev;
+  VkDevice logical_dev;
   uint32_t graphics_queue_family, present_queue_family;
+  VkQueue graphics_queue, present_queue;
+  VkCommandPool cmd_pool;
 
   struct cr_surface_t surf;
-
-
+  struct cr_swapchain_t swapchain;
   struct cr_log_state_t log;
 };
 

@@ -11,7 +11,11 @@ static bool _glfw_surface_create(
     void* userdata) {
   GLFWwindow* win = (GLFWwindow*)userdata;
 
- glfwCreateWindowSurface(instance, win, NULL, &o_surf->surf); 
+ glfwCreateWindowSurface(instance, win, NULL, &o_surf->surf);
+
+  if(o_surf->surf == NULL) {
+    printf("Error: failed to create window surface.\n");
+  }
 
   int w, h;
   glfwGetFramebufferSize(win, &w, &h);
@@ -27,6 +31,8 @@ int main() {
   /* Initialize the library */
   if (!glfwInit())
     return -1;
+
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
   /* Create a windowed mode window and its OpenGL context */
   window = glfwCreateWindow(640, 480, "corender - GLFW example", NULL, NULL);
@@ -57,18 +63,9 @@ int main() {
   };
   cr_context_create(&ctx, &info);
 
-  /* Make the window's context current */
-  glfwMakeContextCurrent(window);
-
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
-    /* Render here */
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    /* Swap front and back buffers */
     glfwSwapBuffers(window);
-
-    /* Poll for and process events */
     glfwPollEvents();
   }
 

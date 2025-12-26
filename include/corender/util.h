@@ -6,6 +6,8 @@
 #define _CR_BRAND_NAME "corender"  
 #define _CR_VERSION "alpha 0.1"
 
+#define CR_MAX(a, b) a > b ? a : b
+#define CR_MIN(a, b) a < b ? a : b
 
 enum cr_log_level_t {
   CR_LL_TRACE = 0,
