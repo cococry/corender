@@ -65,6 +65,7 @@ int main() {
 
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
+    cr_draw_frame(&ctx);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

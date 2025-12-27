@@ -7,6 +7,16 @@
 
 #define _SUBSYS_NAME "CORE"
 
+#define _VK_CHECK(ctx, expr)                              \
+do {                                                      \
+  VkResult _res = (expr);                                 \
+  if (_res != VK_SUCCESS) {                               \
+    CR_ERROR(ctx->log, "Vulkan error: %s (%i) - %s failed.", \
+    _vk_result_to_string(_res), _res, #expr);              \
+    return false;                                         \
+  }                                                       \
+} while (0)
+
 struct cr_swapchain_info_t {
   VkPresentModeKHR present_modes[16];
   uint32_t n_present_modes;
@@ -15,15 +25,16 @@ struct cr_swapchain_info_t {
   VkSurfaceCapabilitiesKHR caps;
 };
 
-
-static bool _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
-static bool _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
-static bool _pick_physical_device(struct cr_context_t* ctx);
-
+static bool     _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
+static bool     _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static VkResult _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static VkResult _create_logical_device(struct cr_context_t* ctx);
-static VkResult _create_command_pool(struct cr_context_t* ctx);
+static bool     _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
+static bool     _create_frameloop(
+  struct 
+  cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family); 
 
+static bool _pick_physical_device(struct cr_context_t* ctx);
 static bool _get_swapchain_info_from_physical_device(
   struct cr_context_t* ctx,
   VkPhysicalDevice dev, 
@@ -32,10 +43,13 @@ static bool _get_swapchain_info_from_physical_device(
 );
 
 static VkSurfaceFormatKHR _get_swapchain_surface_format(const struct cr_swapchain_info_t* swapchain);
-static VkPresentModeKHR _get_swapchain_present_mode(const struct cr_swapchain_info_t* swapchain);
-static VkExtent2D _get_swapchain_extent(const struct cr_swapchain_info_t* swapchain, uint32_t w, uint32_t h);
+static VkPresentModeKHR   _get_swapchain_present_mode(const struct cr_swapchain_info_t* swapchain);
+static VkExtent2D         _get_swapchain_extent(
+  const struct cr_swapchain_info_t* swapchain, uint32_t w, uint32_t h);
 
-bool _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
+static const char* _vk_result_to_string(VkResult r);
+
+
 
 bool 
 _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
@@ -66,7 +80,6 @@ _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_
   bool 
 _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   VkResult instance_res = _create_instance(ctx, info); 
-  printf("seg.\n");
   if(instance_res != VK_SUCCESS) {
     CR_ERROR(ctx->log, "Failed to create Vulkan instance: (error code: %i)", instance_res);
     return false;
@@ -92,17 +105,17 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
     return false;
   }
 
-  VkResult cmd_pool_res = _create_command_pool(ctx); 
-  if(cmd_pool_res != VK_SUCCESS) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan command pool with graphics queue index %i: (error code: %i)", 
-             ctx->graphics_queue_family,
-             logical_dev_res);
-    return false;
-  }
-
   if(ctx->surf.surf) {
     if(!_create_swapchain(ctx, &ctx->swapchain, ctx->surf.width, ctx->surf.height)) {
       CR_ERROR(ctx->log, "Failed to create Vulkan swap chain (width: %i, height: %i)", 
+               ctx->surf.width, ctx->surf.height);
+      return false;
+    }
+
+    ctx->frameloop.swapchain = ctx->swapchain;
+
+    if(!_create_frameloop(ctx, &ctx->frameloop, ctx->graphics_queue_family)) {
+      CR_ERROR(ctx->log, "Failed to create Vulkan frame loop (width: %i, height: %i)", 
                ctx->surf.width, ctx->surf.height);
       return false;
     }
@@ -244,22 +257,6 @@ _create_logical_device(struct cr_context_t* ctx) {
   return res;
 }
 
-VkResult 
-_create_command_pool(struct cr_context_t* ctx) {
-  VkCommandPoolCreateInfo pool_info = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .queueFamilyIndex = ctx->graphics_queue_family,
-    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-  };
-
-  VkResult res = vkCreateCommandPool(ctx->logical_dev, &pool_info, NULL, &ctx->cmd_pool);
-
-  if(res == VK_SUCCESS) { 
-    CR_TRACE(ctx->log, "Initialized Vulkan command pool.");
-  }
-
-  return res;
-}
 
 bool
 _get_swapchain_info_from_physical_device(
@@ -268,48 +265,14 @@ _get_swapchain_info_from_physical_device(
   VkSurfaceKHR surf,
 struct cr_swapchain_info_t* o_info 
 ) {
-  bool success = true;
-  {
-    VkResult res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev, surf, &o_info->caps);
-    if(res != VK_SUCCESS) {
-      CR_ERROR(ctx->log, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR() failed: (error code: %i)", res);
-      success = false;
-    }
-  }
+  _VK_CHECK(ctx, vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev, surf, &o_info->caps));
+  _VK_CHECK(ctx, vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surf, &o_info->n_fmts, NULL));
+  _VK_CHECK(ctx, vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surf, &o_info->n_fmts, o_info->fmts));
+  _VK_CHECK(ctx, vkGetPhysicalDeviceSurfacePresentModesKHR(dev, surf, &o_info->n_present_modes, NULL));
+  _VK_CHECK(ctx, vkGetPhysicalDeviceSurfacePresentModesKHR(
+    dev, surf, &o_info->n_present_modes, o_info->present_modes));
 
-  {
-    VkResult res = vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surf, &o_info->n_fmts, NULL);
-    if(res != VK_SUCCESS) {
-      CR_ERROR(ctx->log, "vkGetPhysicalDeviceSurfaceFormatsKHR() failed: (error code: %i)", res);
-      success = false;
-    }
-  }
-  {
-    VkResult res = vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surf, &o_info->n_fmts, o_info->fmts);
-    if(res != VK_SUCCESS) {
-      CR_ERROR(ctx->log, "vkGetPhysicalDeviceSurfaceFormatsKHR() failed: (error code: %i)", res);
-      success = false;
-    }
-  }
-
-  {
-    VkResult res = vkGetPhysicalDeviceSurfacePresentModesKHR(dev, surf, &o_info->n_present_modes, NULL);
-    if(res != VK_SUCCESS) {
-      CR_ERROR(ctx->log, "vkGetPhysicalDeviceSurfacePresentModesKHR() failed: (error code: %i)", res);
-      success = false;
-    }
-  }
-
-  {
-    VkResult res = vkGetPhysicalDeviceSurfacePresentModesKHR(
-      dev, surf, &o_info->n_present_modes, o_info->present_modes);
-    if(res != VK_SUCCESS) {
-      CR_ERROR(ctx->log, "vkGetPhysicalDeviceSurfacePresentModesKHR() failed: (error code: %i)", res);
-      success = false;
-    }
-  }
-
-  return success;
+  return true;
 }
 
 VkSurfaceFormatKHR 
@@ -347,6 +310,38 @@ _get_swapchain_extent(const struct cr_swapchain_info_t* swapchain, uint32_t w, u
 
   return extent; 
 }
+
+
+const char* _vk_result_to_string(VkResult r)
+{
+    switch (r) {
+        case VK_SUCCESS: return "VK_SUCCESS";
+        case VK_NOT_READY: return "VK_NOT_READY";
+        case VK_TIMEOUT: return "VK_TIMEOUT";
+        case VK_EVENT_SET: return "VK_EVENT_SET";
+        case VK_EVENT_RESET: return "VK_EVENT_RESET";
+        case VK_INCOMPLETE: return "VK_INCOMPLETE";
+
+        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
+        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
+        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
+        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
+        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
+        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
+        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
+
+        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
+
+        default: return "VK_ERROR_UNKNOWN";
+    }
+}
+
 
 bool 
 _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h) {
@@ -392,11 +387,7 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
     create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
   }
   
-  VkResult res = vkCreateSwapchainKHR(ctx->logical_dev, &create_info, NULL, &o_swapchain->swapchain_handle); 
-  if(res != VK_SUCCESS) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan swap chain (error code: %i)", res);
-    return false;
-  }
+  _VK_CHECK(ctx, vkCreateSwapchainKHR(ctx->logical_dev, &create_info, NULL, &o_swapchain->swapchain_handle));
 
   vkGetSwapchainImagesKHR(ctx->logical_dev, o_swapchain->swapchain_handle, &o_swapchain->n_imgs, NULL);
   o_swapchain->imgs = calloc(o_swapchain->n_imgs, sizeof(VkImage));
@@ -408,6 +399,7 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   o_swapchain->present_mode = present_mode;
   o_swapchain->fmt = fmt.format;
   o_swapchain->dimensions = extent;
+  o_swapchain->logical_dev = ctx->logical_dev;
 
   for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
     VkImageViewCreateInfo view_info = {
@@ -438,6 +430,139 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   return true;
 }
 
+bool
+_create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family) {
+  VkCommandPoolCreateInfo pool_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .queueFamilyIndex = graphics_queue_family, 
+    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+  };
+
+  for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
+    struct cr_frame_t* frame = &o_frameloop->frames[i];
+   
+    _VK_CHECK(ctx, vkCreateCommandPool(
+      o_frameloop->swapchain.logical_dev, &pool_info, NULL, &frame->cmd_pool));
+
+    VkCommandBufferAllocateInfo buf_info = {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+      .commandPool = frame->cmd_pool,
+      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+      .commandBufferCount = 1
+    };
+
+    _VK_CHECK(ctx, vkAllocateCommandBuffers(o_frameloop->swapchain.logical_dev, &buf_info, &frame->cmd_buf));
+
+    VkSemaphoreCreateInfo sem_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+    _VK_CHECK(ctx, vkCreateSemaphore(
+      o_frameloop->swapchain.logical_dev, 
+      &sem_info, NULL, &frame->image_available)); 
+
+    frame->render_finished_per_image = calloc(
+      o_frameloop->swapchain.n_imgs, 
+      sizeof(*frame->render_finished_per_image));
+
+    for(uint32_t i = 0; i < o_frameloop->swapchain.n_imgs; i++) {
+      _VK_CHECK(ctx, vkCreateSemaphore(
+        o_frameloop->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
+    }
+
+    VkFenceCreateInfo fence_info = {
+      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+      .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    _VK_CHECK(ctx, vkCreateFence(
+      o_frameloop->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
+  
+    CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
+             i); 
+  }
+
+  o_frameloop->frame_idx = 0;
+
+  VkAttachmentDescription clear_attachment = {
+    .format = o_frameloop->swapchain.fmt,
+    .samples = VK_SAMPLE_COUNT_1_BIT, 
+
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+
+    .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  };
+
+  VkAttachmentReference clear_reference = {
+    .attachment = 0,
+    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
+  };
+
+  VkSubpassDescription subpass_desc = {
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &clear_reference,
+  };
+
+  VkSubpassDependency dep = {
+    .srcSubpass = VK_SUBPASS_EXTERNAL,
+    .dstSubpass = 0,
+
+    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+  };
+
+  VkRenderPassCreateInfo pass_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .attachmentCount = 1,
+    .pAttachments = &clear_attachment,
+    .subpassCount = 1,
+    .pSubpasses = &subpass_desc,
+    .dependencyCount = 1,
+    .pDependencies = &dep,
+  };
+
+  _VK_CHECK(ctx, vkCreateRenderPass(o_frameloop->swapchain.logical_dev, &pass_info, NULL, &o_frameloop->crnt_pass));
+
+  o_frameloop->fbs = calloc(o_frameloop->swapchain.n_imgs, sizeof(*o_frameloop->fbs));
+
+  for(uint32_t i = 0; i < o_frameloop->swapchain.n_imgs; i++) {
+    VkImageView attachments[] = {
+      o_frameloop->swapchain.img_views[i]
+    };
+
+    VkFramebufferCreateInfo fb_info = {
+      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass = o_frameloop->crnt_pass,
+      .attachmentCount = 1,
+      .pAttachments = attachments, 
+      .width = o_frameloop->swapchain.dimensions.width,
+      .height = o_frameloop->swapchain.dimensions.height,
+      .layers = 1
+    };
+
+    _VK_CHECK(ctx, vkCreateFramebuffer(o_frameloop->swapchain.logical_dev, &fb_info, NULL, 
+                                       &o_frameloop->fbs[i]) != VK_SUCCESS);
+    
+    CR_TRACE(ctx->log, "Initialized Vulkan frameloop framebuffer for swapchain image view %i", 
+             i); 
+  }
+    
+  CR_TRACE(ctx->log, "Initialized Vulkan frameloop."); 
+
+  o_frameloop->swapchain_image_fences = calloc(
+    o_frameloop->swapchain.n_imgs, sizeof(*o_frameloop->swapchain_image_fences));
+  return true;
+
+}
+
 bool 
 cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   memset(ctx, 0, sizeof *ctx);
@@ -455,4 +580,91 @@ cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t*
 bool 
 cr_context_destroy(struct cr_context_t* ctx) {
   return true;
+}
+bool 
+cr_draw_frame(struct cr_context_t* ctx) {
+
+struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+  _VK_CHECK(ctx, vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX));
+
+  uint32_t image_idx = 0;
+  VkResult res = vkAcquireNextImageKHR(
+    ctx->logical_dev,
+    ctx->swapchain.swapchain_handle,
+    UINT64_MAX,
+    frame->image_available,
+    VK_NULL_HANDLE, 
+    &image_idx
+  );
+  if(ctx->frameloop.swapchain_image_fences[image_idx] != VK_NULL_HANDLE) {
+    vkWaitForFences(ctx->logical_dev, 1, &ctx->frameloop.swapchain_image_fences[image_idx], VK_TRUE,
+                    UINT64_MAX);
+  }
+  ctx->frameloop.swapchain_image_fences[image_idx] = frame->in_flight_fence;
+
+  if(res == VK_ERROR_OUT_OF_DATE_KHR) {
+    return true;
+  }
+  if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) return false;
+
+  _VK_CHECK(ctx, vkResetFences(ctx->logical_dev, 1, &frame->in_flight_fence));
+  _VK_CHECK(ctx, vkResetCommandPool(ctx->logical_dev, frame->cmd_pool, 0));
+
+  VkCommandBufferBeginInfo begin_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+  };
+
+  _VK_CHECK(ctx, vkBeginCommandBuffer(frame->cmd_buf, &begin_info));
+
+  VkClearValue clear = {
+    .color = {
+      { 0.1f, 0.1f, 0.1f, 1.0f}
+    }
+  };
+  VkRenderPassBeginInfo renderpass_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+    .renderPass = ctx->frameloop.crnt_pass,
+    .framebuffer = ctx->frameloop.fbs[image_idx],
+    .renderArea = {
+      .offset = {0, 0},
+      .extent = ctx->swapchain.dimensions
+    },
+    .pClearValues = &clear,
+    .clearValueCount = 1
+  };
+
+  vkCmdBeginRenderPass(frame->cmd_buf, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+  vkCmdEndRenderPass(frame->cmd_buf);
+  _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
+
+  VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+  VkSubmitInfo submit_info = {
+    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .waitSemaphoreCount = 1, 
+    .pWaitSemaphores = &frame->image_available,
+    .signalSemaphoreCount = 1,
+    .pSignalSemaphores = &frame->render_finished_per_image[image_idx],
+    .pWaitDstStageMask  = &pipeline_flags, 
+    .commandBufferCount = 1,
+    .pCommandBuffers = &frame->cmd_buf,
+  };
+
+  _VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
+
+  VkPresentInfoKHR present_info = {
+    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    .waitSemaphoreCount = 1,
+    .pWaitSemaphores = &frame->render_finished_per_image[image_idx],
+    .swapchainCount = 1,
+    .pSwapchains = &ctx->swapchain.swapchain_handle,
+    .pImageIndices = &image_idx
+  };
+
+  _VK_CHECK(ctx, vkQueuePresentKHR(ctx->present_queue, &present_info));
+
+  ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
+  return true;
+
 }
