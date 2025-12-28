@@ -1,5 +1,6 @@
 
 #include <stdbool.h>
+#include <stdio.h>
 #define _GNU_SOURCE
 #include "../include/corender/util.h"
 #include <time.h>
@@ -8,28 +9,45 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+char* cr_util_get_state_folder(void) {
+  const char* state_home = getenv("XDG_STATE_HOME");
+  const char* home = getenv("HOME");
+
+  if (!state_home && !home)
+    return NULL;
+
+  char base[PATH_MAX];
+
+  if (state_home) {
+    snprintf(base, sizeof(base), "%s", state_home);
+  } else {
+    snprintf(base, sizeof(base), "%s/.local/state", home);
+  }
+
+  mkdir(base, 0755); 
+  char* dir = malloc(PATH_MAX);
+  if (!dir)
+    return NULL;
+
+  snprintf(dir, PATH_MAX, "%s", base); 
+
+  mkdir(dir, 0755);
+
+  return dir;
+}
 char* 
 cr_util_log_get_filepath() {
-  static char path[PATH_MAX];
-  char* state_home = getenv("XDG_STATE_HOME");
-  const char* home = getenv("HOME");
   time_t now = time(NULL);
   struct tm t;
   pid_t pid = getpid();
 
-  // Use XDG_STATE_HOME if set, otherwise fallback to ~/.local/state
-  if (!state_home && home) {
-    snprintf(path, sizeof(path), "%s/.local/state", home);
-    state_home = path;
-  }
-
+  char* state_dir = cr_util_get_state_folder();
   char log_dir[PATH_MAX];
-  snprintf(log_dir, sizeof(log_dir), "%s/%s/logs", state_home, _CR_BRAND_NAME);
+  snprintf(log_dir, sizeof(log_dir), "%s/%s/logs", state_dir, _CR_BRAND_NAME);
 
   // create directories if they don't exist
-  mkdir(state_home, 0755); 
   char app_dir[PATH_MAX];
-  snprintf(app_dir, sizeof(app_dir), "%s/%s", state_home, _CR_BRAND_NAME);
+  snprintf(app_dir, sizeof(app_dir), "%s/%s", state_dir, _CR_BRAND_NAME);
   mkdir(app_dir, 0755);
   mkdir(log_dir, 0755);
 
@@ -41,6 +59,8 @@ cr_util_log_get_filepath() {
   static char logfile[PATH_MAX];
   snprintf(logfile, sizeof(logfile), "%s/%s-%s-%d.log",
            log_dir, _CR_BRAND_NAME, timestamp, pid);
+
+  free(state_dir);
 
   return logfile;
 }
@@ -81,3 +101,33 @@ cr_util_log_header(FILE* stream, enum cr_log_level_t lvl) {
 }
 
 
+
+unsigned char* 
+cr_util_read_file(const char* filepath, size_t* o_filesize) {
+  FILE* f = fopen(filepath, "rb");
+  if(!f) {
+    perror("failed to open file");
+  }
+
+  fseek(f, 0, SEEK_END);
+  size_t s = ftell(f);
+  rewind(f);
+
+  if(s <= 0) {
+    fclose(f);
+    return NULL;
+  }
+
+  unsigned char* data = malloc(s);
+  if(!data) {
+    perror("failed to allocate file data.");
+    return NULL;
+  }
+  fread(data, 1, s, f);
+  fclose(f);
+
+  *o_filesize = s;
+
+  return data;
+
+}

@@ -1,20 +1,21 @@
 #include "../include/corender/corender.h"
 #include "../include/corender/util.h"
 #include <errno.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <vulkan/vulkan_core.h>
 
 
 #define _SUBSYS_NAME "CORE"
 
-#define _VK_CHECK(ctx, expr)                              \
-do {                                                      \
-  VkResult _res = (expr);                                 \
-  if (_res != VK_SUCCESS) {                               \
-    CR_ERROR(ctx->log, "Vulkan error: %s (%i) - %s failed.", \
-    _vk_result_to_string(_res), _res, #expr);              \
-    return false;                                         \
-  }                                                       \
+#define _VK_CHECK(ctx, expr)                                  \
+do {                                                          \
+  VkResult _res = (expr);                                     \
+  if (_res != VK_SUCCESS) {                                   \
+    CR_ERROR(ctx->log, "Vulkan error: %s (%i) - %s failed.",  \
+    _vk_result_to_string(_res), _res, #expr);                 \
+    goto err;                                                 \
+  }                                                           \
 } while (0)
 
 struct cr_swapchain_info_t {
@@ -31,8 +32,12 @@ static VkResult _create_instance(struct cr_context_t* ctx, const struct cr_conte
 static VkResult _create_logical_device(struct cr_context_t* ctx);
 static bool     _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
 static bool     _create_frameloop(
-  struct 
-  cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family); 
+  struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
+  uint32_t graphics_queue_family); 
+static bool     _create_shader_module(struct 
+  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
+static bool     _create_pipeline(struct 
+  cr_context_t* ctx); 
 
 static bool _pick_physical_device(struct cr_context_t* ctx);
 static bool _get_swapchain_info_from_physical_device(
@@ -117,6 +122,11 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
     if(!_create_frameloop(ctx, &ctx->frameloop, ctx->graphics_queue_family)) {
       CR_ERROR(ctx->log, "Failed to create Vulkan frame loop (width: %i, height: %i)", 
                ctx->surf.width, ctx->surf.height);
+      return false;
+    }
+
+    if(!_create_pipeline(ctx)) {
+      CR_ERROR(ctx->log, "Failed to create Vulkan graphics pipeline."); 
       return false;
     }
   }
@@ -273,6 +283,8 @@ struct cr_swapchain_info_t* o_info
     dev, surf, &o_info->n_present_modes, o_info->present_modes));
 
   return true;
+err:
+  return false;
 }
 
 VkSurfaceFormatKHR 
@@ -414,20 +426,17 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
       }
     };
 
-    VkResult view_res = vkCreateImageView(ctx->logical_dev, &view_info, NULL, &o_swapchain->img_views[i]);
-    if(view_res != VK_SUCCESS) {
-      CR_ERROR(
-        ctx->log, 
-        "Failed to create Vulkan image view for swapchain image %i (error code: %i)", i, view_res);
-      return false;
-    }
+    _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &view_info, NULL, &o_swapchain->img_views[i]));
   }
 
   CR_TRACE(ctx->log, "Initialized Vulkan swapchain (width: %i, height: %i)", 
-             o_swapchain->dimensions.width, o_swapchain->dimensions.height); 
-
+             o_swapchain->dimensions.width, o_swapchain->dimensions.height);
 
   return true;
+
+err:
+  return false;
+
 }
 
 bool
@@ -529,7 +538,9 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     .pDependencies = &dep,
   };
 
-  _VK_CHECK(ctx, vkCreateRenderPass(o_frameloop->swapchain.logical_dev, &pass_info, NULL, &o_frameloop->crnt_pass));
+  _VK_CHECK(
+    ctx, 
+    vkCreateRenderPass(o_frameloop->swapchain.logical_dev, &pass_info, NULL, &o_frameloop->crnt_pass));
 
   o_frameloop->fbs = calloc(o_frameloop->swapchain.n_imgs, sizeof(*o_frameloop->fbs));
 
@@ -559,8 +570,74 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
 
   o_frameloop->swapchain_image_fences = calloc(
     o_frameloop->swapchain.n_imgs, sizeof(*o_frameloop->swapchain_image_fences));
+
   return true;
 
+err:
+  if(o_frameloop->swapchain_image_fences) free(o_frameloop->swapchain_image_fences);
+  for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
+    struct cr_frame_t* frame = &o_frameloop->frames[i];
+    if(frame->render_finished_per_image) free(frame->render_finished_per_image);
+  }
+
+  return false;
+
+
+}
+
+bool 
+_create_shader_module(struct 
+  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
+  size_t file_size;
+  printf("filepath: %s\n", filepath);
+  unsigned char* file_data = cr_util_read_file(filepath, &file_size);
+  if(!file_data || !file_size) return false;
+
+  VkShaderModuleCreateInfo shader_info = {0};
+  shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  shader_info.codeSize = file_size;
+  shader_info.pCode = (const uint32_t*)file_data;
+
+  _VK_CHECK(ctx, vkCreateShaderModule(ctx->logical_dev, &shader_info, NULL, o_module));
+
+  CR_TRACE(ctx->log, "Successfully created Vulkan shader module for file '%s'", filepath)
+
+  free(file_data);
+
+
+  return true;
+
+err:
+  return false;
+}
+
+bool 
+_create_pipeline(struct cr_context_t* ctx) {
+
+  VkShaderModule vert_mod, frag_mod;
+
+  const char* state_dir = cr_util_get_state_folder();
+  printf("state dir: %s\n", state_dir);
+  char shader_dir[PATH_MAX];
+  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders", state_dir, _CR_BRAND_NAME);
+
+  char vert_src[PATH_MAX];
+  snprintf(vert_src, sizeof(vert_src), "%s/basic_vert.spv", shader_dir);
+  char frag_src[PATH_MAX];
+  snprintf(frag_src, sizeof(frag_src), "%s/basic_frag.spv", shader_dir);
+
+  if(!_create_shader_module(ctx, vert_src, &vert_mod)) {
+    CR_ERROR(ctx->log, "Failed to create vertex shader byte code for file '%s'", 
+             vert_src);
+    return false;
+  }
+  if(!_create_shader_module(ctx, frag_src, &frag_mod)) {
+    CR_ERROR(ctx->log, "Failed to create fragment shader byte code for file '%s'", 
+             frag_src);
+    return false;
+  }
+
+  return true;
 }
 
 bool 
@@ -638,6 +715,8 @@ struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   vkCmdEndRenderPass(frame->cmd_buf);
   _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
 
+  VkDeviceSize offset = 0;
+
   VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
   VkSubmitInfo submit_info = {
@@ -665,6 +744,11 @@ struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   _VK_CHECK(ctx, vkQueuePresentKHR(ctx->present_queue, &present_info));
 
   ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
+
+
   return true;
+
+err:
+  return false;
 
 }

@@ -6,7 +6,15 @@ CORENDER_OBJS := $(patsubst src/%.c,lib/%.o,$(CORENDER_SRCS))
 EXAMPLE_BINS := $(patsubst examples/%.c,bin/examples/%,$(EXAMPLE_SRCS))
 EXAMPLE_LIBS_glfw   := -lglfw -lGL -lvulkan
 
-all: lib/libcorender.a 
+all: lib/libcorender.a shaders 
+
+shaders: bin/shaders | local_install_shaders
+	glslc -fshader-stage=vertex shaders/basic_vert.glsl -o bin/shaders/basic_vert.spv 
+	glslc -fshader-stage=fragment shaders/basic_frag.glsl -o bin/shaders/basic_frag.spv 
+
+local_install_shaders:
+	mkdir -p ~/.local/state/corender 
+	cp -r ./bin/shaders ~/.local/state/corender/
 
 lib/libcorender.a: $(CORENDER_OBJS) 
 	ar rcs $@ $^ 
@@ -36,7 +44,10 @@ clean-examples:
 	rm -rf bin/examples/
 
 bin/examples:
-	mkdir -p bin/examples
+	mkdir -p $@ 
+
+bin/shaders:
+	mkdir -p $@ 
 
 bin/examples/%: examples/%.c | bin/examples
 	$(CC) $(CFLAGS) $< -o $@ -Llib -lcorender $(EXAMPLE_LIBS_$*)

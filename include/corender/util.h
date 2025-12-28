@@ -100,3 +100,7 @@ enum cr_log_level_t {
 void cr_util_log_header(FILE* stream, enum cr_log_level_t lvl);
 
 char* cr_util_log_get_filepath();
+
+char* cr_util_get_state_folder();
+
+unsigned char* cr_util_read_file(const char* filepath, size_t* o_filesize);

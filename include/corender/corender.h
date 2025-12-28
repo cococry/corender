@@ -82,6 +82,8 @@ struct cr_context_t {
   uint32_t graphics_queue_family, present_queue_family;
   VkQueue graphics_queue, present_queue;
   VkCommandPool cmd_pool;
+  VkPipeline pipeline;
+  VkPipelineLayout pipeline_layout;
 
   struct cr_surface_t surf;
   struct cr_swapchain_t swapchain;
