@@ -2,9 +2,9 @@
 #include "../include/corender/util.h"
 #include <errno.h>
 #include <linux/limits.h>
+#include <stddef.h>
 #include <string.h>
 #include <vulkan/vulkan_core.h>
-
 
 #define _SUBSYS_NAME "CORE"
 
@@ -38,6 +38,12 @@ static bool     _create_shader_module(struct
   cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
 static bool     _create_pipeline(struct 
   cr_context_t* ctx); 
+static bool     _create_gpu_buffer(
+  struct 
+  cr_context_t* ctx, 
+  VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props,
+  struct cr_gpu_buffer_t* o_buf
+); 
 
 static bool _pick_physical_device(struct cr_context_t* ctx);
 static bool _get_swapchain_info_from_physical_device(
@@ -53,8 +59,6 @@ static VkExtent2D         _get_swapchain_extent(
   const struct cr_swapchain_info_t* swapchain, uint32_t w, uint32_t h);
 
 static const char* _vk_result_to_string(VkResult r);
-
-
 
 bool 
 _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
@@ -449,7 +453,7 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
 
   for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
     struct cr_frame_t* frame = &o_frameloop->frames[i];
-   
+  
     _VK_CHECK(ctx, vkCreateCommandPool(
       o_frameloop->swapchain.logical_dev, &pool_info, NULL, &frame->cmd_pool));
 
@@ -486,7 +490,16 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
       o_frameloop->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
   
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
-             i); 
+             i);
+
+    frame->batch_state = (struct cr_batch_state_t){0};
+    frame->batch_state.vert_max = CR_MAX_BATCH * 6; 
+
+    _create_gpu_buffer(
+      ctx, frame->batch_state.vert_max * sizeof(struct cr_vertex_t), 
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.vbo);
   }
 
   o_frameloop->frame_idx = 0;
@@ -581,8 +594,6 @@ err:
   }
 
   return false;
-
-
 }
 
 bool 
@@ -617,7 +628,6 @@ _create_pipeline(struct cr_context_t* ctx) {
   VkShaderModule vert_mod, frag_mod;
 
   const char* state_dir = cr_util_get_state_folder();
-  printf("state dir: %s\n", state_dir);
   char shader_dir[PATH_MAX];
   snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders", state_dir, _CR_BRAND_NAME);
 
@@ -637,7 +647,205 @@ _create_pipeline(struct cr_context_t* ctx) {
     return false;
   }
 
+  VkPipelineShaderStageCreateInfo shader_stages[2] = {
+    (VkPipelineShaderStageCreateInfo){
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_VERTEX_BIT,
+      .pName = "main",
+      .module = vert_mod,
+    },
+    (VkPipelineShaderStageCreateInfo){
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+      .pName = "main",
+      .module = frag_mod,
+    }
+  };
+
+
+  VkVertexInputBindingDescription binding_desc = {
+    .binding = 0,
+    .stride = sizeof(struct cr_vertex_t),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+  };
+
+  VkVertexInputAttributeDescription vert_attrs[2] = {
+    (VkVertexInputAttributeDescription){
+      .location = 0,
+      .binding = 0,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_vertex_t, pos)
+    },
+    (VkVertexInputAttributeDescription){
+      .location = 1,
+      .binding = 0,
+      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+      .offset = offsetof(struct cr_vertex_t, color)
+    },
+  };
+
+  VkPipelineVertexInputStateCreateInfo vertex_input_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .vertexBindingDescriptionCount = 1,
+    .pVertexBindingDescriptions = &binding_desc,
+    .vertexAttributeDescriptionCount = 2,
+    .pVertexAttributeDescriptions = vert_attrs
+  };
+
+  VkPipelineInputAssemblyStateCreateInfo assmebly_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+  };
+
+  VkViewport viewport = {
+    .x = 0,
+    .y = 0, 
+    .width = ctx->surf.width,
+    .height = ctx->surf.height,
+    .maxDepth = 1.0f,
+  };
+
+  VkRect2D scissor = {
+    .offset.x = 0,
+    .offset.y = 0,
+    .extent.width = ctx->surf.width,
+    .extent.height = ctx->surf.height
+  };
+
+  VkPipelineViewportStateCreateInfo viewport_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+    .viewportCount = 1,
+    .pViewports = &viewport,
+    .scissorCount = 1,
+    .pScissors = &scissor,
+  };
+
+  VkPipelineRasterizationStateCreateInfo raster_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+    .polygonMode = VK_POLYGON_MODE_FILL,
+    .cullMode = VK_CULL_MODE_NONE,
+    .frontFace = VK_FRONT_FACE_CLOCKWISE,
+    .lineWidth = 1.0f,
+  };
+
+
+  VkPipelineMultisampleStateCreateInfo msaa_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+  };
+
+  VkPipelineColorBlendAttachmentState blend = {
+    .blendEnable = VK_TRUE,
+    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+    .colorBlendOp = VK_BLEND_OP_ADD,
+    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+    .alphaBlendOp = VK_BLEND_OP_ADD,
+    .colorWriteMask = 0xF
+  };
+
+  VkPipelineColorBlendStateCreateInfo blend_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+    .attachmentCount = 1,
+    .pAttachments = &blend
+  };
+
+  
+  VkPipelineLayoutCreateInfo layout_info = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+  };
+
+  _VK_CHECK(ctx, vkCreatePipelineLayout(ctx->logical_dev, &layout_info, NULL, &ctx->pipeline_layout));
+
+
+  VkGraphicsPipelineCreateInfo pipeline_info = {
+    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .stageCount = 2,
+    .pStages = shader_stages,
+    .pVertexInputState = &vertex_input_state,
+    .pInputAssemblyState = &assmebly_state,
+    .pViewportState = &viewport_state,
+    .pColorBlendState = &blend_state,
+    .pMultisampleState = &msaa_state,
+    .pRasterizationState = &raster_state,
+    .layout = ctx->pipeline_layout,
+    .renderPass = ctx->frameloop.crnt_pass,
+    .subpass = 0
+  };
+
+  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &ctx->pipeline));
+
+  vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
+  vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
+
+  CR_TRACE(ctx->log, "Initialized Vulkan graphics pipeline for surface %p.", ctx->surf.surf);
+
   return true;
+
+err:
+  return false;
+}
+
+static uint32_t 
+find_ideal_memory_type_index(
+  struct cr_context_t* ctx,
+  VkPhysicalDevice phys_dev, uint32_t preferred_type,
+  VkMemoryPropertyFlags mem_props) {
+
+  VkPhysicalDeviceMemoryProperties phys_mem_props;
+  vkGetPhysicalDeviceMemoryProperties(phys_dev, &phys_mem_props);
+
+  for(uint32_t i = 0; i < phys_mem_props.memoryTypeCount; i++) {
+    if((preferred_type & (1 << i)) && 
+       (phys_mem_props.memoryTypes[i].propertyFlags & mem_props) == mem_props) {
+      return i;
+    }
+  }
+  CR_FATAL(ctx->log, "Failed to find suitable memory type for buffer.");
+  return 0;
+}
+
+bool 
+_create_gpu_buffer(
+  struct 
+  cr_context_t* ctx, 
+  VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props,
+  struct cr_gpu_buffer_t* o_buf
+) {
+
+  VkBufferCreateInfo buffer_info = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .size = size,
+    .usage = usage,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+  };
+
+  _VK_CHECK(ctx, vkCreateBuffer(ctx->logical_dev, &buffer_info, NULL, &o_buf->buf));
+
+  VkMemoryRequirements buf_req;
+  vkGetBufferMemoryRequirements(ctx->logical_dev, o_buf->buf, &buf_req);
+
+  VkMemoryAllocateInfo alloc_info = {
+    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .allocationSize = buf_req.size,
+    .memoryTypeIndex = find_ideal_memory_type_index(
+      ctx, ctx->phys_dev, buf_req.memoryTypeBits, mem_props
+    ) 
+  };
+
+  _VK_CHECK(ctx, vkAllocateMemory(ctx->logical_dev, &alloc_info, NULL, &o_buf->vk_mem));
+
+  vkBindBufferMemory(ctx->logical_dev, o_buf->buf, o_buf->vk_mem, 0);
+
+  _VK_CHECK(ctx, vkMapMemory(ctx->logical_dev, o_buf->vk_mem, 0, size, 0, &o_buf->mem_handle));
+
+
+  CR_TRACE(ctx->log, "Successfully allocated GPU buffer with size %li", size);
+  return true;
+err:
+  return false;
+
 }
 
 bool 
@@ -658,10 +866,11 @@ bool
 cr_context_destroy(struct cr_context_t* ctx) {
   return true;
 }
+
 bool 
 cr_draw_frame(struct cr_context_t* ctx) {
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
-struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   _VK_CHECK(ctx, vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX));
 
   uint32_t image_idx = 0;
@@ -683,6 +892,8 @@ struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
     return true;
   }
   if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) return false;
+
+  frame->batch_state.n_vertices = 0;
 
   _VK_CHECK(ctx, vkResetFences(ctx->logical_dev, 1, &frame->in_flight_fence));
   _VK_CHECK(ctx, vkResetCommandPool(ctx->logical_dev, frame->cmd_pool, 0));
@@ -711,6 +922,43 @@ struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   };
 
   vkCmdBeginRenderPass(frame->cmd_buf, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+  vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->pipeline);
+
+  struct cr_vertex_t* vertices =  frame->batch_state.vbo.mem_handle;
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = {-0.5f, -0.5f},
+    .color = {1.0f, 0.0f, 0.0f, 1.0f}
+  };
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = {0.5f, -0.5f},
+    .color = {1.0f, 0.0f, 0.0f, 1.0f}
+  };
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = {0.5f, 0.5f},
+    .color = {1.0f, 0.0f, 0.0f, 1.0f}
+  };
+
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = {0.5f, 0.5f},
+    .color = {1.0f, 0.0f, 0.0f, 1.0f}
+  };
+
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = {-0.5f, 0.5f},
+    .color = {1.0f, 0.0f, 0.0f, 1.0f}
+  };
+
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = {-0.5f, -0.5f},
+    .color = {1.0f, 0.0f, 0.0f, 1.0f}
+  };
+
+  VkDeviceSize vbo_offsets[] = { 0 };
+
+  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, &frame->batch_state.vbo.buf, vbo_offsets);
+
+  vkCmdDraw(frame->cmd_buf, frame->batch_state.n_vertices, 1, 0, 0);
 
   vkCmdEndRenderPass(frame->cmd_buf);
   _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
@@ -745,10 +993,8 @@ struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
   ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
 
-
   return true;
 
 err:
   return false;
-
 }

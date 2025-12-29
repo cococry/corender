@@ -1,7 +1,9 @@
 #pragma once 
+#include <cglm/types.h>
 #include <vulkan/vulkan_core.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <cglm/cglm.h>
 
 struct cr_surface_t {
   VkSurfaceKHR surf;
@@ -9,6 +11,29 @@ struct cr_surface_t {
 };
 
 #define CR_FRAME_COUNT 2
+#define CR_MAX_BATCH 10000
+
+struct cr_vertex_t {
+  vec2 pos;
+  vec4 color;
+};
+
+struct cr_gpu_buffer_t {
+  VkDeviceMemory vk_mem;
+  VkBuffer buf;
+  void* mem_handle;
+};
+
+struct cr_batch_state_t {
+  uint32_t n_vertices;
+  uint32_t vert_max;
+  
+  uint32_t n_indices;
+  uint32_t indicies_max;
+
+  struct cr_gpu_buffer_t vbo, ibo;
+
+};
 
 struct cr_frame_t {
   VkCommandPool cmd_pool;
@@ -17,6 +42,8 @@ struct cr_frame_t {
   VkSemaphore image_available;
   VkSemaphore* render_finished_per_image;
   VkFence in_flight_fence;
+
+  struct cr_batch_state_t batch_state;
 };
 
 struct cr_swapchain_t {
@@ -68,6 +95,7 @@ struct cr_context_init_info_t {
   cr_surface_create_func_t surface_create;
 
   bool log_to_file, log_verbose,  log_quiet;
+
 };
 
 struct cr_log_state_t {
@@ -88,6 +116,7 @@ struct cr_context_t {
   struct cr_surface_t surf;
   struct cr_swapchain_t swapchain;
   struct cr_frameloop_t frameloop;
+
 
   struct cr_log_state_t log;
 };
