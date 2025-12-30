@@ -120,11 +120,15 @@ struct cr_context_t {
     bool pending;  
     uint32_t width, height;
   } pending_resize; 
+
+  uint32_t _swapchain_img_idx;
 };
 
 bool cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 bool cr_context_destroy(struct cr_context_t* ctx);
-bool cr_draw_frame(struct cr_context_t* ctx);
+bool cr_begin(struct cr_context_t* ctx);
 void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color);
+bool cr_end(struct cr_context_t* ctx);
 
 void cr_resize_surface(struct cr_context_t* ctx, uint32_t width, uint32_t height);
+

@@ -1,3 +1,4 @@
+#include <time.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <corender/corender.h>
@@ -69,9 +70,20 @@ int main() {
   };
   cr_context_create(&ctx, &info);
 
+  srand(time(0));
+
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
-    cr_draw_frame(&ctx);
+    cr_begin(&ctx);
+    for(uint32_t i = 0; i < 1000; i ++) {
+      float x = rand() %  ctx.swapchain.dimensions.width - 20;
+      float y = rand() %  ctx.swapchain.dimensions.height - 20;
+      float r = (float)rand()/(float)(RAND_MAX/1.0f);
+      float g = (float)rand()/(float)(RAND_MAX/1.0f);
+      float b = (float)rand()/(float)(RAND_MAX/1.0f);
+      cr_draw_rect(&ctx, (vec2){x, y}, (vec2){20, 20}, (vec4){r, g, b, 1.0f});
+    }
+    cr_end(&ctx);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

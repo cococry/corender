@@ -46,6 +46,7 @@ static bool     _create_gpu_buffer(
 ); 
 
 static bool _handle_resize(struct cr_context_t* ctx);
+static bool _render_flush(struct cr_context_t* ctx);
 
 static bool _pick_physical_device(struct cr_context_t* ctx);
 static bool _get_swapchain_info_from_physical_device(
@@ -188,7 +189,7 @@ _handle_resize(struct cr_context_t* ctx) {
 
   vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
 
-  if(!_create_swapchain(ctx, &ctx->swapchain, ctx->pending_resize.width, ctx->pending_resize.height)) return false;
+  if(!_create_swapchain(ctx, &ctx->swapchain, ctx->pending_resize.width, ctx->pending_resize.height)) goto err; 
 
   free(ctx->frameloop.fbs);
   ctx->frameloop.fbs = calloc(ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.fbs));
@@ -231,6 +232,42 @@ _handle_resize(struct cr_context_t* ctx) {
   return true;
 
 err:
+  return false;
+}
+
+bool 
+_render_flush(struct cr_context_t* ctx) {
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+  VkDeviceSize vbo_offsets[] = { 0 };
+  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, &frame->batch_state.vbo.buf, vbo_offsets);
+
+  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
+
+  vkCmdDrawIndexed(frame->cmd_buf, frame->batch_state.n_indices, 1, 0, 0, 0); 
+
+  vkCmdEndRenderPass(frame->cmd_buf);
+  _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
+
+  VkDeviceSize offset = 0;
+
+  VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+  VkSubmitInfo submit_info = {
+    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .waitSemaphoreCount = 1, 
+    .pWaitSemaphores = &frame->image_available,
+    .signalSemaphoreCount = 1,
+    .pSignalSemaphores = &frame->render_finished_per_image[ctx->_swapchain_img_idx],
+    .pWaitDstStageMask  = &pipeline_flags, 
+    .commandBufferCount = 1,
+    .pCommandBuffers = &frame->cmd_buf,
+  };
+
+  _VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
+
+  return true;
+
+err: 
   return false;
 }
 
@@ -434,7 +471,7 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   struct cr_swapchain_info_t info;
   if(!_get_swapchain_info_from_physical_device(ctx, ctx->phys_dev, ctx->surf.surf, &info)) {
     CR_ERROR(ctx->log, "Failed to get swapchain info from physical device.");
-    return false;
+    goto err;
   }
 
   VkSurfaceFormatKHR fmt = _get_swapchain_surface_format(&info);
@@ -695,7 +732,7 @@ _create_shader_module(struct
   size_t file_size;
   printf("filepath: %s\n", filepath);
   unsigned char* file_data = cr_util_read_file(filepath, &file_size);
-  if(!file_data || !file_size) return false;
+  if(!file_data || !file_size) goto err; 
 
   VkShaderModuleCreateInfo shader_info = {0};
   shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -732,12 +769,12 @@ _create_pipeline(struct cr_context_t* ctx) {
   if(!_create_shader_module(ctx, vert_src, &vert_mod)) {
     CR_ERROR(ctx->log, "Failed to create vertex shader byte code for file '%s'", 
              vert_src);
-    return false;
+    goto err;
   }
   if(!_create_shader_module(ctx, frag_src, &frag_mod)) {
     CR_ERROR(ctx->log, "Failed to create fragment shader byte code for file '%s'", 
              frag_src);
-    return false;
+    goto err;
   }
 
   VkPipelineShaderStageCreateInfo shader_stages[2] = {
@@ -963,39 +1000,39 @@ cr_context_destroy(struct cr_context_t* ctx) {
   return true;
 }
 
-bool 
-cr_draw_frame(struct cr_context_t* ctx) {
+bool  
+cr_begin(struct cr_context_t* ctx) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
   vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
 
-  uint32_t image_idx = 0;
+  ctx->_swapchain_img_idx = 0;
   VkResult res = vkAcquireNextImageKHR(
     ctx->logical_dev,
     ctx->swapchain.swapchain_handle,
     UINT64_MAX,
     frame->image_available,
     VK_NULL_HANDLE, 
-    &image_idx
+    &ctx->_swapchain_img_idx
   );
-  if(ctx->frameloop.swapchain_image_fences[image_idx] != VK_NULL_HANDLE) {
-    vkWaitForFences(ctx->logical_dev, 1, &ctx->frameloop.swapchain_image_fences[image_idx], VK_TRUE,
+  if(ctx->frameloop.swapchain_image_fences[ctx->_swapchain_img_idx] != VK_NULL_HANDLE) {
+    vkWaitForFences(ctx->logical_dev, 1, &ctx->frameloop.swapchain_image_fences[ctx->_swapchain_img_idx], VK_TRUE,
                     UINT64_MAX);
   }
-  ctx->frameloop.swapchain_image_fences[image_idx] = frame->in_flight_fence;
+  ctx->frameloop.swapchain_image_fences[ctx->_swapchain_img_idx] = frame->in_flight_fence;
 
   if(res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
     if(!ctx->pending_resize.pending) {
       CR_ERROR(ctx->log, "A Vulkan swapchain resize is necessary but cr_resize_surface() was never invoked by the client. Call cr_resize_surface() in the resize handler of your surface provider."); 
-      return false;
+      goto err;
     }
     if(!_handle_resize(ctx)) {
       CR_ERROR(ctx->log, "Failed to handle resize to size: %ix%i. ", ctx->pending_resize.width, ctx->pending_resize.height);
-      return false;
+      goto err;
     }
     return true;
   }
-  if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) return false;
+  if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) goto err;
 
   frame->batch_state.n_vertices = 0;
   frame->batch_state.n_indices = 0;
@@ -1017,7 +1054,7 @@ cr_draw_frame(struct cr_context_t* ctx) {
   VkRenderPassBeginInfo renderpass_info = {
     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .renderPass = ctx->frameloop.crnt_pass,
-    .framebuffer = ctx->frameloop.fbs[image_idx],
+    .framebuffer = ctx->frameloop.fbs[ctx->_swapchain_img_idx],
     .renderArea = {
       .offset = {0, 0},
       .extent = ctx->swapchain.dimensions
@@ -1057,53 +1094,9 @@ cr_draw_frame(struct cr_context_t* ctx) {
     frame->cmd_buf, 
     ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
 
-  cr_draw_rect(ctx, (vec2){20, 20}, (vec2){20, 20}, (vec4){1.0f, 0.0f, 0.0f, 1.0f});
-  
-  cr_draw_rect(ctx, (vec2){60, 60}, (vec2){20, 20}, (vec4){0.0f, 0.0f, 1.0f, 1.0f});
-
-  VkDeviceSize vbo_offsets[] = { 0 };
-  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, &frame->batch_state.vbo.buf, vbo_offsets);
-
-  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
-
-  vkCmdDrawIndexed(frame->cmd_buf, frame->batch_state.n_indices, 1, 0, 0, 0); 
-
-  vkCmdEndRenderPass(frame->cmd_buf);
-  _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
-
-  VkDeviceSize offset = 0;
-
-  VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-  VkSubmitInfo submit_info = {
-    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .waitSemaphoreCount = 1, 
-    .pWaitSemaphores = &frame->image_available,
-    .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &frame->render_finished_per_image[image_idx],
-    .pWaitDstStageMask  = &pipeline_flags, 
-    .commandBufferCount = 1,
-    .pCommandBuffers = &frame->cmd_buf,
-  };
-
-  _VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
-
-  VkPresentInfoKHR present_info = {
-    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-    .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &frame->render_finished_per_image[image_idx],
-    .swapchainCount = 1,
-    .pSwapchains = &ctx->swapchain.swapchain_handle,
-    .pImageIndices = &image_idx
-  };
-
-  vkQueuePresentKHR(ctx->present_queue, &present_info);
-
-  ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
-
   return true;
 
-err:
+err: 
   return false;
 }
 
@@ -1130,6 +1123,34 @@ cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color) {
   };
 
   frame->batch_state.n_indices += 6;
+}
+
+
+bool 
+cr_end(struct cr_context_t* ctx) {
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+
+  if(!_render_flush(ctx)) {
+    CR_ERROR(ctx->log, "Failed to flush the renderer.");
+    goto err;
+  }
+   VkPresentInfoKHR present_info = {
+    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    .waitSemaphoreCount = 1,
+    .pWaitSemaphores = &frame->render_finished_per_image[ctx->_swapchain_img_idx],
+    .swapchainCount = 1,
+    .pSwapchains = &ctx->swapchain.swapchain_handle,
+    .pImageIndices = &ctx->_swapchain_img_idx
+  };
+
+  vkQueuePresentKHR(ctx->present_queue, &present_info);
+
+  ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
+
+  return true;
+
+err:
+  return false;
 }
 
 void 
