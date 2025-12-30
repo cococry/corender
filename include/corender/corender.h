@@ -61,8 +61,6 @@ struct cr_swapchain_t {
 };
 
 struct cr_frameloop_t {
-  struct cr_swapchain_t swapchain;
-
   VkFramebuffer* fbs;
   uint32_t n_fbs;
 
@@ -116,10 +114,17 @@ struct cr_context_t {
   struct cr_swapchain_t swapchain;
   struct cr_frameloop_t frameloop;
 
-
   struct cr_log_state_t log;
+
+  struct {
+    bool pending;  
+    uint32_t width, height;
+  } pending_resize; 
 };
 
 bool cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 bool cr_context_destroy(struct cr_context_t* ctx);
 bool cr_draw_frame(struct cr_context_t* ctx);
+void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color);
+
+void cr_resize_surface(struct cr_context_t* ctx, uint32_t width, uint32_t height);

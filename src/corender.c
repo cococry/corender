@@ -45,6 +45,8 @@ static bool     _create_gpu_buffer(
   struct cr_gpu_buffer_t* o_buf
 ); 
 
+static bool _handle_resize(struct cr_context_t* ctx);
+
 static bool _pick_physical_device(struct cr_context_t* ctx);
 static bool _get_swapchain_info_from_physical_device(
   struct cr_context_t* ctx,
@@ -119,13 +121,12 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
   }
 
   if(ctx->surf.surf) {
+    ctx->swapchain = (struct cr_swapchain_t){0};
     if(!_create_swapchain(ctx, &ctx->swapchain, ctx->surf.width, ctx->surf.height)) {
       CR_ERROR(ctx->log, "Failed to create Vulkan swap chain (width: %i, height: %i)", 
                ctx->surf.width, ctx->surf.height);
       return false;
     }
-
-    ctx->frameloop.swapchain = ctx->swapchain;
 
     if(!_create_frameloop(ctx, &ctx->frameloop, ctx->graphics_queue_family)) {
       CR_ERROR(ctx->log, "Failed to create Vulkan frame loop (width: %i, height: %i)", 
@@ -170,6 +171,67 @@ _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* 
 
   return res;
 
+}
+
+bool 
+_handle_resize(struct cr_context_t* ctx) {
+  vkDeviceWaitIdle(ctx->logical_dev);
+  for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+    vkDestroyFramebuffer(
+      ctx->swapchain.logical_dev,
+      ctx->frameloop.fbs[i], NULL); 
+    CR_TRACE(ctx->log, "Destroyed framebuffer for swapchain image %i", i); 
+
+    vkDestroyImageView(ctx->logical_dev, ctx->swapchain.img_views[i], NULL);
+    CR_TRACE(ctx->log, "Destroyed image view for swapchain image %i", i); 
+  }
+
+  vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
+
+  if(!_create_swapchain(ctx, &ctx->swapchain, ctx->pending_resize.width, ctx->pending_resize.height)) return false;
+
+  free(ctx->frameloop.fbs);
+  ctx->frameloop.fbs = calloc(ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.fbs));
+
+  for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+    VkImageView attachments[] = {
+      ctx->swapchain.img_views[i]
+    };
+
+    VkFramebufferCreateInfo fb_info = {
+      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass = ctx->frameloop.crnt_pass,
+      .attachmentCount = 1,
+      .pAttachments = attachments, 
+      .width = ctx->swapchain.dimensions.width,
+      .height = ctx->swapchain.dimensions.height,
+      .layers = 1
+    };
+
+    _VK_CHECK(ctx, vkCreateFramebuffer(ctx->swapchain.logical_dev, &fb_info, NULL, 
+                                       &ctx->frameloop.fbs[i]) != VK_SUCCESS);
+
+    CR_TRACE(ctx->log, "Initialized Vulkan frameloop framebuffer for swapchain image view %i", 
+             i); 
+  }
+
+  memset(&ctx->pending_resize, 0, sizeof(ctx->pending_resize)); 
+
+  memset(
+    ctx->frameloop.swapchain_image_fences, 0, 
+    ctx->swapchain.n_imgs * sizeof(*ctx->frameloop.swapchain_image_fences));
+
+  ctx->frameloop.frame_idx = 0;
+ 
+  free(ctx->frameloop.swapchain_image_fences);
+  ctx->frameloop.swapchain_image_fences = calloc(
+    ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.swapchain_image_fences));
+
+
+  return true;
+
+err:
+  return false;
 }
 
 bool _pick_physical_device(struct cr_context_t* ctx) {
@@ -365,6 +427,10 @@ const char* _vk_result_to_string(VkResult r)
 
 bool 
 _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h) {
+  if(ctx->swapchain.imgs) free(ctx->swapchain.imgs);
+  if(ctx->swapchain.img_views) free(ctx->swapchain.img_views);
+  memset(&ctx->swapchain, 0, sizeof(ctx->swapchain));
+
   struct cr_swapchain_info_t info;
   if(!_get_swapchain_info_from_physical_device(ctx, ctx->phys_dev, ctx->surf.surf, &info)) {
     CR_ERROR(ctx->log, "Failed to get swapchain info from physical device.");
@@ -459,7 +525,7 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     struct cr_frame_t* frame = &o_frameloop->frames[i];
   
     _VK_CHECK(ctx, vkCreateCommandPool(
-      o_frameloop->swapchain.logical_dev, &pool_info, NULL, &frame->cmd_pool));
+      ctx->swapchain.logical_dev, &pool_info, NULL, &frame->cmd_pool));
 
     VkCommandBufferAllocateInfo buf_info = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -468,21 +534,21 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
       .commandBufferCount = 1
     };
 
-    _VK_CHECK(ctx, vkAllocateCommandBuffers(o_frameloop->swapchain.logical_dev, &buf_info, &frame->cmd_buf));
+    _VK_CHECK(ctx, vkAllocateCommandBuffers(ctx->swapchain.logical_dev, &buf_info, &frame->cmd_buf));
 
     VkSemaphoreCreateInfo sem_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
 
     _VK_CHECK(ctx, vkCreateSemaphore(
-      o_frameloop->swapchain.logical_dev, 
+      ctx->swapchain.logical_dev, 
       &sem_info, NULL, &frame->image_available)); 
 
     frame->render_finished_per_image = calloc(
-      o_frameloop->swapchain.n_imgs, 
+      ctx->swapchain.n_imgs, 
       sizeof(*frame->render_finished_per_image));
 
-    for(uint32_t i = 0; i < o_frameloop->swapchain.n_imgs; i++) {
+    for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
       _VK_CHECK(ctx, vkCreateSemaphore(
-        o_frameloop->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
+        ctx->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
     }
 
     VkFenceCreateInfo fence_info = {
@@ -491,7 +557,7 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     };
 
     _VK_CHECK(ctx, vkCreateFence(
-      o_frameloop->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
+      ctx->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
   
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
              i);
@@ -531,7 +597,7 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
   o_frameloop->frame_idx = 0;
 
   VkAttachmentDescription clear_attachment = {
-    .format = o_frameloop->swapchain.fmt,
+    .format = ctx->swapchain.fmt,
     .samples = VK_SAMPLE_COUNT_1_BIT, 
 
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -579,13 +645,14 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
 
   _VK_CHECK(
     ctx, 
-    vkCreateRenderPass(o_frameloop->swapchain.logical_dev, &pass_info, NULL, &o_frameloop->crnt_pass));
+    vkCreateRenderPass(ctx->swapchain.logical_dev, &pass_info, NULL, &o_frameloop->crnt_pass));
 
-  o_frameloop->fbs = calloc(o_frameloop->swapchain.n_imgs, sizeof(*o_frameloop->fbs));
+  o_frameloop->fbs = calloc(ctx->swapchain.n_imgs, sizeof(*o_frameloop->fbs));
 
-  for(uint32_t i = 0; i < o_frameloop->swapchain.n_imgs; i++) {
+
+  for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
     VkImageView attachments[] = {
-      o_frameloop->swapchain.img_views[i]
+      ctx->swapchain.img_views[i]
     };
 
     VkFramebufferCreateInfo fb_info = {
@@ -593,12 +660,12 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
       .renderPass = o_frameloop->crnt_pass,
       .attachmentCount = 1,
       .pAttachments = attachments, 
-      .width = o_frameloop->swapchain.dimensions.width,
-      .height = o_frameloop->swapchain.dimensions.height,
+      .width = ctx->swapchain.dimensions.width,
+      .height = ctx->swapchain.dimensions.height,
       .layers = 1
     };
 
-    _VK_CHECK(ctx, vkCreateFramebuffer(o_frameloop->swapchain.logical_dev, &fb_info, NULL, 
+    _VK_CHECK(ctx, vkCreateFramebuffer(ctx->swapchain.logical_dev, &fb_info, NULL, 
                                        &o_frameloop->fbs[i]) != VK_SUCCESS);
     
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop framebuffer for swapchain image view %i", 
@@ -608,7 +675,7 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
   CR_TRACE(ctx->log, "Initialized Vulkan frameloop."); 
 
   o_frameloop->swapchain_image_fences = calloc(
-    o_frameloop->swapchain.n_imgs, sizeof(*o_frameloop->swapchain_image_fences));
+    ctx->swapchain.n_imgs, sizeof(*o_frameloop->swapchain_image_fences));
 
   return true;
 
@@ -723,29 +790,6 @@ _create_pipeline(struct cr_context_t* ctx) {
     .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
   };
 
-  VkViewport viewport = {
-    .x = 0,
-    .y = 0, 
-    .width = ctx->surf.width,
-    .height = ctx->surf.height,
-    .maxDepth = 1.0f,
-  };
-
-  VkRect2D scissor = {
-    .offset.x = 0,
-    .offset.y = 0,
-    .extent.width = ctx->surf.width,
-    .extent.height = ctx->surf.height
-  };
-
-  VkPipelineViewportStateCreateInfo viewport_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-    .viewportCount = 1,
-    .pViewports = &viewport,
-    .scissorCount = 1,
-    .pScissors = &scissor,
-  };
-
   VkPipelineRasterizationStateCreateInfo raster_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
     .polygonMode = VK_POLYGON_MODE_FILL,
@@ -792,17 +836,35 @@ _create_pipeline(struct cr_context_t* ctx) {
 
   _VK_CHECK(ctx, vkCreatePipelineLayout(ctx->logical_dev, &layout_info, NULL, &ctx->pipeline_layout));
 
+  VkDynamicState dynamic_states[] = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
+  };
 
+  VkPipelineDynamicStateCreateInfo dynamic_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+    .dynamicStateCount = 2,
+    .pDynamicStates = dynamic_states
+  };
+
+  VkPipelineViewportStateCreateInfo viewport_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+    .viewportCount = 1,
+    .pViewports = NULL,
+    .scissorCount = 1,
+    .pScissors = NULL,
+  };
   VkGraphicsPipelineCreateInfo pipeline_info = {
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
     .stageCount = 2,
     .pStages = shader_stages,
     .pVertexInputState = &vertex_input_state,
     .pInputAssemblyState = &assmebly_state,
-    .pViewportState = &viewport_state,
     .pColorBlendState = &blend_state,
     .pMultisampleState = &msaa_state,
     .pRasterizationState = &raster_state,
+    .pDynamicState = &dynamic_state,
+    .pViewportState = &viewport_state,
     .layout = ctx->pipeline_layout,
     .renderPass = ctx->frameloop.crnt_pass,
     .subpass = 0
@@ -905,7 +967,7 @@ bool
 cr_draw_frame(struct cr_context_t* ctx) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
-  _VK_CHECK(ctx, vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX));
+  vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
 
   uint32_t image_idx = 0;
   VkResult res = vkAcquireNextImageKHR(
@@ -922,7 +984,15 @@ cr_draw_frame(struct cr_context_t* ctx) {
   }
   ctx->frameloop.swapchain_image_fences[image_idx] = frame->in_flight_fence;
 
-  if(res == VK_ERROR_OUT_OF_DATE_KHR) {
+  if(res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+    if(!ctx->pending_resize.pending) {
+      CR_ERROR(ctx->log, "A Vulkan swapchain resize is necessary but cr_resize_surface() was never invoked by the client. Call cr_resize_surface() in the resize handler of your surface provider."); 
+      return false;
+    }
+    if(!_handle_resize(ctx)) {
+      CR_ERROR(ctx->log, "Failed to handle resize to size: %ix%i. ", ctx->pending_resize.width, ctx->pending_resize.height);
+      return false;
+    }
     return true;
   }
   if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) return false;
@@ -960,39 +1030,38 @@ cr_draw_frame(struct cr_context_t* ctx) {
 
   vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->pipeline);
 
-  struct _push_constant pc = {
-    .scale = { 2.0f / ctx->surf.width,  2.0f / ctx->surf.height},
-    .offset = { -1.0f, -1.0f}
+  VkViewport viewport = {
+    .x = 0.0f,
+    .y = 0.0f,
+    .width = (float)ctx->swapchain.dimensions.width,
+    .height = (float)ctx->swapchain.dimensions.height,
+    .minDepth = 0.0f,
+    .maxDepth = 1.0f
   };
 
+  vkCmdSetViewport(frame->cmd_buf, 0, 1, &viewport);
+
+  VkRect2D scissor_rect = {
+    .offset = {0, 0},
+    .extent = ctx->swapchain.dimensions
+  };
+
+  vkCmdSetScissor(frame->cmd_buf, 0, 1, &scissor_rect);
+
+  struct _push_constant pc = {
+    .scale = { 2.0f / ctx->swapchain.dimensions.width,  2.0f / ctx->swapchain.dimensions.height},
+    .offset = { -1.0f, -1.0f}
+  };
 
   vkCmdPushConstants(
     frame->cmd_buf, 
     ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
 
-  struct cr_vertex_t* vertices =  frame->batch_state.vbo.mem_handle;
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {20, 20},
-    .color = {1.0f, 0.0f, 0.0f, 1.0f}
-  };
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {500, 20},
-    .color = {1.0f, 0.0f, 0.0f, 1.0f}
-  };
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {500, 500},
-    .color = {1.0f, 0.0f, 0.0f, 1.0f}
-  };
-
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {20, 500},
-    .color = {1.0f, 0.0f, 0.0f, 1.0f}
-  };
-
-  frame->batch_state.n_indices += 6;
+  cr_draw_rect(ctx, (vec2){20, 20}, (vec2){20, 20}, (vec4){1.0f, 0.0f, 0.0f, 1.0f});
+  
+  cr_draw_rect(ctx, (vec2){60, 60}, (vec2){20, 20}, (vec4){0.0f, 0.0f, 1.0f, 1.0f});
 
   VkDeviceSize vbo_offsets[] = { 0 };
-
   vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, &frame->batch_state.vbo.buf, vbo_offsets);
 
   vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
@@ -1028,7 +1097,7 @@ cr_draw_frame(struct cr_context_t* ctx) {
     .pImageIndices = &image_idx
   };
 
-  _VK_CHECK(ctx, vkQueuePresentKHR(ctx->present_queue, &present_info));
+  vkQueuePresentKHR(ctx->present_queue, &present_info);
 
   ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
 
@@ -1036,4 +1105,38 @@ cr_draw_frame(struct cr_context_t* ctx) {
 
 err:
   return false;
+}
+
+void 
+cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color) {
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+  struct cr_vertex_t* vertices =  frame->batch_state.vbo.mem_handle;
+
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = { pos[0], pos[1] },
+    .color = { color[0], color[1], color[2], color[3] }  
+  };
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = { pos[0] + size[0], pos[1] },
+    .color = { color[0], color[1], color[2], color[3] }  
+  };
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = { pos[0] + size[0], pos[1] + size[1] },
+    .color = { color[0], color[1], color[2], color[3] }  
+  };
+  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
+    .pos = { pos[0], pos[1] + size[1] },
+    .color = { color[0], color[1], color[2], color[3] }  
+  };
+
+  frame->batch_state.n_indices += 6;
+}
+
+void 
+cr_resize_surface(struct cr_context_t* ctx, uint32_t width, uint32_t height) {
+  ctx->pending_resize.pending = true;
+  ctx->pending_resize.width = width;
+  ctx->pending_resize.height = height;
+
+  ctx->surf.width = width;
 }

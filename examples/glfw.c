@@ -5,6 +5,11 @@
 
 
 
+static struct cr_context_t ctx; 
+void _glfw_resize(GLFWwindow* window, int width, int height) {
+  cr_resize_surface(&ctx, width, height);
+}
+
 static bool _glfw_surface_create(
     VkInstance instance,
     struct cr_surface_t* o_surf,
@@ -41,6 +46,8 @@ int main() {
     return -1;
   }
 
+  glfwSetFramebufferSizeCallback(window, _glfw_resize);
+
 
   uint32_t n_exts;
   const char** exts = glfwGetRequiredInstanceExtensions(&n_exts);
@@ -48,7 +55,6 @@ int main() {
   const char* validation_layers[1] = {
     "VK_LAYER_KHRONOS_validation"
   };
-  struct cr_context_t ctx; 
   struct cr_context_init_info_t info = {
     .enable_validation = true,
     .n_exts = n_exts,
