@@ -59,6 +59,10 @@ static VkExtent2D         _get_swapchain_extent(
   const struct cr_swapchain_info_t* swapchain, uint32_t w, uint32_t h);
 
 static const char* _vk_result_to_string(VkResult r);
+  
+struct _push_constant {
+  vec2 scale, offset;
+};
 
 bool 
 _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
@@ -493,13 +497,35 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
              i);
 
     frame->batch_state = (struct cr_batch_state_t){0};
-    frame->batch_state.vert_max = CR_MAX_BATCH * 6; 
+    frame->batch_state.vert_max = CR_MAX_BATCH * 4; 
+    frame->batch_state.indicies_max = CR_MAX_BATCH * 6; 
 
     _create_gpu_buffer(
       ctx, frame->batch_state.vert_max * sizeof(struct cr_vertex_t), 
       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.vbo);
+
+    _create_gpu_buffer(
+      ctx, frame->batch_state.indicies_max * sizeof(uint32_t), 
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.ibo);
+
+    uint32_t* indices_mapped = (uint32_t*)frame->batch_state.ibo.mem_handle;
+
+    for(uint32_t j = 0; j < CR_MAX_BATCH; j++) {
+
+      uint32_t idx = j * 6;
+      uint32_t vert = j * 4;
+      indices_mapped[idx + 0] = vert + 0;
+      indices_mapped[idx + 1] = vert + 1;
+      indices_mapped[idx + 2] = vert + 2;
+
+      indices_mapped[idx + 3] = vert + 2;
+      indices_mapped[idx + 4] = vert + 3;
+      indices_mapped[idx + 5] = vert + 0;
+    }
   }
 
   o_frameloop->frame_idx = 0;
@@ -751,9 +777,17 @@ _create_pipeline(struct cr_context_t* ctx) {
     .pAttachments = &blend
   };
 
-  
+ 
+  VkPushConstantRange range = {
+    .offset = 0,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .size = sizeof(struct _push_constant) 
+  };
+
   VkPipelineLayoutCreateInfo layout_info = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .pPushConstantRanges = &range,
+    .pushConstantRangeCount = 1
   };
 
   _VK_CHECK(ctx, vkCreatePipelineLayout(ctx->logical_dev, &layout_info, NULL, &ctx->pipeline_layout));
@@ -894,6 +928,7 @@ cr_draw_frame(struct cr_context_t* ctx) {
   if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) return false;
 
   frame->batch_state.n_vertices = 0;
+  frame->batch_state.n_indices = 0;
 
   _VK_CHECK(ctx, vkResetFences(ctx->logical_dev, 1, &frame->in_flight_fence));
   _VK_CHECK(ctx, vkResetCommandPool(ctx->logical_dev, frame->cmd_pool, 0));
@@ -925,40 +960,44 @@ cr_draw_frame(struct cr_context_t* ctx) {
 
   vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->pipeline);
 
+  struct _push_constant pc = {
+    .scale = { 2.0f / ctx->surf.width,  2.0f / ctx->surf.height},
+    .offset = { -1.0f, -1.0f}
+  };
+
+
+  vkCmdPushConstants(
+    frame->cmd_buf, 
+    ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
+
   struct cr_vertex_t* vertices =  frame->batch_state.vbo.mem_handle;
   vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {-0.5f, -0.5f},
+    .pos = {20, 20},
     .color = {1.0f, 0.0f, 0.0f, 1.0f}
   };
   vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {0.5f, -0.5f},
+    .pos = {500, 20},
     .color = {1.0f, 0.0f, 0.0f, 1.0f}
   };
   vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {0.5f, 0.5f},
+    .pos = {500, 500},
     .color = {1.0f, 0.0f, 0.0f, 1.0f}
   };
 
   vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {0.5f, 0.5f},
+    .pos = {20, 500},
     .color = {1.0f, 0.0f, 0.0f, 1.0f}
   };
 
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {-0.5f, 0.5f},
-    .color = {1.0f, 0.0f, 0.0f, 1.0f}
-  };
-
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = {-0.5f, -0.5f},
-    .color = {1.0f, 0.0f, 0.0f, 1.0f}
-  };
+  frame->batch_state.n_indices += 6;
 
   VkDeviceSize vbo_offsets[] = { 0 };
 
   vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, &frame->batch_state.vbo.buf, vbo_offsets);
 
-  vkCmdDraw(frame->cmd_buf, frame->batch_state.n_vertices, 1, 0, 0);
+  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
+
+  vkCmdDrawIndexed(frame->cmd_buf, frame->batch_state.n_indices, 1, 0, 0, 0); 
 
   vkCmdEndRenderPass(frame->cmd_buf);
   _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));

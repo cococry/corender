@@ -32,7 +32,6 @@ struct cr_batch_state_t {
   uint32_t indicies_max;
 
   struct cr_gpu_buffer_t vbo, ibo;
-
 };
 
 struct cr_frame_t {
