@@ -3,8 +3,11 @@
 #include <errno.h>
 #include <linux/limits.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <vulkan/vulkan_core.h>
+
+#include "../vendor/vma/vk_mem_alloc.h"
 
 #define _SUBSYS_NAME "CORE"
 
@@ -26,6 +29,8 @@ struct cr_swapchain_info_t {
   VkSurfaceCapabilitiesKHR caps;
 };
 
+static VmaAllocator _vma_allocator;
+
 static bool     _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static bool     _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static VkResult _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
@@ -38,15 +43,26 @@ static bool     _create_shader_module(struct
   cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
 static bool     _create_pipeline(struct 
   cr_context_t* ctx); 
+static bool     _create_vma_context(struct 
+  cr_context_t* ctx); 
 static bool     _create_gpu_buffer(
-  struct 
-  cr_context_t* ctx, 
+  struct cr_context_t* ctx, 
   VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props,
   struct cr_gpu_buffer_t* o_buf
+); 
+static bool     _destroy_gpu_buffer(
+  struct cr_context_t* ctx, 
+  struct cr_gpu_buffer_t* buf
+); 
+static bool     _resize_gpu_buffer(
+  struct cr_context_t* ctx, 
+  struct cr_gpu_buffer_t* buf,
+  VkDeviceSize new_size 
 ); 
 
 static bool _handle_resize(struct cr_context_t* ctx);
 static bool _render_flush(struct cr_context_t* ctx);
+static bool _render_begin_batch(struct cr_context_t* ctx);
 
 static bool _pick_physical_device(struct cr_context_t* ctx);
 static bool _get_swapchain_info_from_physical_device(
@@ -128,6 +144,12 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
                ctx->surf.width, ctx->surf.height);
       return false;
     }
+    
+    if(!_create_vma_context(ctx)) {
+      CR_ERROR(ctx->log, "Failed to create VMA context."); 
+      return false;
+    }
+
 
     if(!_create_frameloop(ctx, &ctx->frameloop, ctx->graphics_queue_family)) {
       CR_ERROR(ctx->log, "Failed to create Vulkan frame loop (width: %i, height: %i)", 
@@ -139,6 +161,8 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
       CR_ERROR(ctx->log, "Failed to create Vulkan graphics pipeline."); 
       return false;
     }
+
+    cr_draw_set_clear_color(ctx, (vec4){0.1f, 0.1f, 0.1f, 1.0f});
   }
 
   return true;
@@ -187,11 +211,13 @@ _handle_resize(struct cr_context_t* ctx) {
     CR_TRACE(ctx->log, "Destroyed image view for swapchain image %i", i); 
   }
 
+  free(ctx->frameloop.fbs);
+  free(ctx->frameloop.swapchain_image_fences);
+
   vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
 
   if(!_create_swapchain(ctx, &ctx->swapchain, ctx->pending_resize.width, ctx->pending_resize.height)) goto err; 
 
-  free(ctx->frameloop.fbs);
   ctx->frameloop.fbs = calloc(ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.fbs));
 
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
@@ -216,19 +242,47 @@ _handle_resize(struct cr_context_t* ctx) {
              i); 
   }
 
-  memset(&ctx->pending_resize, 0, sizeof(ctx->pending_resize)); 
+  for (uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
+    vkResetCommandPool(
+      ctx->logical_dev,
+      ctx->frameloop.frames[i].cmd_pool,
+      0);
 
-  memset(
-    ctx->frameloop.swapchain_image_fences, 0, 
-    ctx->swapchain.n_imgs * sizeof(*ctx->frameloop.swapchain_image_fences));
+    VkSemaphoreCreateInfo sem_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    struct cr_frame_t* frame = &ctx->frameloop.frames[i];
 
-  ctx->frameloop.frame_idx = 0;
- 
-  free(ctx->frameloop.swapchain_image_fences);
+    if(frame->render_finished_per_image) {
+
+      vkDestroySemaphore(ctx->logical_dev, frame->image_available, NULL);
+      for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+        vkDestroySemaphore(ctx->logical_dev, frame->render_finished_per_image[i], NULL);
+      }
+      free(frame->render_finished_per_image);
+      frame->render_finished_per_image = NULL;
+    }
+
+    _VK_CHECK(ctx, vkCreateSemaphore(
+      ctx->swapchain.logical_dev, 
+      &sem_info, NULL, &frame->image_available)); 
+
+    frame->render_finished_per_image = calloc(
+      ctx->swapchain.n_imgs, 
+      sizeof(*frame->render_finished_per_image));
+
+    for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+      _VK_CHECK(ctx, vkCreateSemaphore(
+        ctx->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
+    }
+  }
+
   ctx->frameloop.swapchain_image_fences = calloc(
     ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.swapchain_image_fences));
 
+  ctx->pending_resize.pending = false;
 
+  ctx->frameloop.frame_idx = 0;
+  ctx->_swapchain_img_idx = 0;
+ 
   return true;
 
 err:
@@ -236,34 +290,38 @@ err:
 }
 
 bool 
-_render_flush(struct cr_context_t* ctx) {
+_render_begin_batch(struct cr_context_t* ctx) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
-  VkDeviceSize vbo_offsets[] = { 0 };
-  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, &frame->batch_state.vbo.buf, vbo_offsets);
+  frame->batch_state.instanced.n_instances = 0;
+  frame->batch_state.n_vertices = 0;
+  frame->batch_state.n_indices = 0;
 
-  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
+  return true;
+}
 
-  vkCmdDrawIndexed(frame->cmd_buf, frame->batch_state.n_indices, 1, 0, 0, 0); 
+bool 
+_render_flush(struct cr_context_t* ctx) {
+  if(ctx->_skip_render) return true;
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
-  vkCmdEndRenderPass(frame->cmd_buf);
-  _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
+    if (frame->batch_state.instanced.n_instances == 0)
+        return true;
+  VkDeviceSize vbo_offsets[] = { 0, 
+    frame->batch_state.instanced.instance_write_offset * sizeof(struct cr_instance_t) };  
 
-  VkDeviceSize offset = 0;
-
-  VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-  VkSubmitInfo submit_info = {
-    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .waitSemaphoreCount = 1, 
-    .pWaitSemaphores = &frame->image_available,
-    .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &frame->render_finished_per_image[ctx->_swapchain_img_idx],
-    .pWaitDstStageMask  = &pipeline_flags, 
-    .commandBufferCount = 1,
-    .pCommandBuffers = &frame->cmd_buf,
+  VkBuffer render_bufs[] = {
+    frame->batch_state.instanced.vbo.buf,
+    frame->batch_state.instanced.instance_buf.buf,
   };
+  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 2, render_bufs, vbo_offsets);
+  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.instanced.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
 
-  _VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
+  vkCmdDrawIndexed(frame->cmd_buf, 6, frame->batch_state.instanced.n_instances, 0, 0, 0); 
+
+  frame->batch_state.instanced.instance_write_offset +=
+    frame->batch_state.instanced.n_instances;
+
+  frame->batch_state.instanced.n_instances = 0;
 
   return true;
 
@@ -603,32 +661,43 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     frame->batch_state.vert_max = CR_MAX_BATCH * 4; 
     frame->batch_state.indicies_max = CR_MAX_BATCH * 6; 
 
+    frame->batch_state.batch_group_cap =  CR_MAX_BATCH * CR_INITIAL_BATCH_CAP;
+
     _create_gpu_buffer(
-      ctx, frame->batch_state.vert_max * sizeof(struct cr_vertex_t), 
+      ctx, 4  * sizeof(struct cr_vertex_t), 
       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.vbo);
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.vbo);
+
+    struct cr_vertex_t* vertices =  frame->batch_state.instanced.vbo.mem_handle;
+
+    vertices[0] = (struct cr_vertex_t){ .pos = { 0.0f, 0.0f } };
+    vertices[1] = (struct cr_vertex_t){ .pos = { 1.0f, 0.0f, } };
+    vertices[2] = (struct cr_vertex_t){ .pos = { 1.0f, 1.0f } };
+    vertices[3] = (struct cr_vertex_t){ .pos = { 0.0f, 1.0f} };
 
     _create_gpu_buffer(
-      ctx, frame->batch_state.indicies_max * sizeof(uint32_t), 
+      ctx, 6 * sizeof(uint32_t), 
       VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.ibo);
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.ibo);
 
-    uint32_t* indices_mapped = (uint32_t*)frame->batch_state.ibo.mem_handle;
+    _create_gpu_buffer(
+      ctx, frame->batch_state.batch_group_cap * sizeof(struct cr_instance_t), 
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.instance_buf);
 
-    for(uint32_t j = 0; j < CR_MAX_BATCH; j++) {
 
-      uint32_t idx = j * 6;
-      uint32_t vert = j * 4;
-      indices_mapped[idx + 0] = vert + 0;
-      indices_mapped[idx + 1] = vert + 1;
-      indices_mapped[idx + 2] = vert + 2;
+    uint32_t* indices_mapped = (uint32_t*)frame->batch_state.instanced.ibo.mem_handle;
 
-      indices_mapped[idx + 3] = vert + 2;
-      indices_mapped[idx + 4] = vert + 3;
-      indices_mapped[idx + 5] = vert + 0;
-    }
+    indices_mapped[0] = 0;
+    indices_mapped[1] = 1;
+    indices_mapped[2] = 2;
+
+    indices_mapped[3] = 2;
+    indices_mapped[4] = 3;
+    indices_mapped[5] = 0;
   }
 
   o_frameloop->frame_idx = 0;
@@ -730,7 +799,6 @@ bool
 _create_shader_module(struct 
   cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
   size_t file_size;
-  printf("filepath: %s\n", filepath);
   unsigned char* file_data = cr_util_read_file(filepath, &file_size);
   if(!file_data || !file_size) goto err; 
 
@@ -793,32 +861,55 @@ _create_pipeline(struct cr_context_t* ctx) {
   };
 
 
-  VkVertexInputBindingDescription binding_desc = {
-    .binding = 0,
-    .stride = sizeof(struct cr_vertex_t),
-    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-  };
+  VkVertexInputBindingDescription binding_desc[2] = {
+    {
+      .binding = 0,
+      .stride = sizeof(struct cr_vertex_t),
+      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    },
+    {
+      .binding = 1,
+      .stride = sizeof(struct cr_instance_t),
+      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE 
+    }
+  }
+  ;
 
-  VkVertexInputAttributeDescription vert_attrs[2] = {
+  VkVertexInputAttributeDescription vert_attrs[4] = {
+    /* Binding 0 - Regular Vertex pipeline */
     (VkVertexInputAttributeDescription){
       .location = 0,
       .binding = 0,
       .format = VK_FORMAT_R32G32_SFLOAT,
       .offset = offsetof(struct cr_vertex_t, pos)
     },
+
+    /* Binding 1 - Instanced pipeline */
     (VkVertexInputAttributeDescription){
       .location = 1,
-      .binding = 0,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, pos)
+    },
+    (VkVertexInputAttributeDescription){
+      .location = 2,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, size)
+    },
+    (VkVertexInputAttributeDescription){
+      .location = 3,
+      .binding = 1,
       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-      .offset = offsetof(struct cr_vertex_t, color)
+      .offset = offsetof(struct cr_instance_t, color)
     },
   };
 
   VkPipelineVertexInputStateCreateInfo vertex_input_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .vertexBindingDescriptionCount = 1,
-    .pVertexBindingDescriptions = &binding_desc,
-    .vertexAttributeDescriptionCount = 2,
+    .vertexBindingDescriptionCount = 2,
+    .pVertexBindingDescriptions = binding_desc,
+    .vertexAttributeDescriptionCount = 4,
     .pVertexAttributeDescriptions = vert_attrs
   };
 
@@ -920,25 +1011,23 @@ err:
   return false;
 }
 
-static uint32_t 
-find_ideal_memory_type_index(
-  struct cr_context_t* ctx,
-  VkPhysicalDevice phys_dev, uint32_t preferred_type,
-  VkMemoryPropertyFlags mem_props) {
+bool 
+_create_vma_context(struct 
+  cr_context_t* ctx) {
+  VmaAllocatorCreateInfo allocator_info = {
+    .device = ctx->logical_dev,
+    .physicalDevice = ctx->phys_dev,
+    .instance = ctx->instance 
+  };
 
-  VkPhysicalDeviceMemoryProperties phys_mem_props;
-  vkGetPhysicalDeviceMemoryProperties(phys_dev, &phys_mem_props);
+  vmaCreateAllocator(&allocator_info, &_vma_allocator);
+ 
+  CR_TRACE(ctx->log, "Initialized VMA allocator."); 
 
-  for(uint32_t i = 0; i < phys_mem_props.memoryTypeCount; i++) {
-    if((preferred_type & (1 << i)) && 
-       (phys_mem_props.memoryTypes[i].propertyFlags & mem_props) == mem_props) {
-      return i;
-    }
-  }
-  CR_FATAL(ctx->log, "Failed to find suitable memory type for buffer.");
-  return 0;
-}
-
+  return true;
+err:
+  return false;
+} 
 bool 
 _create_gpu_buffer(
   struct 
@@ -951,39 +1040,84 @@ _create_gpu_buffer(
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
     .size = size,
     .usage = usage,
-    .sharingMode = VK_SHARING_MODE_EXCLUSIVE
   };
 
-  _VK_CHECK(ctx, vkCreateBuffer(ctx->logical_dev, &buffer_info, NULL, &o_buf->buf));
+  VmaAllocationCreateInfo alloc_info = {};
+  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+  alloc_info.requiredFlags = mem_props;
+  alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
 
-  VkMemoryRequirements buf_req;
-  vkGetBufferMemoryRequirements(ctx->logical_dev, o_buf->buf, &buf_req);
+  VkBuffer buffer;
+  VmaAllocation allocation; 
+  _VK_CHECK(ctx, vmaCreateBuffer(_vma_allocator, &buffer_info, &alloc_info, &buffer, &allocation, NULL));
 
-  VkMemoryAllocateInfo alloc_info = {
-    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-    .allocationSize = buf_req.size,
-    .memoryTypeIndex = find_ideal_memory_type_index(
-      ctx, ctx->phys_dev, buf_req.memoryTypeBits, mem_props
-    ) 
-  };
+  VmaAllocationInfo retrieved_info;
+  vmaGetAllocationInfo(_vma_allocator, allocation, &retrieved_info); 
+  o_buf->mem_handle = retrieved_info.pMappedData;
 
-  _VK_CHECK(ctx, vkAllocateMemory(ctx->logical_dev, &alloc_info, NULL, &o_buf->vk_mem));
+  o_buf->buf = buffer;
+  o_buf->_vma_allocation = allocation;
+  o_buf->buf_size = size;
+  o_buf->_mem_props = mem_props;
+  o_buf->_usage = usage;
 
-  vkBindBufferMemory(ctx->logical_dev, o_buf->buf, o_buf->vk_mem, 0);
+  CR_TRACE(ctx->log, "Successfully allocated GPU buffer %p with size %li", buffer, size);
 
-  _VK_CHECK(ctx, vkMapMemory(ctx->logical_dev, o_buf->vk_mem, 0, size, 0, &o_buf->mem_handle));
-
-
-  CR_TRACE(ctx->log, "Successfully allocated GPU buffer with size %li", size);
   return true;
 err:
   return false;
 
 }
 
+static bool 
+_destroy_gpu_buffer(
+  struct cr_context_t* ctx, 
+  struct cr_gpu_buffer_t* buf
+) {
+  if(!ctx || !buf || !buf->_vma_allocation) return true;
+
+  vkDeviceWaitIdle(ctx->logical_dev);
+
+  vmaDestroyBuffer(_vma_allocator, buf->buf, (VmaAllocation)buf->_vma_allocation);
+
+  CR_TRACE(ctx->log, "Successfully destroyed GPU buffer %p of size %lu.\n", buf->buf, buf->buf_size);
+
+  memset(buf, 0, sizeof(*buf));
+
+  return true;
+} 
+
+static bool     
+_resize_gpu_buffer(
+  struct cr_context_t* ctx, 
+  struct cr_gpu_buffer_t* buf,
+  VkDeviceSize new_size 
+) {
+  struct cr_gpu_buffer_t new_buf;
+  if(!_create_gpu_buffer(ctx, new_size, buf->_usage, buf->_mem_props, &new_buf)) {
+    return false;
+  }
+
+  void* old_contents = buf->mem_handle;
+  void* new_contents = new_buf.mem_handle;
+
+  memcpy(new_contents, old_contents, CR_MIN(new_size, buf->buf_size));
+  
+  CR_TRACE(ctx->log, "Successfully resized GPU buffer %p from size %lu to size %lu (new buffer => %p)\n", buf->buf, buf->buf_size, new_size, new_buf.buf);
+
+  _destroy_gpu_buffer(ctx, buf);
+
+  *buf = new_buf;
+
+  printf("resize buffer.\n");
+  return true;
+}
+
+
 bool 
 cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   memset(ctx, 0, sizeof *ctx);
+  ctx->_skip_render = false;
   if(!_create_log_context(ctx, info)) {
     CR_ERROR(ctx->log, "Failed to create logging context.");
     return false;
@@ -1000,11 +1134,22 @@ cr_context_destroy(struct cr_context_t* ctx) {
   return true;
 }
 
-bool  
-cr_begin(struct cr_context_t* ctx) {
-  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+void 
+cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color) {
+  memcpy(ctx->_pass_info.clear_color, color, sizeof(vec4));
+}
 
+bool  
+cr_draw_begin(struct cr_context_t* ctx) {
+  if(ctx->pending_resize.pending) {
+    if(!_handle_resize(ctx)) {
+      CR_ERROR(ctx->log, "Failed to handle resize to size: %ix%i. ", ctx->pending_resize.width, ctx->pending_resize.height);
+      goto err;
+    }
+  }
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
+    ctx->_skip_render = false;
 
   ctx->_swapchain_img_idx = 0;
   VkResult res = vkAcquireNextImageKHR(
@@ -1021,21 +1166,14 @@ cr_begin(struct cr_context_t* ctx) {
   }
   ctx->frameloop.swapchain_image_fences[ctx->_swapchain_img_idx] = frame->in_flight_fence;
 
-  if(res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
-    if(!ctx->pending_resize.pending) {
-      CR_ERROR(ctx->log, "A Vulkan swapchain resize is necessary but cr_resize_surface() was never invoked by the client. Call cr_resize_surface() in the resize handler of your surface provider."); 
-      goto err;
-    }
-    if(!_handle_resize(ctx)) {
-      CR_ERROR(ctx->log, "Failed to handle resize to size: %ix%i. ", ctx->pending_resize.width, ctx->pending_resize.height);
-      goto err;
-    }
+
+  if (res == VK_ERROR_OUT_OF_DATE_KHR) {
+    ctx->pending_resize.pending = true;
+    ctx->_skip_render = true;
     return true;
   }
-  if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) goto err;
 
-  frame->batch_state.n_vertices = 0;
-  frame->batch_state.n_indices = 0;
+  if(res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) goto err;
 
   _VK_CHECK(ctx, vkResetFences(ctx->logical_dev, 1, &frame->in_flight_fence));
   _VK_CHECK(ctx, vkResetCommandPool(ctx->logical_dev, frame->cmd_pool, 0));
@@ -1048,7 +1186,10 @@ cr_begin(struct cr_context_t* ctx) {
 
   VkClearValue clear = {
     .color = {
-      { 0.1f, 0.1f, 0.1f, 1.0f}
+      ctx->_pass_info.clear_color[0],
+      ctx->_pass_info.clear_color[1],
+      ctx->_pass_info.clear_color[2],
+      ctx->_pass_info.clear_color[3]
     }
   };
   VkRenderPassBeginInfo renderpass_info = {
@@ -1094,6 +1235,11 @@ cr_begin(struct cr_context_t* ctx) {
     frame->cmd_buf, 
     ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
 
+  _render_begin_batch(ctx);
+
+  frame->batch_state.instanced.instance_write_offset = 0;
+  frame->batch_state.instanced.n_instances = 0;
+
   return true;
 
 err: 
@@ -1103,37 +1249,62 @@ err:
 void 
 cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
-  struct cr_vertex_t* vertices =  frame->batch_state.vbo.mem_handle;
 
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = { pos[0], pos[1] },
-    .color = { color[0], color[1], color[2], color[3] }  
-  };
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = { pos[0] + size[0], pos[1] },
-    .color = { color[0], color[1], color[2], color[3] }  
-  };
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = { pos[0] + size[0], pos[1] + size[1] },
-    .color = { color[0], color[1], color[2], color[3] }  
-  };
-  vertices[frame->batch_state.n_vertices++] = (struct cr_vertex_t){
-    .pos = { pos[0], pos[1] + size[1] },
-    .color = { color[0], color[1], color[2], color[3] }  
+  uint32_t index = frame->batch_state.instanced.instance_write_offset +
+                 frame->batch_state.instanced.n_instances;
+
+  if(index >= frame->batch_state.batch_group_cap) {
+    frame->batch_state.batch_group_cap *= 2;
+    if(!_resize_gpu_buffer(ctx, &frame->batch_state.instanced.instance_buf, frame->batch_state.batch_group_cap * sizeof(struct cr_instance_t))) {
+      CR_ERROR(ctx->log, "Failed to resize GPU buffer for instance data.\n");
+      return;
+    }
+  }
+  struct cr_instance_t* instances =  frame->batch_state.instanced.instance_buf.mem_handle;
+
+  instances[index] = (struct cr_instance_t){
+    .pos = {pos[0], pos[1]},
+    .size = {size[0], size[1]},
+    .color = {color[0], color[1], color[2], color[3]}
   };
 
-  frame->batch_state.n_indices += 6;
+  frame->batch_state.instanced.n_instances++;
 }
 
 
 bool 
-cr_end(struct cr_context_t* ctx) {
+cr_draw_end(struct cr_context_t* ctx) {
+  if(ctx->_skip_render) {
+    return true;
+  }
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
   if(!_render_flush(ctx)) {
     CR_ERROR(ctx->log, "Failed to flush the renderer.");
     goto err;
   }
+
+  vkCmdEndRenderPass(frame->cmd_buf);
+  _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
+
+  VkDeviceSize offset = 0;
+
+  VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+  VkSubmitInfo submit_info = {
+    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .waitSemaphoreCount = 1, 
+    .pWaitSemaphores = &frame->image_available,
+    .signalSemaphoreCount = 1,
+    .pSignalSemaphores = &frame->render_finished_per_image[ctx->_swapchain_img_idx],
+    .pWaitDstStageMask  = &pipeline_flags, 
+    .commandBufferCount = 1,
+    .pCommandBuffers = &frame->cmd_buf,
+  };
+
+  _VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
+
+
    VkPresentInfoKHR present_info = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,
@@ -1154,10 +1325,11 @@ err:
 }
 
 void 
-cr_resize_surface(struct cr_context_t* ctx, uint32_t width, uint32_t height) {
+cr_surface_resize(struct cr_context_t* ctx, uint32_t width, uint32_t height) {
   ctx->pending_resize.pending = true;
   ctx->pending_resize.width = width;
   ctx->pending_resize.height = height;
 
   ctx->surf.width = width;
 }
+

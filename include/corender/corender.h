@@ -11,19 +11,35 @@ struct cr_surface_t {
 };
 
 #define CR_FRAME_COUNT 2
-#define CR_MAX_BATCH 10000
+#define CR_MAX_BATCH 5000
+#define CR_INITIAL_BATCH_CAP 4
 
 struct cr_vertex_t {
   vec2 pos;
+};
+
+struct cr_instance_t {
+  vec2 pos, size;
   vec4 color;
 };
 
+
 struct cr_gpu_buffer_t {
-  VkDeviceMemory vk_mem;
   VkBuffer buf;
+  size_t buf_size;
   void* mem_handle;
+
+  void* _vma_allocation;
+  VkBufferUsageFlags _usage;
+  VkMemoryPropertyFlags _mem_props;
 };
 
+struct cr_instanced_state_t {
+  struct cr_gpu_buffer_t vbo, ibo, instance_buf;
+  uint32_t n_instances;
+
+  uint32_t instance_write_offset;
+};
 struct cr_batch_state_t {
   uint32_t n_vertices;
   uint32_t vert_max;
@@ -31,7 +47,9 @@ struct cr_batch_state_t {
   uint32_t n_indices;
   uint32_t indicies_max;
 
-  struct cr_gpu_buffer_t vbo, ibo;
+  struct cr_instanced_state_t instanced;
+
+  uint32_t batch_group_cap;
 };
 
 struct cr_frame_t {
@@ -100,6 +118,10 @@ struct cr_log_state_t {
   bool verbose, quiet;
 };
 
+struct cr_render_pass_info {
+  vec4 clear_color;
+};
+
 struct cr_context_t {
   VkInstance instance;
   VkPhysicalDevice phys_dev;
@@ -122,13 +144,19 @@ struct cr_context_t {
   } pending_resize; 
 
   uint32_t _swapchain_img_idx;
+  bool _skip_render;
+
+  struct cr_render_pass_info _pass_info;
 };
 
 bool cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 bool cr_context_destroy(struct cr_context_t* ctx);
-bool cr_begin(struct cr_context_t* ctx);
-void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color);
-bool cr_end(struct cr_context_t* ctx);
 
-void cr_resize_surface(struct cr_context_t* ctx, uint32_t width, uint32_t height);
+void cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color);
+
+bool cr_draw_begin(struct cr_context_t* ctx);
+void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color);
+bool cr_draw_end(struct cr_context_t* ctx);
+
+void cr_surface_resize(struct cr_context_t* ctx, uint32_t width, uint32_t height);
 

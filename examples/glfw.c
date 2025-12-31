@@ -1,14 +1,13 @@
 #include <time.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <corender/corender.h>
 #include <stdlib.h>
-
+#include "../include/corender/corender.h"
 
 
 static struct cr_context_t ctx; 
 void _glfw_resize(GLFWwindow* window, int width, int height) {
-  cr_resize_surface(&ctx, width, height);
+  cr_surface_resize(&ctx, width, height);
 }
 
 static bool _glfw_surface_create(
@@ -64,7 +63,7 @@ int main() {
     .layers = validation_layers,
     .n_layers = 1,
 
-    .log_verbose = true, 
+    .log_verbose = false, 
     .surface_create = _glfw_surface_create,
     .surface_userdata = window
   };
@@ -74,8 +73,8 @@ int main() {
 
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
-    cr_begin(&ctx);
-    for(uint32_t i = 0; i < 1000; i ++) {
+    cr_draw_begin(&ctx);
+    for(uint32_t i = 0; i < 999; i ++) {
       float x = rand() %  ctx.swapchain.dimensions.width - 20;
       float y = rand() %  ctx.swapchain.dimensions.height - 20;
       float r = (float)rand()/(float)(RAND_MAX/1.0f);
@@ -83,7 +82,7 @@ int main() {
       float b = (float)rand()/(float)(RAND_MAX/1.0f);
       cr_draw_rect(&ctx, (vec2){x, y}, (vec2){20, 20}, (vec4){r, g, b, 1.0f});
     }
-    cr_end(&ctx);
+    cr_draw_end(&ctx);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

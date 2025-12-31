@@ -8,19 +8,21 @@ EXAMPLE_LIBS_glfw   := -lglfw -lGL -lvulkan
 
 all: lib/libcorender.a shaders 
 
-shaders: bin/shaders | local_install_shaders
+.PHONY: shaders
+
+shaders:  
+	mkdir -p bin/shaders 
 	glslc -fshader-stage=vertex shaders/basic_vert.glsl -o bin/shaders/basic_vert.spv 
 	glslc -fshader-stage=fragment shaders/basic_frag.glsl -o bin/shaders/basic_frag.spv 
-
-local_install_shaders:
 	mkdir -p ~/.local/state/corender 
 	cp -r ./bin/shaders ~/.local/state/corender/
 
 lib/libcorender.a: $(CORENDER_OBJS) 
-	ar rcs $@ $^ 
+	g++ -c vendor/vma/vma_impl.cpp -o lib/vma_impl.o 
+	ar rcs $@ $^ lib/vma_impl.o 
 
 lib/%.o: src/%.c | lib
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@ 
 
 lib:
 	mkdir -p lib/
@@ -46,10 +48,7 @@ clean-examples:
 bin/examples:
 	mkdir -p $@ 
 
-bin/shaders:
-	mkdir -p $@ 
-
 bin/examples/%: examples/%.c | bin/examples
-	$(CC) $(CFLAGS) $< -o $@ -Llib -lcorender $(EXAMPLE_LIBS_$*)
+	$(CC) $(CFLAGS) $< -o $@ -Llib -lcorender $(EXAMPLE_LIBS_$*) -lstdc++
 
 
