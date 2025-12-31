@@ -41,7 +41,9 @@ static bool     _create_frameloop(
   uint32_t graphics_queue_family); 
 static bool     _create_shader_module(struct 
   cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
-static bool     _create_pipeline(struct 
+static bool     _create_instanced_pipeline(struct 
+  cr_context_t* ctx); 
+static bool     _create_vertex_pipeline(struct 
   cr_context_t* ctx); 
 static bool     _create_vma_context(struct 
   cr_context_t* ctx); 
@@ -50,6 +52,9 @@ static bool     _create_gpu_buffer(
   VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props,
   struct cr_gpu_buffer_t* o_buf
 ); 
+
+static void     _instance_pipeline_get_vertex_input_state(VkPipelineVertexInputStateCreateInfo* vertex_input_state);
+
 static bool     _destroy_gpu_buffer(
   struct cr_context_t* ctx, 
   struct cr_gpu_buffer_t* buf
@@ -60,8 +65,11 @@ static bool     _resize_gpu_buffer(
   VkDeviceSize new_size 
 ); 
 
+static bool _render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
+static bool _render_init_vertex_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
+
 static bool _handle_resize(struct cr_context_t* ctx);
-static bool _render_flush(struct cr_context_t* ctx);
+static bool _render_flush(struct cr_context_t* ctx, bool flush_instaced);
 static bool _render_begin_batch(struct cr_context_t* ctx);
 
 static bool _pick_physical_device(struct cr_context_t* ctx);
@@ -157,7 +165,11 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
       return false;
     }
 
-    if(!_create_pipeline(ctx)) {
+    if(!_create_instanced_pipeline(ctx)) {
+      CR_ERROR(ctx->log, "Failed to create Vulkan graphics pipeline."); 
+      return false;
+    }
+    if(!_create_vertex_pipeline(ctx)) {
       CR_ERROR(ctx->log, "Failed to create Vulkan graphics pipeline."); 
       return false;
     }
@@ -212,7 +224,6 @@ _handle_resize(struct cr_context_t* ctx) {
   }
 
   free(ctx->frameloop.fbs);
-  free(ctx->frameloop.swapchain_image_fences);
 
   vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
 
@@ -275,8 +286,6 @@ _handle_resize(struct cr_context_t* ctx) {
     }
   }
 
-  ctx->frameloop.swapchain_image_fences = calloc(
-    ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.swapchain_image_fences));
 
   ctx->pending_resize.pending = false;
 
@@ -293,35 +302,36 @@ bool
 _render_begin_batch(struct cr_context_t* ctx) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   frame->batch_state.instanced.n_instances = 0;
-  frame->batch_state.n_vertices = 0;
-  frame->batch_state.n_indices = 0;
+  //frame->batch_state.vertex.n_vertices = 0;
 
   return true;
 }
 
 bool 
-_render_flush(struct cr_context_t* ctx) {
+_render_flush(struct cr_context_t* ctx, bool flush_instaced) {
   if(ctx->_skip_render) return true;
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
-    if (frame->batch_state.instanced.n_instances == 0)
-        return true;
-  VkDeviceSize vbo_offsets[] = { 0, 
-    frame->batch_state.instanced.instance_write_offset * sizeof(struct cr_instance_t) };  
-
-  VkBuffer render_bufs[] = {
-    frame->batch_state.instanced.vbo.buf,
-    frame->batch_state.instanced.instance_buf.buf,
+  ctx->pending_draws[ctx->n_pending_draws++] = (struct cr_draw_command_t){
+    .instance_write_offset = frame->batch_state.instanced.instance_write_offset,
+    .vertex_write_offset = frame->batch_state.vertex.vertex_write_offset,
+    .n_instances = frame->batch_state.instanced.n_instances,
+    .n_vertices = frame->batch_state.vertex.n_vertices,
+    .instanced_draw = flush_instaced
   };
-  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 2, render_bufs, vbo_offsets);
-  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.instanced.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
 
-  vkCmdDrawIndexed(frame->cmd_buf, 6, frame->batch_state.instanced.n_instances, 0, 0, 0); 
+  if(flush_instaced) {
+    frame->batch_state.instanced.instance_write_offset +=
+      frame->batch_state.instanced.n_instances;
 
-  frame->batch_state.instanced.instance_write_offset +=
-    frame->batch_state.instanced.n_instances;
+    frame->batch_state.instanced.n_instances = 0;
 
-  frame->batch_state.instanced.n_instances = 0;
+  } else {
+    frame->batch_state.vertex.vertex_write_offset +=
+      frame->batch_state.vertex.n_vertices;
+
+    frame->batch_state.vertex.n_vertices = 0;
+  }
 
   return true;
 
@@ -658,46 +668,17 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
              i);
 
     frame->batch_state = (struct cr_batch_state_t){0};
-    frame->batch_state.vert_max = CR_MAX_BATCH * 4; 
-    frame->batch_state.indicies_max = CR_MAX_BATCH * 6; 
+    frame->batch_state.vertex.batch_group_cap =  CR_MAX_BATCH * CR_INITIAL_BATCH_CAP;
+    frame->batch_state.instanced.batch_group_cap =  CR_MAX_BATCH * CR_INITIAL_BATCH_CAP;
 
-    frame->batch_state.batch_group_cap =  CR_MAX_BATCH * CR_INITIAL_BATCH_CAP;
-
-    _create_gpu_buffer(
-      ctx, 4  * sizeof(struct cr_vertex_t), 
-      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.vbo);
-
-    struct cr_vertex_t* vertices =  frame->batch_state.instanced.vbo.mem_handle;
-
-    vertices[0] = (struct cr_vertex_t){ .pos = { 0.0f, 0.0f } };
-    vertices[1] = (struct cr_vertex_t){ .pos = { 1.0f, 0.0f, } };
-    vertices[2] = (struct cr_vertex_t){ .pos = { 1.0f, 1.0f } };
-    vertices[3] = (struct cr_vertex_t){ .pos = { 0.0f, 1.0f} };
-
-    _create_gpu_buffer(
-      ctx, 6 * sizeof(uint32_t), 
-      VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.ibo);
-
-    _create_gpu_buffer(
-      ctx, frame->batch_state.batch_group_cap * sizeof(struct cr_instance_t), 
-      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.instance_buf);
-
-
-    uint32_t* indices_mapped = (uint32_t*)frame->batch_state.instanced.ibo.mem_handle;
-
-    indices_mapped[0] = 0;
-    indices_mapped[1] = 1;
-    indices_mapped[2] = 2;
-
-    indices_mapped[3] = 2;
-    indices_mapped[4] = 3;
-    indices_mapped[5] = 0;
+    if(!_render_init_vertex_state(ctx, frame)) {
+      CR_ERROR(ctx->log, "Failed to initialize vertex state of the batch renderer for frame %i.", i)
+      return false;
+    }
+    if(!_render_init_instanced_state(ctx, frame)) {
+      CR_ERROR(ctx->log, "Failed to initialize vertex state of the batch renderer for frame %i.", i)
+      return false;
+    }
   }
 
   o_frameloop->frame_idx = 0;
@@ -780,17 +761,10 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     
   CR_TRACE(ctx->log, "Initialized Vulkan frameloop."); 
 
-  o_frameloop->swapchain_image_fences = calloc(
-    ctx->swapchain.n_imgs, sizeof(*o_frameloop->swapchain_image_fences));
 
   return true;
 
 err:
-  if(o_frameloop->swapchain_image_fences) free(o_frameloop->swapchain_image_fences);
-  for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
-    struct cr_frame_t* frame = &o_frameloop->frames[i];
-    if(frame->render_finished_per_image) free(frame->render_finished_per_image);
-  }
 
   return false;
 }
@@ -821,13 +795,13 @@ err:
 }
 
 bool 
-_create_pipeline(struct cr_context_t* ctx) {
+_create_instanced_pipeline(struct cr_context_t* ctx) {
 
   VkShaderModule vert_mod, frag_mod;
 
   const char* state_dir = cr_util_get_state_folder();
   char shader_dir[PATH_MAX];
-  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders", state_dir, _CR_BRAND_NAME);
+  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/instanced", state_dir, _CR_BRAND_NAME);
 
   char vert_src[PATH_MAX];
   snprintf(vert_src, sizeof(vert_src), "%s/basic_vert.spv", shader_dir);
@@ -861,58 +835,6 @@ _create_pipeline(struct cr_context_t* ctx) {
   };
 
 
-  VkVertexInputBindingDescription binding_desc[2] = {
-    {
-      .binding = 0,
-      .stride = sizeof(struct cr_vertex_t),
-      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-    },
-    {
-      .binding = 1,
-      .stride = sizeof(struct cr_instance_t),
-      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE 
-    }
-  }
-  ;
-
-  VkVertexInputAttributeDescription vert_attrs[4] = {
-    /* Binding 0 - Regular Vertex pipeline */
-    (VkVertexInputAttributeDescription){
-      .location = 0,
-      .binding = 0,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_vertex_t, pos)
-    },
-
-    /* Binding 1 - Instanced pipeline */
-    (VkVertexInputAttributeDescription){
-      .location = 1,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, pos)
-    },
-    (VkVertexInputAttributeDescription){
-      .location = 2,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, size)
-    },
-    (VkVertexInputAttributeDescription){
-      .location = 3,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, color)
-    },
-  };
-
-  VkPipelineVertexInputStateCreateInfo vertex_input_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .vertexBindingDescriptionCount = 2,
-    .pVertexBindingDescriptions = binding_desc,
-    .vertexAttributeDescriptionCount = 4,
-    .pVertexAttributeDescriptions = vert_attrs
-  };
-
   VkPipelineInputAssemblyStateCreateInfo assmebly_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
     .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -933,7 +855,7 @@ _create_pipeline(struct cr_context_t* ctx) {
   };
 
   VkPipelineColorBlendAttachmentState blend = {
-    .blendEnable = VK_TRUE,
+    .blendEnable = VK_FALSE,
     .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
     .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
     .colorBlendOp = VK_BLEND_OP_ADD,
@@ -982,23 +904,78 @@ _create_pipeline(struct cr_context_t* ctx) {
     .scissorCount = 1,
     .pScissors = NULL,
   };
-  VkGraphicsPipelineCreateInfo pipeline_info = {
-    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-    .stageCount = 2,
-    .pStages = shader_stages,
-    .pVertexInputState = &vertex_input_state,
-    .pInputAssemblyState = &assmebly_state,
-    .pColorBlendState = &blend_state,
-    .pMultisampleState = &msaa_state,
-    .pRasterizationState = &raster_state,
-    .pDynamicState = &dynamic_state,
-    .pViewportState = &viewport_state,
-    .layout = ctx->pipeline_layout,
-    .renderPass = ctx->frameloop.crnt_pass,
-    .subpass = 0
+
+  {
+ VkVertexInputBindingDescription binding_desc[2] = {
+    {
+      .binding = 0,
+      .stride = sizeof(struct cr_instance_vertex_t),
+      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    },
+    {
+      .binding = 1,
+      .stride = sizeof(struct cr_instance_t),
+      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE 
+    }
+  }
+  ;
+
+  VkVertexInputAttributeDescription vert_attrs[4] = {
+    /* Binding 0 - Regular Vertex pipeline */
+    (VkVertexInputAttributeDescription){
+      .location = 0,
+      .binding = 0,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(struct cr_instance_vertex_t, pos)
+    },
+
+    /* Binding 1 - Instanced pipeline */
+    (VkVertexInputAttributeDescription){
+      .location = 1,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, pos)
+    },
+    (VkVertexInputAttributeDescription){
+      .location = 2,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, size)
+    },
+    (VkVertexInputAttributeDescription){
+      .location = 3,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, color)
+    },
   };
 
-  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &ctx->pipeline));
+  VkPipelineVertexInputStateCreateInfo vertex_input_state = (VkPipelineVertexInputStateCreateInfo){
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .vertexBindingDescriptionCount = 2,
+    .pVertexBindingDescriptions = binding_desc,
+    .vertexAttributeDescriptionCount = 4,
+    .pVertexAttributeDescriptions = vert_attrs
+  };
+
+    VkGraphicsPipelineCreateInfo pipeline_info = {
+      .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+      .stageCount = 2,
+      .pStages = shader_stages,
+      .pVertexInputState = &vertex_input_state,
+      .pInputAssemblyState = &assmebly_state,
+      .pColorBlendState = &blend_state,
+      .pMultisampleState = &msaa_state,
+      .pRasterizationState = &raster_state,
+      .pDynamicState = &dynamic_state,
+      .pViewportState = &viewport_state,
+      .layout = ctx->pipeline_layout,
+      .renderPass = ctx->frameloop.crnt_pass,
+      .subpass = 0
+    };
+
+    _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &ctx->instance_pipeline));
+  }
 
   vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
   vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
@@ -1009,6 +986,166 @@ _create_pipeline(struct cr_context_t* ctx) {
 
 err:
   return false;
+}
+  
+static bool     _create_vertex_pipeline(struct 
+  cr_context_t* ctx) {
+  VkShaderModule vert_mod, frag_mod;
+
+  const char* state_dir = cr_util_get_state_folder();
+  char shader_dir[PATH_MAX];
+  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/default", state_dir, _CR_BRAND_NAME);
+
+  char vert_src[PATH_MAX];
+  snprintf(vert_src, sizeof(vert_src), "%s/basic_vert.spv", shader_dir);
+  char frag_src[PATH_MAX];
+  snprintf(frag_src, sizeof(frag_src), "%s/basic_frag.spv", shader_dir);
+
+  if(!_create_shader_module(ctx, vert_src, &vert_mod)) {
+    CR_ERROR(ctx->log, "Failed to create vertex shader byte code for file '%s'", 
+             vert_src);
+    goto err;
+  }
+  if(!_create_shader_module(ctx, frag_src, &frag_mod)) {
+    CR_ERROR(ctx->log, "Failed to create fragment shader byte code for file '%s'", 
+             frag_src);
+    goto err;
+  }
+
+  VkPipelineShaderStageCreateInfo shader_stages[2] = {
+    (VkPipelineShaderStageCreateInfo){
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_VERTEX_BIT,
+      .pName = "main",
+      .module = vert_mod,
+    },
+    (VkPipelineShaderStageCreateInfo){
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+      .pName = "main",
+      .module = frag_mod,
+    }
+  };
+
+
+  VkPipelineInputAssemblyStateCreateInfo assmebly_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+  };
+
+  VkPipelineRasterizationStateCreateInfo raster_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+    .polygonMode = VK_POLYGON_MODE_FILL,
+    .cullMode = VK_CULL_MODE_NONE,
+    .frontFace = VK_FRONT_FACE_CLOCKWISE,
+    .lineWidth = 1.0f,
+  };
+
+
+  VkPipelineMultisampleStateCreateInfo msaa_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+  };
+
+  VkPipelineColorBlendAttachmentState blend = {
+    .blendEnable = VK_TRUE,
+    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+    .colorBlendOp = VK_BLEND_OP_ADD,
+    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+    .alphaBlendOp = VK_BLEND_OP_ADD,
+    .colorWriteMask = 0xF
+  };
+
+  VkPipelineColorBlendStateCreateInfo blend_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+    .attachmentCount = 1,
+    .pAttachments = &blend
+  };
+
+  VkDynamicState dynamic_states[] = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
+  };
+
+  VkPipelineDynamicStateCreateInfo dynamic_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+    .dynamicStateCount = 2,
+    .pDynamicStates = dynamic_states
+  };
+
+  VkPipelineViewportStateCreateInfo viewport_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+    .viewportCount = 1,
+    .pViewports = NULL,
+    .scissorCount = 1,
+    .pScissors = NULL,
+  };
+
+  {
+ VkVertexInputBindingDescription binding_desc[2] = {
+    {
+      .binding = 0,
+      .stride = sizeof(struct cr_vertex_t),
+      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+    },
+  }
+  ;
+
+  VkVertexInputAttributeDescription vert_attrs[2] = {
+    (VkVertexInputAttributeDescription){
+      .location = 0,
+      .binding = 0,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(struct cr_vertex_t, pos)
+    },
+
+    (VkVertexInputAttributeDescription){
+      .location = 1,
+      .binding = 0,
+      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+      .offset = offsetof(struct cr_vertex_t, color)
+    },
+  };
+
+  VkPipelineVertexInputStateCreateInfo vertex_input_state = (VkPipelineVertexInputStateCreateInfo){
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .vertexBindingDescriptionCount = 1,
+    .pVertexBindingDescriptions = binding_desc,
+    .vertexAttributeDescriptionCount = 2,
+    .pVertexAttributeDescriptions = vert_attrs
+  };
+
+    VkGraphicsPipelineCreateInfo pipeline_info = {
+      .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+      .stageCount = 2,
+      .pStages = shader_stages,
+      .pVertexInputState = &vertex_input_state,
+      .pInputAssemblyState = &assmebly_state,
+      .pColorBlendState = &blend_state,
+      .pMultisampleState = &msaa_state,
+      .pRasterizationState = &raster_state,
+      .pDynamicState = &dynamic_state,
+      .pViewportState = &viewport_state,
+      .layout = ctx->pipeline_layout,
+      .renderPass = ctx->frameloop.crnt_pass,
+      .subpass = 0
+    };
+
+    _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &ctx->vertex_pipeline));
+  }
+
+  vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
+  vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
+
+  CR_TRACE(ctx->log, "Initialized Vulkan graphics pipeline for surface %p.", ctx->surf.surf);
+
+  return true;
+
+err:
+  return false;
+
 }
 
 bool 
@@ -1113,6 +1250,70 @@ _resize_gpu_buffer(
   return true;
 }
 
+bool 
+_render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame) {
+  if(!_create_gpu_buffer(
+    ctx, 4  * sizeof(struct cr_instance_vertex_t), 
+    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.vbo)) {
+    CR_ERROR(ctx->log, "Failed to create static vertex GPU Buffer for instanced batch state.");
+    return false;
+  }
+
+  struct cr_instance_vertex_t* vertices =  frame->batch_state.instanced.vbo.mem_handle;
+
+  vertices[0] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 0.0f } };
+  vertices[1] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 0.0f, } };
+  vertices[2] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 1.0f } };
+  vertices[3] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 1.0f} };
+
+  if(!_create_gpu_buffer(
+    ctx, 6 * sizeof(uint32_t), 
+    VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.ibo)) {
+    CR_ERROR(ctx->log, "Failed to create static index GPU Buffer for instanced batch state.");
+    return false;
+  }
+
+  if(!_create_gpu_buffer(
+    ctx, frame->batch_state.instanced.batch_group_cap * sizeof(struct cr_instance_t), 
+    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.instance_buf)) {
+    CR_ERROR(ctx->log, "Failed to create instance data GPU Buffer for instanced batch state.");
+    return false;
+  }
+
+  uint32_t* indices_mapped = (uint32_t*)frame->batch_state.instanced.ibo.mem_handle;
+
+  indices_mapped[0] = 0;
+  indices_mapped[1] = 1;
+  indices_mapped[2] = 2;
+
+  indices_mapped[3] = 2;
+  indices_mapped[4] = 3;
+  indices_mapped[5] = 0;
+
+  return true; 
+}
+bool 
+_render_init_vertex_state(struct cr_context_t* ctx, struct cr_frame_t* frame) {
+
+  if(!_create_gpu_buffer(
+    ctx, frame->batch_state.vertex.batch_group_cap * sizeof(struct cr_vertex_t), 
+    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.vertex.vbo)) {
+    CR_ERROR(ctx->log, "Failed to create static GPU Buffer for vertex batch state.");
+    return false;
+  }
+
+  return true; 
+
+}
+
 
 bool 
 cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
@@ -1160,11 +1361,6 @@ cr_draw_begin(struct cr_context_t* ctx) {
     VK_NULL_HANDLE, 
     &ctx->_swapchain_img_idx
   );
-  if(ctx->frameloop.swapchain_image_fences[ctx->_swapchain_img_idx] != VK_NULL_HANDLE) {
-    vkWaitForFences(ctx->logical_dev, 1, &ctx->frameloop.swapchain_image_fences[ctx->_swapchain_img_idx], VK_TRUE,
-                    UINT64_MAX);
-  }
-  ctx->frameloop.swapchain_image_fences[ctx->_swapchain_img_idx] = frame->in_flight_fence;
 
 
   if (res == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -1206,8 +1402,80 @@ cr_draw_begin(struct cr_context_t* ctx) {
 
   vkCmdBeginRenderPass(frame->cmd_buf, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-  vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->pipeline);
 
+  _render_begin_batch(ctx);
+
+  frame->batch_state.instanced.instance_write_offset = 0;
+  frame->batch_state.vertex.vertex_write_offset = 0;
+  frame->batch_state.instanced.n_instances = 0;
+  ctx->n_pending_draws = 0;
+  frame->batch_state.vertex.n_vertices = 0;
+
+  return true;
+
+err: 
+  return false;
+}
+
+void 
+cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color) {
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+
+  if(frame->batch_state.instanced.n_instances >= CR_MAX_BATCH) {
+    _render_flush(ctx, true);
+  }
+
+  uint32_t index = frame->batch_state.instanced.instance_write_offset +
+                 frame->batch_state.instanced.n_instances;
+
+  if(index >= frame->batch_state.instanced.batch_group_cap) {
+    frame->batch_state.instanced.batch_group_cap *= 2;
+    if(!_resize_gpu_buffer(ctx, &frame->batch_state.instanced.instance_buf, frame->batch_state.instanced.batch_group_cap * sizeof(struct cr_instance_t))) {
+      CR_ERROR(ctx->log, "Failed to resize GPU buffer for instance data.\n");
+      return;
+  
+    }
+  }
+  struct cr_instance_t* instances =  frame->batch_state.instanced.instance_buf.mem_handle;
+
+  instances[index] = (struct cr_instance_t){
+    .pos = {pos[0], pos[1]},
+    .size = {size[0], size[1]},
+    .color = {color[0], color[1], color[2], color[3]}
+  };
+
+  frame->batch_state.instanced.n_instances++;
+}
+
+void 
+cr_draw_vertex(struct cr_context_t* ctx, vec2 pos, vec4 color) { 
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+  struct cr_vertex_t* vertices =  frame->batch_state.vertex.vbo.mem_handle;
+  
+  if(frame->batch_state.vertex.n_vertices >= CR_MAX_BATCH) {
+    _render_flush(ctx, false);
+  }
+
+  uint32_t index = frame->batch_state.vertex.vertex_write_offset +
+    frame->batch_state.vertex.n_vertices;
+
+  if(index >= frame->batch_state.vertex.batch_group_cap) {
+    frame->batch_state.vertex.batch_group_cap *= 2;
+    if(!_resize_gpu_buffer(ctx, &frame->batch_state.vertex.vbo, frame->batch_state.vertex.batch_group_cap * sizeof(struct cr_vertex_t))) {
+      CR_ERROR(ctx->log, "Failed to resize GPU buffer for vertex data.\n");
+      return;
+    }
+  }
+
+  vertices[index] = (struct cr_vertex_t){
+    .pos = {pos[0], pos[1]},
+    .color = {color[0], color[1], color[2], color[3]}
+  };
+  frame->batch_state.vertex.n_vertices++;
+}
+
+static void _render_set_dynamic_state(struct cr_context_t* ctx) {
+  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   VkViewport viewport = {
     .x = 0.0f,
     .y = 0.0f,
@@ -1228,49 +1496,40 @@ cr_draw_begin(struct cr_context_t* ctx) {
 
   struct _push_constant pc = {
     .scale = { 2.0f / ctx->swapchain.dimensions.width,  2.0f / ctx->swapchain.dimensions.height},
-    .offset = { -1.0f, -1.0f}
+    .offset = { -1.0f, -1.0f},
   };
 
   vkCmdPushConstants(
     frame->cmd_buf, 
     ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
 
-  _render_begin_batch(ctx);
 
-  frame->batch_state.instanced.instance_write_offset = 0;
-  frame->batch_state.instanced.n_instances = 0;
-
-  return true;
-
-err: 
-  return false;
 }
 
-void 
-cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color) {
-  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+void _render_commit_draw_command_instanced(struct cr_frame_t* frame, struct cr_draw_command_t* cmd) {
+  VkDeviceSize vbo_offsets[] = { 0, 
+    cmd->instance_write_offset * sizeof(struct cr_instance_t) };  
 
-  uint32_t index = frame->batch_state.instanced.instance_write_offset +
-                 frame->batch_state.instanced.n_instances;
-
-  if(index >= frame->batch_state.batch_group_cap) {
-    frame->batch_state.batch_group_cap *= 2;
-    if(!_resize_gpu_buffer(ctx, &frame->batch_state.instanced.instance_buf, frame->batch_state.batch_group_cap * sizeof(struct cr_instance_t))) {
-      CR_ERROR(ctx->log, "Failed to resize GPU buffer for instance data.\n");
-      return;
-    }
-  }
-  struct cr_instance_t* instances =  frame->batch_state.instanced.instance_buf.mem_handle;
-
-  instances[index] = (struct cr_instance_t){
-    .pos = {pos[0], pos[1]},
-    .size = {size[0], size[1]},
-    .color = {color[0], color[1], color[2], color[3]}
+  VkBuffer render_bufs[] = {
+    frame->batch_state.instanced.vbo.buf,
+    frame->batch_state.instanced.instance_buf.buf,
   };
+  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 2, render_bufs, vbo_offsets);
+  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.instanced.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
 
-  frame->batch_state.instanced.n_instances++;
+  vkCmdDrawIndexed(frame->cmd_buf, 6, cmd->n_instances, 0, 0, 0); 
 }
 
+void _render_commit_draw_command_vertex(struct cr_frame_t* frame, struct cr_draw_command_t* cmd) {
+
+  VkDeviceSize vbo_offsets[] = {cmd->vertex_write_offset * sizeof(struct cr_vertex_t) };  
+
+  VkBuffer render_bufs[] = { frame->batch_state.vertex.vbo.buf };
+
+  vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, render_bufs, vbo_offsets);
+
+  vkCmdDraw(frame->cmd_buf, cmd->n_vertices, 1, 0, 0); 
+}
 
 bool 
 cr_draw_end(struct cr_context_t* ctx) {
@@ -1279,9 +1538,32 @@ cr_draw_end(struct cr_context_t* ctx) {
   }
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
-  if(!_render_flush(ctx)) {
-    CR_ERROR(ctx->log, "Failed to flush the renderer.");
-    goto err;
+  if(frame->batch_state.instanced.n_instances > 0) {
+    vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->instance_pipeline);
+    _render_set_dynamic_state(ctx);
+
+    if(!_render_flush(ctx, true)) {
+      CR_ERROR(ctx->log, "Failed to flush the renderer.");
+      goto err;
+    }
+    for(uint32_t i = 0; i < ctx->n_pending_draws; i++) {
+      if(!ctx->pending_draws[i].instanced_draw) continue;
+      _render_commit_draw_command_instanced(frame, &ctx->pending_draws[i]);
+    }
+  }
+
+  if(frame->batch_state.vertex.n_vertices > 0) {
+    vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vertex_pipeline);
+    _render_set_dynamic_state(ctx);
+
+    if(!_render_flush(ctx, false)) {
+      CR_ERROR(ctx->log, "Failed to flush the renderer.");
+      goto err;
+    }
+    for(uint32_t i = 0; i < ctx->n_pending_draws; i++) {
+      if(ctx->pending_draws[i].instanced_draw) continue;
+      _render_commit_draw_command_vertex(frame, &ctx->pending_draws[i]);
+    }
   }
 
   vkCmdEndRenderPass(frame->cmd_buf);

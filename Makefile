@@ -10,10 +10,16 @@ all: lib/libcorender.a shaders
 
 .PHONY: shaders
 
-shaders:  
+shaders: 
+	rm -rf ~/.local/state/corender/shaders/*
 	mkdir -p bin/shaders 
-	glslc -fshader-stage=vertex shaders/basic_vert.glsl -o bin/shaders/basic_vert.spv 
-	glslc -fshader-stage=fragment shaders/basic_frag.glsl -o bin/shaders/basic_frag.spv 
+	mkdir -p bin/shaders/default 
+	mkdir -p bin/shaders/instanced
+	glslc -fshader-stage=vertex shaders/instanced/basic_vert.glsl -o bin/shaders/instanced/basic_vert.spv 
+	glslc -fshader-stage=fragment shaders/instanced/basic_frag.glsl -o bin/shaders/instanced/basic_frag.spv 
+	
+	glslc -fshader-stage=vertex shaders/default/basic_vert.glsl -o bin/shaders/default/basic_vert.spv 
+	glslc -fshader-stage=fragment shaders/default/basic_frag.glsl -o bin/shaders/default/basic_frag.spv 
 	mkdir -p ~/.local/state/corender 
 	cp -r ./bin/shaders ~/.local/state/corender/
 

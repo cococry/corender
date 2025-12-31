@@ -74,13 +74,18 @@ int main() {
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-    for(uint32_t i = 0; i < 999; i ++) {
-      float x = rand() %  ctx.swapchain.dimensions.width - 20;
-      float y = rand() %  ctx.swapchain.dimensions.height - 20;
+    for(uint32_t i = 0; i < 1000000; i++) {
+    float last_x = rand() % ctx.swapchain.dimensions.width;
+    float last_y = rand() % ctx.swapchain.dimensions.height;
+      
       float r = (float)rand()/(float)(RAND_MAX/1.0f);
       float g = (float)rand()/(float)(RAND_MAX/1.0f);
       float b = (float)rand()/(float)(RAND_MAX/1.0f);
-      cr_draw_rect(&ctx, (vec2){x, y}, (vec2){20, 20}, (vec4){r, g, b, 1.0f});
+      float start_x = last_x;
+      float start_y = last_y;
+      
+
+      cr_draw_rect(&ctx, (vec2){start_x, start_y}, (vec2){1920, 1080}, (vec4){r, g, b, 1.0f});
     }
     cr_draw_end(&ctx);
     glfwSwapBuffers(window);
