@@ -74,7 +74,7 @@ int main() {
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-    for(uint32_t i = 0; i < 1000000; i++) {
+    for(uint32_t i = 0; i < 10; i++) {
     float last_x = rand() % ctx.swapchain.dimensions.width;
     float last_y = rand() % ctx.swapchain.dimensions.height;
       

@@ -10,6 +10,8 @@
 #include "../vendor/vma/vk_mem_alloc.h"
 
 #define _SUBSYS_NAME "CORE"
+#define _MAX_BINDING_DESC 2
+#define _MAX_VERT_ATTRS 5
 
 #define _VK_CHECK(ctx, expr)                                  \
 do {                                                          \
@@ -21,13 +23,25 @@ do {                                                          \
   }                                                           \
 } while (0)
 
-struct cr_swapchain_info_t {
+struct _swapchain_info_t {
   VkPresentModeKHR present_modes[16];
   uint32_t n_present_modes;
   VkSurfaceFormatKHR fmts[32];
   uint32_t n_fmts;
   VkSurfaceCapabilitiesKHR caps;
 };
+
+struct _vertex_input_state_t {
+  VkVertexInputBindingDescription binding_desc[_MAX_BINDING_DESC];
+  VkVertexInputAttributeDescription vert_attrs[_MAX_VERT_ATTRS];
+  VkPipelineVertexInputStateCreateInfo input_state;
+};
+
+struct _push_constant_t {
+  vec2 scale, offset;
+};
+
+
 
 static VmaAllocator _vma_allocator;
 
@@ -36,61 +50,37 @@ static bool     _create_rendering_context(struct cr_context_t* ctx, const struct
 static VkResult _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static VkResult _create_logical_device(struct cr_context_t* ctx);
 static bool     _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
-static bool     _create_frameloop(
-  struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
-  uint32_t graphics_queue_family); 
-static bool     _create_shader_module(struct 
-  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
-static bool     _create_instanced_pipeline(struct 
-  cr_context_t* ctx); 
-static bool     _create_vertex_pipeline(struct 
-  cr_context_t* ctx); 
-static bool     _create_vma_context(struct 
-  cr_context_t* ctx); 
+static bool     _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family); 
+static bool     _create_shader_module(struct cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
+static bool     _create_pipeline(struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
+                                 const char* shader_subpath, VkPipeline* o_pipeline); 
+static bool     _create_vma_context(struct cr_context_t* ctx); 
 static bool     _create_gpu_buffer(
-  struct cr_context_t* ctx, 
-  VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props,
+  struct cr_context_t* ctx, VkDeviceSize size, VkBufferUsageFlags usage, 
+  VkMemoryPropertyFlags mem_props,
   struct cr_gpu_buffer_t* o_buf
 ); 
 
-static void     _instance_pipeline_get_vertex_input_state(VkPipelineVertexInputStateCreateInfo* vertex_input_state);
+static bool     _destroy_gpu_buffer(struct cr_context_t* ctx, struct cr_gpu_buffer_t* buf); 
+static bool     _resize_gpu_buffer(struct cr_context_t* ctx, struct cr_gpu_buffer_t* buf, VkDeviceSize new_size); 
 
-static bool     _destroy_gpu_buffer(
-  struct cr_context_t* ctx, 
-  struct cr_gpu_buffer_t* buf
-); 
-static bool     _resize_gpu_buffer(
-  struct cr_context_t* ctx, 
-  struct cr_gpu_buffer_t* buf,
-  VkDeviceSize new_size 
-); 
+static bool                   _render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
+static bool                   _render_init_vertex_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
+static bool                   _render_flush(struct cr_context_t* ctx, bool flush_instaced);
+static bool                   _render_begin_batch(struct cr_context_t* ctx);
+static bool                   _renderer_handle_resize(struct cr_context_t* ctx);
 
-static bool _render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
-static bool _render_init_vertex_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
+static bool                   _get_swapchain_info_from_physical_device(struct cr_context_t* ctx, VkPhysicalDevice dev, 
+                                                                   VkSurfaceKHR surf, struct _swapchain_info_t* o_info);
+static VkSurfaceFormatKHR     _get_swapchain_surface_format(const struct _swapchain_info_t* swapchain);
+static VkPresentModeKHR       _get_swapchain_present_mode(const struct _swapchain_info_t* swapchain);
+static VkExtent2D             _get_swapchain_extent(
+  const struct _swapchain_info_t* swapchain, uint32_t w, uint32_t h);
+static void                   _get_vertex_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
+static void                   _get_instanced_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
 
-static bool _handle_resize(struct cr_context_t* ctx);
-static bool _render_flush(struct cr_context_t* ctx, bool flush_instaced);
-static bool _render_begin_batch(struct cr_context_t* ctx);
-
-static bool _pick_physical_device(struct cr_context_t* ctx);
-static bool _get_swapchain_info_from_physical_device(
-  struct cr_context_t* ctx,
-  VkPhysicalDevice dev, 
-  VkSurfaceKHR surf,
-  struct cr_swapchain_info_t* o_info 
-);
-
-static VkSurfaceFormatKHR _get_swapchain_surface_format(const struct cr_swapchain_info_t* swapchain);
-static VkPresentModeKHR   _get_swapchain_present_mode(const struct cr_swapchain_info_t* swapchain);
-static VkExtent2D         _get_swapchain_extent(
-  const struct cr_swapchain_info_t* swapchain, uint32_t w, uint32_t h);
-
-static const char* _vk_result_to_string(VkResult r);
-  
-struct _push_constant {
-  vec2 scale, offset;
-};
-
+static const char*                  _vk_result_to_string(VkResult r);
+static bool                         _pick_physical_device(struct cr_context_t* ctx);
 bool 
 _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   if(!ctx || !info) return false;
@@ -165,12 +155,32 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
       return false;
     }
 
-    if(!_create_instanced_pipeline(ctx)) {
-      CR_ERROR(ctx->log, "Failed to create Vulkan graphics pipeline."); 
+    VkPushConstantRange range = {
+      .offset = 0,
+      .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+      .size = sizeof(struct _push_constant_t) 
+    };
+
+    VkPipelineLayoutCreateInfo layout_info = {
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+      .pPushConstantRanges = &range,
+      .pushConstantRangeCount = 1
+    };
+
+    _VK_CHECK(ctx, vkCreatePipelineLayout(ctx->logical_dev, &layout_info, NULL, &ctx->pipeline_layout));
+
+
+    struct _vertex_input_state_t vertex_state;
+    _get_vertex_pipeline_input_state(&vertex_state);
+    if(!_create_pipeline(ctx, vertex_state.input_state, "default", &ctx->vertex_pipeline)) {
+      CR_ERROR(ctx->log, "Failed to create default Vulkan graphics pipeline."); 
       return false;
     }
-    if(!_create_vertex_pipeline(ctx)) {
-      CR_ERROR(ctx->log, "Failed to create Vulkan graphics pipeline."); 
+
+    struct _vertex_input_state_t instanced_state;
+    _get_instanced_pipeline_input_state(&instanced_state);
+    if(!_create_pipeline(ctx, instanced_state.input_state, "instanced", &ctx->instance_pipeline)) {
+      CR_ERROR(ctx->log, "Failed to create instanced Vulkan graphics pipeline."); 
       return false;
     }
 
@@ -178,6 +188,10 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
   }
 
   return true;
+
+err:
+
+  return false;
 }
 
 VkResult
@@ -448,7 +462,7 @@ _get_swapchain_info_from_physical_device(
   struct cr_context_t* ctx,
   VkPhysicalDevice dev, 
   VkSurfaceKHR surf,
-struct cr_swapchain_info_t* o_info 
+struct _swapchain_info_t* o_info 
 ) {
   _VK_CHECK(ctx, vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev, surf, &o_info->caps));
   _VK_CHECK(ctx, vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surf, &o_info->n_fmts, NULL));
@@ -463,7 +477,7 @@ err:
 }
 
 VkSurfaceFormatKHR 
-_get_swapchain_surface_format(const struct cr_swapchain_info_t* swapchain) {
+_get_swapchain_surface_format(const struct _swapchain_info_t* swapchain) {
   for(uint32_t i = 0; i < swapchain->n_fmts; i++) {
     if(swapchain->fmts[i].format == VK_FORMAT_B8G8R8_SRGB && 
        swapchain->fmts[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) return swapchain->fmts[i];
@@ -472,7 +486,7 @@ _get_swapchain_surface_format(const struct cr_swapchain_info_t* swapchain) {
 }
 
 VkPresentModeKHR 
-_get_swapchain_present_mode(const struct cr_swapchain_info_t* swapchain) {
+_get_swapchain_present_mode(const struct _swapchain_info_t* swapchain) {
   for(uint32_t i = 0; i < swapchain->n_fmts; i++) {
     if(swapchain->present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) 
       return swapchain->present_modes[i]; 
@@ -482,7 +496,7 @@ _get_swapchain_present_mode(const struct cr_swapchain_info_t* swapchain) {
 }
 
 VkExtent2D 
-_get_swapchain_extent(const struct cr_swapchain_info_t* swapchain, uint32_t w, uint32_t h) {
+_get_swapchain_extent(const struct _swapchain_info_t* swapchain, uint32_t w, uint32_t h) {
   if(swapchain->caps.currentExtent.width != UINT32_MAX) return swapchain->caps.currentExtent;
 
   VkExtent2D extent = (VkExtent2D){
@@ -499,13 +513,91 @@ _get_swapchain_extent(const struct cr_swapchain_info_t* swapchain, uint32_t w, u
 }
 
 
+void
+_get_vertex_pipeline_input_state(struct _vertex_input_state_t* o_input_state) {
+  o_input_state->binding_desc[0] = (VkVertexInputBindingDescription){ 
+    .binding = 0,
+    .stride = sizeof(struct cr_vertex_t),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+  };
+
+  o_input_state->vert_attrs[0] = (VkVertexInputAttributeDescription) {
+    .location = 0,
+    .binding = 0,
+    .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(struct cr_vertex_t, pos)
+  };
+  o_input_state->vert_attrs[1] = (VkVertexInputAttributeDescription) {
+    .location = 1,
+    .binding = 0,
+    .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+    .offset = offsetof(struct cr_vertex_t, color)
+  };
+
+  o_input_state->input_state = (VkPipelineVertexInputStateCreateInfo){
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .vertexBindingDescriptionCount = 1,
+    .pVertexBindingDescriptions = o_input_state->binding_desc,
+    .vertexAttributeDescriptionCount = 2,
+    .pVertexAttributeDescriptions = o_input_state->vert_attrs
+  };
+}
+
+void 
+_get_instanced_pipeline_input_state(struct _vertex_input_state_t* o_input_state) {
+  o_input_state->binding_desc[0] = (VkVertexInputBindingDescription){ 
+    .binding = 0,
+    .stride = sizeof(struct cr_instance_vertex_t),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+  };  
+  o_input_state->binding_desc[1] = (VkVertexInputBindingDescription){ 
+    .binding = 1,
+    .stride = sizeof(struct cr_instance_t),
+    .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+  };
+
+  o_input_state->vert_attrs[0] = (VkVertexInputAttributeDescription) {
+    .location = 0,
+    .binding = 0,
+    .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(struct cr_instance_vertex_t, pos)
+  };
+
+  o_input_state->vert_attrs[1] =  (VkVertexInputAttributeDescription){
+    .location = 1,
+    .binding = 1,
+    .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(struct cr_instance_t, pos)
+  };
+  o_input_state->vert_attrs[2] = (VkVertexInputAttributeDescription){
+    .location = 2,
+    .binding = 1,
+    .format = VK_FORMAT_R32G32_SFLOAT,
+    .offset = offsetof(struct cr_instance_t, size)
+  };
+  o_input_state->vert_attrs[3] = (VkVertexInputAttributeDescription){
+    .location = 3,
+    .binding = 1,
+    .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+    .offset = offsetof(struct cr_instance_t, color)
+  };
+
+  o_input_state->input_state = (VkPipelineVertexInputStateCreateInfo){
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .vertexBindingDescriptionCount = 2,
+    .pVertexBindingDescriptions = o_input_state->binding_desc,
+    .vertexAttributeDescriptionCount = 4,
+    .pVertexAttributeDescriptions = o_input_state->vert_attrs
+  };
+}
+
 const char* _vk_result_to_string(VkResult r)
 {
-    switch (r) {
-        case VK_SUCCESS: return "VK_SUCCESS";
-        case VK_NOT_READY: return "VK_NOT_READY";
-        case VK_TIMEOUT: return "VK_TIMEOUT";
-        case VK_EVENT_SET: return "VK_EVENT_SET";
+  switch (r) {
+    case VK_SUCCESS: return "VK_SUCCESS";
+    case VK_NOT_READY: return "VK_NOT_READY";
+    case VK_TIMEOUT: return "VK_TIMEOUT";
+    case VK_EVENT_SET: return "VK_EVENT_SET";
         case VK_EVENT_RESET: return "VK_EVENT_RESET";
         case VK_INCOMPLETE: return "VK_INCOMPLETE";
 
@@ -536,7 +628,7 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   if(ctx->swapchain.img_views) free(ctx->swapchain.img_views);
   memset(&ctx->swapchain, 0, sizeof(ctx->swapchain));
 
-  struct cr_swapchain_info_t info;
+  struct _swapchain_info_t info;
   if(!_get_swapchain_info_from_physical_device(ctx, ctx->phys_dev, ctx->surf.surf, &info)) {
     CR_ERROR(ctx->log, "Failed to get swapchain info from physical device.");
     goto err;
@@ -794,207 +886,15 @@ err:
   return false;
 }
 
-bool 
-_create_instanced_pipeline(struct cr_context_t* ctx) {
-
+bool     
+_create_pipeline(
+  struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
+  const char* shader_subpath, VkPipeline* o_pipeline) {
   VkShaderModule vert_mod, frag_mod;
 
   const char* state_dir = cr_util_get_state_folder();
   char shader_dir[PATH_MAX];
-  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/instanced", state_dir, _CR_BRAND_NAME);
-
-  char vert_src[PATH_MAX];
-  snprintf(vert_src, sizeof(vert_src), "%s/basic_vert.spv", shader_dir);
-  char frag_src[PATH_MAX];
-  snprintf(frag_src, sizeof(frag_src), "%s/basic_frag.spv", shader_dir);
-
-  if(!_create_shader_module(ctx, vert_src, &vert_mod)) {
-    CR_ERROR(ctx->log, "Failed to create vertex shader byte code for file '%s'", 
-             vert_src);
-    goto err;
-  }
-  if(!_create_shader_module(ctx, frag_src, &frag_mod)) {
-    CR_ERROR(ctx->log, "Failed to create fragment shader byte code for file '%s'", 
-             frag_src);
-    goto err;
-  }
-
-  VkPipelineShaderStageCreateInfo shader_stages[2] = {
-    (VkPipelineShaderStageCreateInfo){
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-      .stage = VK_SHADER_STAGE_VERTEX_BIT,
-      .pName = "main",
-      .module = vert_mod,
-    },
-    (VkPipelineShaderStageCreateInfo){
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-      .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-      .pName = "main",
-      .module = frag_mod,
-    }
-  };
-
-
-  VkPipelineInputAssemblyStateCreateInfo assmebly_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-  };
-
-  VkPipelineRasterizationStateCreateInfo raster_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-    .polygonMode = VK_POLYGON_MODE_FILL,
-    .cullMode = VK_CULL_MODE_NONE,
-    .frontFace = VK_FRONT_FACE_CLOCKWISE,
-    .lineWidth = 1.0f,
-  };
-
-
-  VkPipelineMultisampleStateCreateInfo msaa_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
-  };
-
-  VkPipelineColorBlendAttachmentState blend = {
-    .blendEnable = VK_FALSE,
-    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-    .colorBlendOp = VK_BLEND_OP_ADD,
-    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
-    .alphaBlendOp = VK_BLEND_OP_ADD,
-    .colorWriteMask = 0xF
-  };
-
-  VkPipelineColorBlendStateCreateInfo blend_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-    .attachmentCount = 1,
-    .pAttachments = &blend
-  };
-
- 
-  VkPushConstantRange range = {
-    .offset = 0,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-    .size = sizeof(struct _push_constant) 
-  };
-
-  VkPipelineLayoutCreateInfo layout_info = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .pPushConstantRanges = &range,
-    .pushConstantRangeCount = 1
-  };
-
-  _VK_CHECK(ctx, vkCreatePipelineLayout(ctx->logical_dev, &layout_info, NULL, &ctx->pipeline_layout));
-
-  VkDynamicState dynamic_states[] = {
-    VK_DYNAMIC_STATE_VIEWPORT,
-    VK_DYNAMIC_STATE_SCISSOR
-  };
-
-  VkPipelineDynamicStateCreateInfo dynamic_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-    .dynamicStateCount = 2,
-    .pDynamicStates = dynamic_states
-  };
-
-  VkPipelineViewportStateCreateInfo viewport_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-    .viewportCount = 1,
-    .pViewports = NULL,
-    .scissorCount = 1,
-    .pScissors = NULL,
-  };
-
-  {
- VkVertexInputBindingDescription binding_desc[2] = {
-    {
-      .binding = 0,
-      .stride = sizeof(struct cr_instance_vertex_t),
-      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-    },
-    {
-      .binding = 1,
-      .stride = sizeof(struct cr_instance_t),
-      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE 
-    }
-  }
-  ;
-
-  VkVertexInputAttributeDescription vert_attrs[4] = {
-    /* Binding 0 - Regular Vertex pipeline */
-    (VkVertexInputAttributeDescription){
-      .location = 0,
-      .binding = 0,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-    .offset = offsetof(struct cr_instance_vertex_t, pos)
-    },
-
-    /* Binding 1 - Instanced pipeline */
-    (VkVertexInputAttributeDescription){
-      .location = 1,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, pos)
-    },
-    (VkVertexInputAttributeDescription){
-      .location = 2,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, size)
-    },
-    (VkVertexInputAttributeDescription){
-      .location = 3,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, color)
-    },
-  };
-
-  VkPipelineVertexInputStateCreateInfo vertex_input_state = (VkPipelineVertexInputStateCreateInfo){
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .vertexBindingDescriptionCount = 2,
-    .pVertexBindingDescriptions = binding_desc,
-    .vertexAttributeDescriptionCount = 4,
-    .pVertexAttributeDescriptions = vert_attrs
-  };
-
-    VkGraphicsPipelineCreateInfo pipeline_info = {
-      .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-      .stageCount = 2,
-      .pStages = shader_stages,
-      .pVertexInputState = &vertex_input_state,
-      .pInputAssemblyState = &assmebly_state,
-      .pColorBlendState = &blend_state,
-      .pMultisampleState = &msaa_state,
-      .pRasterizationState = &raster_state,
-      .pDynamicState = &dynamic_state,
-      .pViewportState = &viewport_state,
-      .layout = ctx->pipeline_layout,
-      .renderPass = ctx->frameloop.crnt_pass,
-      .subpass = 0
-    };
-
-    _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &ctx->instance_pipeline));
-  }
-
-  vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
-  vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
-
-  CR_TRACE(ctx->log, "Initialized Vulkan graphics pipeline for surface %p.", ctx->surf.surf);
-
-  return true;
-
-err:
-  return false;
-}
-  
-static bool     _create_vertex_pipeline(struct 
-  cr_context_t* ctx) {
-  VkShaderModule vert_mod, frag_mod;
-
-  const char* state_dir = cr_util_get_state_folder();
-  char shader_dir[PATH_MAX];
-  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/default", state_dir, _CR_BRAND_NAME);
+  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/%s", state_dir, _CR_BRAND_NAME, shader_subpath);
 
   char vert_src[PATH_MAX];
   snprintf(vert_src, sizeof(vert_src), "%s/basic_vert.spv", shader_dir);
@@ -1083,69 +983,33 @@ static bool     _create_vertex_pipeline(struct
     .pScissors = NULL,
   };
 
-  {
- VkVertexInputBindingDescription binding_desc[2] = {
-    {
-      .binding = 0,
-      .stride = sizeof(struct cr_vertex_t),
-      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-    },
-  }
-  ;
-
-  VkVertexInputAttributeDescription vert_attrs[2] = {
-    (VkVertexInputAttributeDescription){
-      .location = 0,
-      .binding = 0,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-    .offset = offsetof(struct cr_vertex_t, pos)
-    },
-
-    (VkVertexInputAttributeDescription){
-      .location = 1,
-      .binding = 0,
-      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-      .offset = offsetof(struct cr_vertex_t, color)
-    },
+  VkGraphicsPipelineCreateInfo pipeline_info = {
+    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .stageCount = 2,
+    .pStages = shader_stages,
+    .pVertexInputState = &vertex_input_state,
+    .pInputAssemblyState = &assmebly_state,
+    .pColorBlendState = &blend_state,
+    .pMultisampleState = &msaa_state,
+    .pRasterizationState = &raster_state,
+    .pDynamicState = &dynamic_state,
+    .pViewportState = &viewport_state,
+    .layout = ctx->pipeline_layout,
+    .renderPass = ctx->frameloop.crnt_pass,
+    .subpass = 0
   };
 
-  VkPipelineVertexInputStateCreateInfo vertex_input_state = (VkPipelineVertexInputStateCreateInfo){
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .vertexBindingDescriptionCount = 1,
-    .pVertexBindingDescriptions = binding_desc,
-    .vertexAttributeDescriptionCount = 2,
-    .pVertexAttributeDescriptions = vert_attrs
-  };
-
-    VkGraphicsPipelineCreateInfo pipeline_info = {
-      .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-      .stageCount = 2,
-      .pStages = shader_stages,
-      .pVertexInputState = &vertex_input_state,
-      .pInputAssemblyState = &assmebly_state,
-      .pColorBlendState = &blend_state,
-      .pMultisampleState = &msaa_state,
-      .pRasterizationState = &raster_state,
-      .pDynamicState = &dynamic_state,
-      .pViewportState = &viewport_state,
-      .layout = ctx->pipeline_layout,
-      .renderPass = ctx->frameloop.crnt_pass,
-      .subpass = 0
-    };
-
-    _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &ctx->vertex_pipeline));
-  }
+  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, o_pipeline));
 
   vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
   vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
 
-  CR_TRACE(ctx->log, "Initialized Vulkan graphics pipeline for surface %p.", ctx->surf.surf);
+  CR_TRACE(ctx->log, "Initialized %s graphics pipeline for surface %p.", shader_subpath, ctx->surf.surf);
+
 
   return true;
-
 err:
   return false;
-
 }
 
 bool 
@@ -1494,7 +1358,7 @@ static void _render_set_dynamic_state(struct cr_context_t* ctx) {
 
   vkCmdSetScissor(frame->cmd_buf, 0, 1, &scissor_rect);
 
-  struct _push_constant pc = {
+  struct _push_constant_t pc = {
     .scale = { 2.0f / ctx->swapchain.dimensions.width,  2.0f / ctx->swapchain.dimensions.height},
     .offset = { -1.0f, -1.0f},
   };
