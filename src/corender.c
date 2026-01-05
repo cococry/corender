@@ -13,6 +13,12 @@
 #define _MAX_BINDING_DESC 2
 #define _MAX_VERT_ATTRS 5
 
+#define _PARAM_CHECK_FAIL()                                               \
+  do {                                                                    \
+    fprintf(stderr, "corender: Fatal: Did not pass parameter check.");    \
+    exit(1);                                                              \
+  } while (0);                                                \
+
 #define _VK_CHECK(ctx, expr)                                  \
 do {                                                          \
   VkResult _res = (expr);                                     \
@@ -55,9 +61,11 @@ static bool     _create_shader_module(struct cr_context_t* ctx, const char* file
 static bool     _create_pipeline(struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
                                  const char* shader_subpath, VkPipeline* o_pipeline); 
 static bool     _create_vma_context(struct cr_context_t* ctx); 
+
 static bool     _create_gpu_buffer(
-  struct cr_context_t* ctx, VkDeviceSize size, VkBufferUsageFlags usage, 
-  VkMemoryPropertyFlags mem_props,
+  struct cr_context_t* ctx, VkDeviceSize size, 
+  enum cr_gpu_buffer_type_t type,
+  enum cr_gpu_buffer_memory_type_t mem_type,
   struct cr_gpu_buffer_t* o_buf
 ); 
 
@@ -1033,10 +1041,46 @@ bool
 _create_gpu_buffer(
   struct 
   cr_context_t* ctx, 
-  VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mem_props,
+  VkDeviceSize size,
+  enum cr_gpu_buffer_type_t type,
+  enum cr_gpu_buffer_memory_type_t mem_type,
   struct cr_gpu_buffer_t* o_buf
 ) {
+  if(!o_buf || !ctx) _PARAM_CHECK_FAIL(); 
+  *o_buf = (struct cr_gpu_buffer_t){0};
 
+  VkBufferUsageFlags usage;
+  VkMemoryPropertyFlags mem_props;
+  switch(mem_type) {
+    case CR_GPU_BUFFER_MEM_DEVICE_LOCAL:
+      usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+      mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+      break;
+    case CR_GPU_BUFFER_MEM_STAGING:
+      usage |= 
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+      mem_props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+      break;
+    default: {
+      CR_FATAL(ctx->log, "Invalid buffer memory type for GPU buffer creation specified: %i. Use enumeration values of cr_gpu_buffer_type_t.", 
+               type);
+      break;
+    }
+  }
+
+  switch(type) {
+    case CR_GPU_BUFFER_INDEX: usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT; break;
+    case CR_GPU_BUFFER_VERTEX: usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; break;
+    default: {
+      CR_FATAL(ctx->log, "Invalid buffer type for GPU buffer creation specified: %i. Use enumeration values of cr_gpu_buffer_memory_type_t.", 
+               type);
+      break;
+    }
+  }
+  
   VkBufferCreateInfo buffer_info = {
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
     .size = size,
@@ -1046,21 +1090,27 @@ _create_gpu_buffer(
   VmaAllocationCreateInfo alloc_info = {};
   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
   alloc_info.requiredFlags = mem_props;
-  alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+  if(mem_type == CR_GPU_BUFFER_MEM_STAGING) 
+    alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
   VkBuffer buffer;
   VmaAllocation allocation; 
   _VK_CHECK(ctx, vmaCreateBuffer(_vma_allocator, &buffer_info, &alloc_info, &buffer, &allocation, NULL));
 
-  VmaAllocationInfo retrieved_info;
-  vmaGetAllocationInfo(_vma_allocator, allocation, &retrieved_info); 
-  o_buf->mem_handle = retrieved_info.pMappedData;
+  if(mem_type == CR_GPU_BUFFER_MEM_STAGING)  {
+    VmaAllocationInfo retrieved_info;
+    vmaGetAllocationInfo(_vma_allocator, allocation, &retrieved_info); 
+    o_buf->mem_handle = retrieved_info.pMappedData;
+  }
 
   o_buf->buf = buffer;
   o_buf->_vma_allocation = allocation;
   o_buf->buf_size = size;
   o_buf->_mem_props = mem_props;
   o_buf->_usage = usage;
+
+  o_buf->type = type;
+  o_buf->mem_type = mem_type;
 
   CR_TRACE(ctx->log, "Successfully allocated GPU buffer %p with size %li", buffer, size);
 
@@ -1095,7 +1145,7 @@ _resize_gpu_buffer(
   VkDeviceSize new_size 
 ) {
   struct cr_gpu_buffer_t new_buf;
-  if(!_create_gpu_buffer(ctx, new_size, buf->_usage, buf->_mem_props, &new_buf)) {
+  if(!_create_gpu_buffer(ctx, new_size, buf->type,  buf->mem_type, &new_buf)) {
     return false;
   }
 
@@ -1117,10 +1167,10 @@ _resize_gpu_buffer(
 bool 
 _render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame) {
   if(!_create_gpu_buffer(
-    ctx, 4  * sizeof(struct cr_instance_vertex_t), 
-    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.vbo)) {
+    ctx, 4  * sizeof(struct cr_instance_vertex_t),
+    CR_GPU_BUFFER_VERTEX,
+    CR_GPU_BUFFER_MEM_STAGING,
+  &frame->batch_state.instanced.vbo)) {
     CR_ERROR(ctx->log, "Failed to create static vertex GPU Buffer for instanced batch state.");
     return false;
   }
@@ -1134,18 +1184,18 @@ _render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame)
 
   if(!_create_gpu_buffer(
     ctx, 6 * sizeof(uint32_t), 
-    VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.ibo)) {
+    CR_GPU_BUFFER_INDEX,
+    CR_GPU_BUFFER_MEM_STAGING, 
+    &frame->batch_state.instanced.ibo)) {
     CR_ERROR(ctx->log, "Failed to create static index GPU Buffer for instanced batch state.");
     return false;
   }
 
   if(!_create_gpu_buffer(
     ctx, frame->batch_state.instanced.batch_group_cap * sizeof(struct cr_instance_t), 
-    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.instanced.instance_buf)) {
+    CR_GPU_BUFFER_VERTEX,
+    CR_GPU_BUFFER_MEM_STAGING,
+    &frame->batch_state.instanced.instance_buf)) {
     CR_ERROR(ctx->log, "Failed to create instance data GPU Buffer for instanced batch state.");
     return false;
   }
@@ -1167,9 +1217,9 @@ _render_init_vertex_state(struct cr_context_t* ctx, struct cr_frame_t* frame) {
 
   if(!_create_gpu_buffer(
     ctx, frame->batch_state.vertex.batch_group_cap * sizeof(struct cr_vertex_t), 
-    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame->batch_state.vertex.vbo)) {
+    CR_GPU_BUFFER_VERTEX,
+    CR_GPU_BUFFER_MEM_STAGING,
+    &frame->batch_state.vertex.vbo)) {
     CR_ERROR(ctx->log, "Failed to create static GPU Buffer for vertex batch state.");
     return false;
   }

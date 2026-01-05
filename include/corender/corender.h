@@ -28,15 +28,28 @@ struct cr_instance_t {
   vec4 color;
 };
 
+enum cr_gpu_buffer_type_t {
+  CR_GPU_BUFFER_INDEX = 0,
+  CR_GPU_BUFFER_VERTEX,
+};
+
+enum cr_gpu_buffer_memory_type_t {
+  CR_GPU_BUFFER_MEM_DEVICE_LOCAL = 0,
+  CR_GPU_BUFFER_MEM_STAGING,
+};
 
 struct cr_gpu_buffer_t {
   VkBuffer buf;
   size_t buf_size;
   void* mem_handle;
+  
+  enum cr_gpu_buffer_type_t type;
+  enum cr_gpu_buffer_memory_type_t mem_type;
 
   void* _vma_allocation;
   VkBufferUsageFlags _usage;
   VkMemoryPropertyFlags _mem_props;
+
 };
 
 struct cr_instanced_batch_state_t {
