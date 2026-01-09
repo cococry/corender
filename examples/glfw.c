@@ -10,6 +10,19 @@ void _glfw_resize(GLFWwindow* window, int width, int height) {
   cr_surface_resize(&ctx, width, height);
 }
 
+static inline uint32_t xorshift32(uint32_t *state) {
+    uint32_t x = *state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *state = x;
+    return x;
+}
+
+static inline float rand01(uint32_t *state) {
+    return (xorshift32(state) >> 8) * (1.0f / 16777216.0f);
+}
+
 static bool _glfw_surface_create(
     VkInstance instance,
     struct cr_surface_t* o_surf,
@@ -53,15 +66,14 @@ int main() {
   const char** exts = glfwGetRequiredInstanceExtensions(&n_exts);
 
   const char* validation_layers[1] = {
-    "VK_LAYER_KHRONOS_validation"
   };
   struct cr_context_init_info_t info = {
     .enable_validation = true,
     .n_exts = n_exts,
     .exts = exts,
 
-    .layers = validation_layers,
-    .n_layers = 1,
+    .layers = NULL,
+    .n_layers = 0,
 
     .log_verbose = false, 
     .surface_create = _glfw_surface_create,
@@ -71,24 +83,41 @@ int main() {
 
   srand(time(0));
 
+    uint32_t rng = 0x12345678;
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-    for(uint32_t i = 0; i < 10; i++) {
-    float last_x = rand() % ctx.swapchain.dimensions.width;
-    float last_y = rand() % ctx.swapchain.dimensions.height;
-      
-      float r = (float)rand()/(float)(RAND_MAX/1.0f);
-      float g = (float)rand()/(float)(RAND_MAX/1.0f);
-      float b = (float)rand()/(float)(RAND_MAX/1.0f);
-      float start_x = last_x;
-      float start_y = last_y;
-      
 
-      cr_draw_rect(&ctx, (vec2){start_x, start_y}, (vec2){1920, 1080}, (vec4){r, g, b, 1.0f});
+    for (uint32_t i = 0; i < 2; i++) {
+      float x = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.width);
+      float y = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.height);
+
+      vec4 color = {
+        rand01(&rng),
+        rand01(&rng),
+        rand01(&rng),
+        1.0f
+      };
+      
+      vec4 color2 = {
+        rand01(&rng),
+        rand01(&rng),
+        rand01(&rng),
+        1.0f
+      };
+
+      uint32_t size = 40;
+      cr_draw_vertex(&ctx, (vec2){ x, y}, color);
+      cr_draw_vertex(&ctx, (vec2){ x + size , y}, color);
+      cr_draw_vertex(&ctx, (vec2){ x + size , y + size}, color);
+
+      cr_draw_vertex(&ctx, (vec2){ x + size , y + size}, color2);
+      cr_draw_vertex(&ctx, (vec2){ x, y + size}, color2);
+      cr_draw_vertex(&ctx, (vec2){ x, y}, color2);
+
     }
+
     cr_draw_end(&ctx);
-    glfwSwapBuffers(window);
     glfwPollEvents();
   }
 

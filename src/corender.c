@@ -1,33 +1,24 @@
-#include "../include/corender/corender.h"
-#include "../include/corender/util.h"
+#include <GLFW/glfw3.h>
 #include <errno.h>
 #include <linux/limits.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <vulkan/vulkan_core.h>
 
 #include "../vendor/vma/vk_mem_alloc.h"
+#include "../include/corender/corender.h"
+#include "pipeline.h"
+#include "util.h"
+#include "mem.h"
 
 #define _SUBSYS_NAME "CORE"
+
 #define _MAX_BINDING_DESC 2
 #define _MAX_VERT_ATTRS 5
-
-#define _PARAM_CHECK_FAIL()                                               \
-  do {                                                                    \
-    fprintf(stderr, "corender: Fatal: Did not pass parameter check.");    \
-    exit(1);                                                              \
-  } while (0);                                                \
-
-#define _VK_CHECK(ctx, expr)                                  \
-do {                                                          \
-  VkResult _res = (expr);                                     \
-  if (_res != VK_SUCCESS) {                                   \
-    CR_ERROR(ctx->log, "Vulkan error: %s (%i) - %s failed.",  \
-    _vk_result_to_string(_res), _res, #expr);                 \
-    goto err;                                                 \
-  }                                                           \
-} while (0)
+#define _MAX_STAGING_RING_MEM 1024 * 1024 * 256
 
 struct _swapchain_info_t {
   VkPresentModeKHR present_modes[16];
@@ -47,35 +38,25 @@ struct _push_constant_t {
   vec2 scale, offset;
 };
 
-
-
-static VmaAllocator _vma_allocator;
+struct cr_pipeline_t instanced_pipeline, vertex_pipeline;
 
 static bool     _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static bool     _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
-static VkResult _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
-static VkResult _create_logical_device(struct cr_context_t* ctx);
+static bool     _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
+static bool     _create_logical_device(struct cr_context_t* ctx);
 static bool     _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
+static bool     _create_upload_context(struct cr_context_t* ctx, struct cr_upload_context_t* o_upload, uint32_t graphics_queue_family);
+static bool     _create_static_gpu_state(struct cr_context_t* ctx);
 static bool     _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family); 
+static bool     _create_render_pipelines(struct cr_context_t* ctx);
 static bool     _create_shader_module(struct cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
 static bool     _create_pipeline(struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
                                  const char* shader_subpath, VkPipeline* o_pipeline); 
-static bool     _create_vma_context(struct cr_context_t* ctx); 
-
-static bool     _create_gpu_buffer(
-  struct cr_context_t* ctx, VkDeviceSize size, 
-  enum cr_gpu_buffer_type_t type,
-  enum cr_gpu_buffer_memory_type_t mem_type,
-  struct cr_gpu_buffer_t* o_buf
-); 
-
-static bool     _destroy_gpu_buffer(struct cr_context_t* ctx, struct cr_gpu_buffer_t* buf); 
-static bool     _resize_gpu_buffer(struct cr_context_t* ctx, struct cr_gpu_buffer_t* buf, VkDeviceSize new_size); 
+static bool     _pick_physical_device(struct cr_context_t* ctx);
 
 static bool                   _render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
+static bool                   _renderer_init_static_instanced_state(struct cr_context_t* ctx);
 static bool                   _render_init_vertex_state(struct cr_context_t* ctx, struct cr_frame_t* frame);
-static bool                   _render_flush(struct cr_context_t* ctx, bool flush_instaced);
-static bool                   _render_begin_batch(struct cr_context_t* ctx);
 static bool                   _renderer_handle_resize(struct cr_context_t* ctx);
 
 static bool                   _get_swapchain_info_from_physical_device(struct cr_context_t* ctx, VkPhysicalDevice dev, 
@@ -87,11 +68,15 @@ static VkExtent2D             _get_swapchain_extent(
 static void                   _get_vertex_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
 static void                   _get_instanced_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
 
-static const char*                  _vk_result_to_string(VkResult r);
-static bool                         _pick_physical_device(struct cr_context_t* ctx);
+static const char*            _vk_result_to_string(VkResult r);
+static bool                   _pick_physical_device(struct cr_context_t* ctx);
+
+static size_t                 _staging_ring_alloc(struct cr_staging_ring_t* ring, size_t n, size_t align);
+
 bool 
 _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
-  if(!ctx || !info) return false;
+  if(!ctx || !info) _PARAM_CHECK_FAIL();
+
   if(info->log_to_file) {
     ctx->log.stream = fopen(cr_util_log_get_filepath(), "a");
     if(!ctx->log.stream) return false;
@@ -115,11 +100,12 @@ _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_
   return true;
 }
 
-  bool 
+bool 
 _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
-  VkResult instance_res = _create_instance(ctx, info); 
-  if(instance_res != VK_SUCCESS) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan instance: (error code: %i)", instance_res);
+  if(!ctx || !info) _PARAM_CHECK_FAIL();
+  
+  if(!_create_instance(ctx, info)) {
+    CR_ERROR(ctx->log, "Failed to create Vulkan instance.");
     return false;
   } 
 
@@ -137,9 +123,8 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
     CR_ERROR(ctx->log, "Failed to pick Vulkan physical device.");
   }
 
-  VkResult logical_dev_res = _create_logical_device(ctx); 
-  if(logical_dev_res != VK_SUCCESS) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan logical device: (error code: %i)", logical_dev_res);
+  if(!_create_logical_device(ctx)) {
+    CR_ERROR(ctx->log, "Failed to create Vulkan logical device.");
     return false;
   }
 
@@ -150,69 +135,65 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
                ctx->surf.width, ctx->surf.height);
       return false;
     }
-    
-    if(!_create_vma_context(ctx)) {
-      CR_ERROR(ctx->log, "Failed to create VMA context."); 
-      return false;
-    }
-
-
-    if(!_create_frameloop(ctx, &ctx->frameloop, ctx->graphics_queue_family)) {
-      CR_ERROR(ctx->log, "Failed to create Vulkan frame loop (width: %i, height: %i)", 
-               ctx->surf.width, ctx->surf.height);
-      return false;
-    }
-
-    VkPushConstantRange range = {
-      .offset = 0,
-      .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-      .size = sizeof(struct _push_constant_t) 
-    };
-
-    VkPipelineLayoutCreateInfo layout_info = {
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-      .pPushConstantRanges = &range,
-      .pushConstantRangeCount = 1
-    };
-
-    _VK_CHECK(ctx, vkCreatePipelineLayout(ctx->logical_dev, &layout_info, NULL, &ctx->pipeline_layout));
-
-
-    struct _vertex_input_state_t vertex_state;
-    _get_vertex_pipeline_input_state(&vertex_state);
-    if(!_create_pipeline(ctx, vertex_state.input_state, "default", &ctx->vertex_pipeline)) {
-      CR_ERROR(ctx->log, "Failed to create default Vulkan graphics pipeline."); 
-      return false;
-    }
-
-    struct _vertex_input_state_t instanced_state;
-    _get_instanced_pipeline_input_state(&instanced_state);
-    if(!_create_pipeline(ctx, instanced_state.input_state, "instanced", &ctx->instance_pipeline)) {
-      CR_ERROR(ctx->log, "Failed to create instanced Vulkan graphics pipeline."); 
-      return false;
-    }
-
-    cr_draw_set_clear_color(ctx, (vec4){0.1f, 0.1f, 0.1f, 1.0f});
   }
+
+  if(!cr_mem_init(ctx)) {
+    CR_ERROR(ctx->log, "Failed to create VMA context."); 
+    return false;
+  }
+
+  if(!_create_static_gpu_state(ctx)) {
+    CR_ERROR(ctx->log, "Failed to create static GPU state.");
+    return false;
+  }
+
+  if(!_create_frameloop(ctx, &ctx->frameloop, ctx->graphics_queue_family)) {
+    CR_ERROR(ctx->log, "Failed to create Vulkan frame loop (width: %i, height: %i)", 
+             ctx->surf.width, ctx->surf.height);
+    return false;
+  }
+
+  if(!_create_render_pipelines(ctx)) {
+    CR_ERROR(ctx->log, "Failed to create batch-rendering pipelines.");
+    return false;
+  }
+
+  cr_draw_set_clear_color(ctx, (vec4){0.1f, 0.1f, 0.1f, 1.0f});
 
   return true;
 
 err:
-
   return false;
 }
 
-VkResult
-_create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
 
+static inline const char* _vk_ver_to_string(uint32_t version, char* out, size_t size) {
+  snprintf(out, size, "%u.%u.%u",
+           VK_API_VERSION_MAJOR(version),
+           VK_API_VERSION_MINOR(version),
+           VK_API_VERSION_PATCH(version));
+  return out;
+}
+
+bool
+_create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
+  if(!ctx || !info) _PARAM_CHECK_FAIL();
+
+  uint32_t ver = VK_API_VERSION_1_2;
+  uint32_t ver_ideal = VK_API_VERSION_1_4;
+  if(vkEnumerateInstanceVersion(&ver_ideal) == VK_SUCCESS) {
+    ver = VK_API_VERSION_1_4;
+  }
   VkApplicationInfo app_info = {
     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
     .pApplicationName   = "corender",
     .applicationVersion = VK_MAKE_VERSION(0, 0, 1),
     .pEngineName        = "corender",
     .engineVersion      = VK_MAKE_VERSION(0, 0, 1),
-    .apiVersion         = VK_API_VERSION_1_4
+    .apiVersion         = ver 
   };
+
+
   VkInstanceCreateInfo create_info = {
     .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo = &app_info,
@@ -222,36 +203,293 @@ _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* 
     .ppEnabledLayerNames = info->enable_validation ? info->layers : NULL
   };
 
-  VkResult res = vkCreateInstance(&create_info, NULL, &ctx->instance); 
-  if(res == VK_SUCCESS) {
-    CR_TRACE(ctx->log, "Initialized Vulkan instance: (version: 1.3, enabledExtensionCount: %i, enabledLayerCount: %i)",
+  _VK_CHECK(ctx, vkCreateInstance(&create_info, NULL, &ctx->instance)); 
+
+  if(ctx->log.verbose) {
+    char ver_buf[32];
+    _vk_ver_to_string(ver, ver_buf, sizeof(ver_buf));
+    CR_TRACE(ctx->log, "Initialized Vulkan instance: (version: %s, enabledExtensionCount: %i, enabledLayerCount: %i)",
+             ver_buf,
              create_info.enabledExtensionCount, create_info.enabledLayerCount);
   }
 
-  return res;
+  return true; 
+
+err:
+  return false;
 
 }
 
-bool 
-_handle_resize(struct cr_context_t* ctx) {
-  vkDeviceWaitIdle(ctx->logical_dev);
-  for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
-    vkDestroyFramebuffer(
-      ctx->swapchain.logical_dev,
-      ctx->frameloop.fbs[i], NULL); 
-    CR_TRACE(ctx->log, "Destroyed framebuffer for swapchain image %i", i); 
+bool
+_create_logical_device(struct cr_context_t* ctx) {
+  if(!ctx) _PARAM_CHECK_FAIL();
 
-    vkDestroyImageView(ctx->logical_dev, ctx->swapchain.img_views[i], NULL);
-    CR_TRACE(ctx->log, "Destroyed image view for swapchain image %i", i); 
+  const float priority = 1.0f;
+  uint32_t queue_count = 0;
+  VkDeviceQueueCreateInfo queues[2];
+
+  queues[queue_count++] = (VkDeviceQueueCreateInfo) {
+      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      .queueFamilyIndex = ctx->graphics_queue_family,
+      .queueCount = 1,
+      .pQueuePriorities = &priority
+    };
+
+  if(ctx->graphics_queue_family != ctx->present_queue_family) {
+    queues[queue_count++] = (VkDeviceQueueCreateInfo) {
+      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      .queueFamilyIndex = ctx->present_queue_family,
+      .queueCount = 1,
+      .pQueuePriorities = &priority
+    };
   }
 
-  free(ctx->frameloop.fbs);
+  const char* device_exts[] = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+  };
 
-  vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
+  VkPhysicalDeviceFeatures enabledFeatures = {};
+  enabledFeatures.multiDrawIndirect = ctx->_have_multi_draw_indirect;
 
-  if(!_create_swapchain(ctx, &ctx->swapchain, ctx->pending_resize.width, ctx->pending_resize.height)) goto err; 
+  VkDeviceCreateInfo device_info = {
+    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+    .pQueueCreateInfos = queues,
+    .queueCreateInfoCount = queue_count, 
+    .enabledExtensionCount = ctx->surf.surf ? 1 : 0, 
+    .ppEnabledExtensionNames = ctx->surf.surf ? device_exts : NULL,
+    .pEnabledFeatures = &enabledFeatures,
+  };
 
-  ctx->frameloop.fbs = calloc(ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.fbs));
+
+  _VK_CHECK(ctx, vkCreateDevice(ctx->phys_dev, &device_info, NULL, &ctx->logical_dev));
+
+    CR_TRACE(ctx->log, "Initialized Vulkan logical device (graphics queue index: %i, present queue index; %i)",
+             ctx->graphics_queue_family, ctx->present_queue_family);
+
+  vkGetDeviceQueue(ctx->logical_dev, ctx->graphics_queue_family, 0, &ctx->graphics_queue);
+  vkGetDeviceQueue(ctx->logical_dev, ctx->present_queue_family, 0, &ctx->present_queue);
+
+  return true;
+
+err:
+  return false;
+}
+
+bool 
+_create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h) {
+  if(!ctx || !o_swapchain) _PARAM_CHECK_FAIL();
+  if(ctx->swapchain.imgs) free(ctx->swapchain.imgs);
+  if(ctx->swapchain.img_views) free(ctx->swapchain.img_views);
+
+  memset(o_swapchain, 0, sizeof(*o_swapchain));
+
+  struct _swapchain_info_t info;
+  if(!_get_swapchain_info_from_physical_device(ctx, ctx->phys_dev, ctx->surf.surf, &info)) {
+    CR_ERROR(ctx->log, "Failed to get swapchain info from physical device.");
+    goto err;
+  }
+
+  VkSurfaceFormatKHR fmt = _get_swapchain_surface_format(&info);
+  VkPresentModeKHR present_mode = _get_swapchain_present_mode(&info);
+  VkExtent2D extent = _get_swapchain_extent(&info, w, h);
+
+  uint32_t n_imgs = info.caps.minImageCount + 1;
+  if(info.caps.maxImageCount > 0 && n_imgs > info.caps.maxImageCount) {
+    n_imgs = info.caps.maxImageCount;
+  }
+
+  VkSwapchainCreateInfoKHR create_info = {
+    .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, 
+    .surface = ctx->surf.surf,
+    .minImageCount = n_imgs,
+    .imageFormat = fmt.format, 
+    .imageColorSpace = fmt.colorSpace,
+    .imageExtent = extent,
+    .imageArrayLayers = 1,
+    .imageUsage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    .preTransform = info.caps.currentTransform,
+    .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+    .presentMode = present_mode,
+    .clipped = VK_TRUE
+  };
+
+  uint32_t families[2] = { ctx->graphics_queue_family, ctx->present_queue_family };
+
+  if (ctx->graphics_queue_family != ctx->present_queue_family) {
+    create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    create_info.queueFamilyIndexCount = 2;
+    create_info.pQueueFamilyIndices = families;
+  } else {
+    create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    create_info.queueFamilyIndexCount = 0;
+    create_info.pQueueFamilyIndices = NULL;
+  }
+  
+  _VK_CHECK(ctx, vkCreateSwapchainKHR(ctx->logical_dev, &create_info, NULL, &o_swapchain->swapchain_handle));
+
+  _VK_CHECK(ctx, vkGetSwapchainImagesKHR(ctx->logical_dev, o_swapchain->swapchain_handle, &o_swapchain->n_imgs, NULL));
+  o_swapchain->imgs = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImage));
+  _VK_CHECK(ctx, vkGetSwapchainImagesKHR(ctx->logical_dev, o_swapchain->swapchain_handle, &o_swapchain->n_imgs, o_swapchain->imgs));
+
+
+  o_swapchain->img_views = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImageView));
+
+  o_swapchain->present_mode = present_mode;
+  o_swapchain->fmt = fmt.format;
+  o_swapchain->dimensions = extent;
+  o_swapchain->logical_dev = ctx->logical_dev;
+
+  for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
+    VkImageViewCreateInfo view_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = o_swapchain->imgs[i],
+      .format = o_swapchain->fmt,
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .levelCount = 1, 
+        .layerCount = 1
+      }
+    };
+
+    _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &view_info, NULL, &o_swapchain->img_views[i]));
+  }
+
+  CR_TRACE(ctx->log, "Initialized Vulkan swapchain (width: %i, height: %i)", 
+             o_swapchain->dimensions.width, o_swapchain->dimensions.height);
+
+  return true;
+
+err:
+  return false;
+}
+
+
+bool 
+_create_static_gpu_state(struct cr_context_t* ctx) {
+
+  if(!_renderer_init_static_instanced_state(ctx)) {
+    CR_ERROR(ctx->log, "Failed to initialize static instanced state of the batch renderer.")
+    return false;
+  }
+
+  return true;
+}
+bool
+_create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family) {
+  VkCommandPoolCreateInfo pool_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .queueFamilyIndex = graphics_queue_family, 
+    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+  };
+
+  for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
+    struct cr_frame_t* frame = &o_frameloop->frames[i];
+  
+    _VK_CHECK(ctx, vkCreateCommandPool(
+      ctx->swapchain.logical_dev, &pool_info, NULL, &frame->cmd_pool));
+
+    VkCommandBufferAllocateInfo buf_info = {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+      .commandPool = frame->cmd_pool,
+      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+      .commandBufferCount = 1
+    };
+
+    _VK_CHECK(ctx, vkAllocateCommandBuffers(ctx->swapchain.logical_dev, &buf_info, &frame->cmd_buf));
+
+    VkSemaphoreCreateInfo sem_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+
+    _VK_CHECK(ctx, vkCreateSemaphore(
+      ctx->swapchain.logical_dev, 
+      &sem_info, NULL, &frame->image_available)); 
+
+    frame->render_finished_per_image = cr_util_alloc(ctx,
+      ctx->swapchain.n_imgs, 
+      sizeof(*frame->render_finished_per_image));
+
+    for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+      _VK_CHECK(ctx, vkCreateSemaphore(
+        ctx->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
+    }
+
+    VkFenceCreateInfo fence_info = {
+      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+      .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    _VK_CHECK(ctx, vkCreateFence(
+      ctx->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
+
+    CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
+             i);
+
+    if(!_render_init_instanced_state(ctx, frame)) {
+      CR_ERROR(ctx->log, "Failed to initialize instanced state of the batch renderer for frame %i.", i)
+      return false;
+    }
+
+    if(!_render_init_vertex_state(ctx, frame)) {
+      CR_ERROR(ctx->log, "Failed to initialize vertex state of the batch renderer for frame %i.", i)
+      return false;
+    }
+  }
+
+  o_frameloop->frame_idx = 0;
+
+  VkAttachmentDescription clear_attachment = {
+    .format = ctx->swapchain.fmt,
+    .samples = VK_SAMPLE_COUNT_1_BIT, 
+
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+
+    .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+  };
+
+  VkAttachmentReference clear_reference = {
+    .attachment = 0,
+    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
+  };
+
+  VkSubpassDescription subpass_desc = {
+    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &clear_reference,
+  };
+
+  VkSubpassDependency dep = {
+    .srcSubpass = VK_SUBPASS_EXTERNAL,
+    .dstSubpass = 0,
+
+    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+
+    .srcAccessMask = 0,
+    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+  };
+
+  VkRenderPassCreateInfo pass_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .attachmentCount = 1,
+    .pAttachments = &clear_attachment,
+    .subpassCount = 1,
+    .pSubpasses = &subpass_desc,
+    .dependencyCount = 1,
+    .pDependencies = &dep,
+  };
+
+  _VK_CHECK(
+    ctx, 
+    vkCreateRenderPass(ctx->swapchain.logical_dev, &pass_info, NULL, &o_frameloop->crnt_pass));
+
+  o_frameloop->fbs = cr_util_alloc(ctx, ctx->swapchain.n_imgs, sizeof(*o_frameloop->fbs));
+
 
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
     VkImageView attachments[] = {
@@ -260,7 +498,7 @@ _handle_resize(struct cr_context_t* ctx) {
 
     VkFramebufferCreateInfo fb_info = {
       .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-      .renderPass = ctx->frameloop.crnt_pass,
+      .renderPass = o_frameloop->crnt_pass,
       .attachmentCount = 1,
       .pAttachments = attachments, 
       .width = ctx->swapchain.dimensions.width,
@@ -269,95 +507,296 @@ _handle_resize(struct cr_context_t* ctx) {
     };
 
     _VK_CHECK(ctx, vkCreateFramebuffer(ctx->swapchain.logical_dev, &fb_info, NULL, 
-                                       &ctx->frameloop.fbs[i]) != VK_SUCCESS);
-
+                                       &o_frameloop->fbs[i]) != VK_SUCCESS);
+    
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop framebuffer for swapchain image view %i", 
              i); 
   }
+    
+  CR_TRACE(ctx->log, "Initialized Vulkan frameloop."); 
 
-  for (uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
-    vkResetCommandPool(
-      ctx->logical_dev,
-      ctx->frameloop.frames[i].cmd_pool,
-      0);
 
-    VkSemaphoreCreateInfo sem_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    struct cr_frame_t* frame = &ctx->frameloop.frames[i];
+  return true;
 
-    if(frame->render_finished_per_image) {
+err:
 
-      vkDestroySemaphore(ctx->logical_dev, frame->image_available, NULL);
-      for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
-        vkDestroySemaphore(ctx->logical_dev, frame->render_finished_per_image[i], NULL);
-      }
-      free(frame->render_finished_per_image);
-      frame->render_finished_per_image = NULL;
-    }
+  return false;
+}
 
-    _VK_CHECK(ctx, vkCreateSemaphore(
-      ctx->swapchain.logical_dev, 
-      &sem_info, NULL, &frame->image_available)); 
+bool _create_render_pipelines(
+  struct cr_context_t* ctx
+) {
+  VkPushConstantRange range = {
+    .offset = 0,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    .size = sizeof(struct _push_constant_t) 
+  };
 
-    frame->render_finished_per_image = calloc(
-      ctx->swapchain.n_imgs, 
-      sizeof(*frame->render_finished_per_image));
+  VkPipelineLayoutCreateInfo layout_info = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .pPushConstantRanges = &range,
+    .pushConstantRangeCount = 1
+  };
 
-    for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
-      _VK_CHECK(ctx, vkCreateSemaphore(
-        ctx->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
-    }
+  _VK_CHECK(ctx, vkCreatePipelineLayout(ctx->logical_dev, &layout_info, NULL, &ctx->pipeline_layout));
+
+  {
+
+    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline,  (VkVertexInputAttributeDescription) {
+      .location = 0,
+      .binding = 0,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_instance_vertex_t, pos)
+    });
+
+    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline, (VkVertexInputAttributeDescription){
+      .location = 1,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, pos)
+    });
+    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline, (VkVertexInputAttributeDescription){
+      .location = 2,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, size)
+    });
+    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline, (VkVertexInputAttributeDescription){
+      .location = 3,
+      .binding = 1,
+      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+      .offset = offsetof(struct cr_instance_t, color)
+    });
+
+    cr_pipeline_add_binding_desc(&instanced_pipeline,
+                                 (VkVertexInputBindingDescription){ 
+                                 .binding = 0,
+                                 .stride = sizeof(struct cr_vertex_t),
+                                 .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+                                 });
+    cr_pipeline_add_binding_desc(&instanced_pipeline, (VkVertexInputBindingDescription){ 
+      .binding = 1,
+      .stride = sizeof(struct cr_instance_t),
+      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+    });
+
+
+    char* vertex_path, *fragment_path;
+    cr_pipeline_get_internal_shader_paths("instanced", vertex_path, fragment_path);
+
+    cr_pipeline_init(
+      ctx, vertex_path, fragment_path, &instanced_pipeline,
+      CR_MAX_BATCH * CR_INITIAL_BATCH_CAP, sizeof(struct cr_instance_t),
+      true
+    );
+    struct cr_instance_vertex_t vertices[4]; 
+
+    vertices[0] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 0.0f } };
+    vertices[1] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 0.0f, } };
+    vertices[2] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 1.0f } };
+    vertices[3] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 1.0f} };
+
+    uint32_t indices[6]; 
+
+    indices[0] = 0;
+    indices[1] = 1;
+    indices[2] = 2;
+
+    indices[3] = 2;
+    indices[4] = 3;
+    indices[5] = 0;
+
+    cr_pipeline_add_static_buffer(ctx, &instanced_pipeline, vertices,
+                                  sizeof(vertices), CR_GPU_BUFFER_VERTEX);
+    
+    cr_pipeline_add_static_buffer(ctx, &instanced_pipeline, indices,
+                                  sizeof(indices), CR_GPU_BUFFER_INDEX);
+    
+    cr_pipeline_add_dynamic_buffer(ctx, &instanced_pipeline, 
+                                   instanced_pipeline.batching.element_cap * 
+                                   sizeof(struct cr_instance_t),
+                                   CR_GPU_BUFFER_VERTEX);
   }
 
 
-  ctx->pending_resize.pending = false;
+  {
 
-  ctx->frameloop.frame_idx = 0;
-  ctx->_swapchain_img_idx = 0;
+    char* vertex_path, *fragment_path;
+    cr_pipeline_get_internal_shader_paths("default", vertex_path, fragment_path);
+
+    cr_pipeline_add_binding_desc(&vertex_pipeline,
+    (VkVertexInputBindingDescription){ 
+    .binding = 0,
+    .stride = sizeof(struct cr_vertex_t),
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+  }
+    );
+
+    cr_pipeline_add_vertex_input_attribute(
+      &vertex_pipeline,
+      (VkVertexInputAttributeDescription) {
+        .location = 1,
+        .binding = 0,
+        .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+        .offset = offsetof(struct cr_vertex_t, color)
+      }
+    );
+
+    cr_pipeline_add_vertex_input_attribute(
+      &vertex_pipeline,
+      (VkVertexInputAttributeDescription) {
+        .location = 0,
+        .binding = 0,
+        .format = VK_FORMAT_R32G32_SFLOAT,
+        .offset = offsetof(struct cr_vertex_t, pos)
+      });
+    
+    cr_pipeline_init(ctx, vertex_path, fragment_path, &vertex_pipeline,
+                     CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * 3, sizeof(struct cr_vertex_t), false);
+
+    cr_pipeline_add_dynamic_buffer(ctx, &vertex_pipeline, 
+                                   vertex_pipeline.batching.element_cap * 
+                                   sizeof(struct cr_vertex_t),
+                                   CR_GPU_BUFFER_VERTEX);
+  
+  }
+
+
  
+  return true;
+err:
+  return false;
+
+}
+
+bool 
+_create_shader_module(struct 
+  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
+  size_t file_size;
+  unsigned char* file_data = cr_util_read_file(filepath, &file_size);
+  if(!file_data || !file_size) goto err; 
+
+  VkShaderModuleCreateInfo shader_info = {0};
+  shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  shader_info.codeSize = file_size;
+  shader_info.pCode = (const uint32_t*)file_data;
+
+  _VK_CHECK(ctx, vkCreateShaderModule(ctx->logical_dev, &shader_info, NULL, o_module));
+
+  CR_TRACE(ctx->log, "Successfully created Vulkan shader module for file '%s'", filepath)
+
+  free(file_data);
+
+
   return true;
 
 err:
   return false;
 }
 
-bool 
-_render_begin_batch(struct cr_context_t* ctx) {
-  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
-  frame->batch_state.instanced.n_instances = 0;
-  //frame->batch_state.vertex.n_vertices = 0;
+bool     
+_create_pipeline(
+  struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
+  const char* shader_subpath, VkPipeline* o_pipeline) {
+  VkShaderModule vert_mod, frag_mod;
 
-  return true;
-}
-
-bool 
-_render_flush(struct cr_context_t* ctx, bool flush_instaced) {
-  if(ctx->_skip_render) return true;
-  struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
-
-  ctx->pending_draws[ctx->n_pending_draws++] = (struct cr_draw_command_t){
-    .instance_write_offset = frame->batch_state.instanced.instance_write_offset,
-    .vertex_write_offset = frame->batch_state.vertex.vertex_write_offset,
-    .n_instances = frame->batch_state.instanced.n_instances,
-    .n_vertices = frame->batch_state.vertex.n_vertices,
-    .instanced_draw = flush_instaced
+  VkPipelineShaderStageCreateInfo shader_stages[2] = {
+    (VkPipelineShaderStageCreateInfo){
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_VERTEX_BIT,
+      .pName = "main",
+      .module = vert_mod,
+    },
+    (VkPipelineShaderStageCreateInfo){
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+      .pName = "main",
+      .module = frag_mod,
+    }
   };
 
-  if(flush_instaced) {
-    frame->batch_state.instanced.instance_write_offset +=
-      frame->batch_state.instanced.n_instances;
 
-    frame->batch_state.instanced.n_instances = 0;
+  VkPipelineInputAssemblyStateCreateInfo assmebly_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+  };
 
-  } else {
-    frame->batch_state.vertex.vertex_write_offset +=
-      frame->batch_state.vertex.n_vertices;
+  VkPipelineRasterizationStateCreateInfo raster_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+    .polygonMode = VK_POLYGON_MODE_FILL,
+    .cullMode = VK_CULL_MODE_NONE,
+    .frontFace = VK_FRONT_FACE_CLOCKWISE,
+    .lineWidth = 1.0f,
+  };
 
-    frame->batch_state.vertex.n_vertices = 0;
-  }
+
+  VkPipelineMultisampleStateCreateInfo msaa_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+  };
+
+  VkPipelineColorBlendAttachmentState blend = {
+    .blendEnable = VK_TRUE,
+    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+    .colorBlendOp = VK_BLEND_OP_ADD,
+    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+    .alphaBlendOp = VK_BLEND_OP_ADD,
+    .colorWriteMask = 0xF
+  };
+
+  VkPipelineColorBlendStateCreateInfo blend_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+    .attachmentCount = 1,
+    .pAttachments = &blend
+  };
+
+  VkDynamicState dynamic_states[] = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
+  };
+
+  VkPipelineDynamicStateCreateInfo dynamic_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+    .dynamicStateCount = 2,
+    .pDynamicStates = dynamic_states
+  };
+
+  VkPipelineViewportStateCreateInfo viewport_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+    .viewportCount = 1,
+    .pViewports = NULL,
+    .scissorCount = 1,
+    .pScissors = NULL,
+  };
+
+  VkGraphicsPipelineCreateInfo pipeline_info = {
+    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .stageCount = 2,
+    .pStages = shader_stages,
+    .pVertexInputState = &vertex_input_state,
+    .pInputAssemblyState = &assmebly_state,
+    .pColorBlendState = &blend_state,
+    .pMultisampleState = &msaa_state,
+    .pRasterizationState = &raster_state,
+    .pDynamicState = &dynamic_state,
+    .pViewportState = &viewport_state,
+    .layout = ctx->pipeline_layout,
+    .renderPass = ctx->frameloop.crnt_pass,
+    .subpass = 0
+  };
+
+  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, o_pipeline));
+
+  vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
+  vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
+
+  CR_TRACE(ctx->log, "Initialized %s graphics pipeline for surface %p.", shader_subpath, ctx->surf.surf);
+
 
   return true;
-
-err: 
+err:
   return false;
 }
 
@@ -411,59 +850,141 @@ bool _pick_physical_device(struct cr_context_t* ctx) {
         present,
         graphics); 
 
+      ctx->phys_dev_limits = props.limits;
+
+      VkPhysicalDeviceFeatures features;
+      vkGetPhysicalDeviceFeatures(dev, &features);
+
+      ctx->_have_multi_draw_indirect = features.multiDrawIndirect;
+
+      if (!features.multiDrawIndirect) {
+        CR_WARN(
+          ctx->log, 
+          "Physical device does not support the Multi-Draw-Indirect feature. The renderer will fallback to direct drawcall submissions.");
+      }
+
       return true;
     }
   }
 
   return false;
 }
+bool 
+_render_handle_resize(struct cr_context_t* ctx) {
+  vkDeviceWaitIdle(ctx->logical_dev);
+  for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+    vkDestroyFramebuffer(
+      ctx->swapchain.logical_dev,
+      ctx->frameloop.fbs[i], NULL); 
+    CR_TRACE(ctx->log, "Destroyed framebuffer for swapchain image %i", i); 
 
-VkResult
-_create_logical_device(struct cr_context_t* ctx) {
-  const float priority = 1.0f;
-  uint32_t queue_count = 0;
-  VkDeviceQueueCreateInfo queues[2];
-
-  queues[queue_count++] = (VkDeviceQueueCreateInfo) {
-      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-      .queueFamilyIndex = ctx->graphics_queue_family,
-      .queueCount = 1,
-      .pQueuePriorities = &priority
-    };
-
-  if(ctx->graphics_queue_family != ctx->present_queue_family) {
-    queues[queue_count++] = (VkDeviceQueueCreateInfo) {
-      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-      .queueFamilyIndex = ctx->present_queue_family,
-      .queueCount = 1,
-      .pQueuePriorities = &priority
-    };
+    vkDestroyImageView(ctx->logical_dev, ctx->swapchain.img_views[i], NULL);
+    CR_TRACE(ctx->log, "Destroyed image view for swapchain image %i", i); 
   }
 
-  const char* device_exts[] = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-  };
+  free(ctx->frameloop.fbs);
 
-  VkDeviceCreateInfo device_info = {
-    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-    .pQueueCreateInfos = queues,
-    .queueCreateInfoCount = queue_count, 
-    .enabledExtensionCount = ctx->surf.surf ? 1 : 0, 
-    .ppEnabledExtensionNames = ctx->surf.surf ? device_exts : NULL
-  };
+  vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
 
-  VkResult res = vkCreateDevice(ctx->phys_dev, &device_info, NULL, &ctx->logical_dev);
-  if(res == VK_SUCCESS) {
-    CR_TRACE(ctx->log, "Initialized Vulkan logical device (graphics queue index: %i, present queue index; %i)",
-             ctx->graphics_queue_family, ctx->present_queue_family);
+  if(!_create_swapchain(ctx, &ctx->swapchain, ctx->pending_resize.width, ctx->pending_resize.height)) goto err; 
+
+  ctx->frameloop.fbs = cr_util_alloc(ctx, ctx->swapchain.n_imgs, sizeof(*ctx->frameloop.fbs));
+
+  for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+    VkImageView attachments[] = {
+      ctx->swapchain.img_views[i]
+    };
+
+    VkFramebufferCreateInfo fb_info = {
+      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass = ctx->frameloop.crnt_pass,
+      .attachmentCount = 1,
+      .pAttachments = attachments, 
+      .width = ctx->swapchain.dimensions.width,
+      .height = ctx->swapchain.dimensions.height,
+      .layers = 1
+    };
+
+    _VK_CHECK(ctx, vkCreateFramebuffer(ctx->swapchain.logical_dev, &fb_info, NULL, 
+                                       &ctx->frameloop.fbs[i]) != VK_SUCCESS);
+
+    CR_TRACE(ctx->log, "Initialized Vulkan frameloop framebuffer for swapchain image view %i", 
+             i); 
   }
 
-  vkGetDeviceQueue(ctx->logical_dev, ctx->graphics_queue_family, 0, &ctx->graphics_queue);
-  vkGetDeviceQueue(ctx->logical_dev, ctx->present_queue_family, 0, &ctx->present_queue);
+  for (uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
+    vkResetCommandPool(
+      ctx->logical_dev,
+      ctx->frameloop.frames[i].cmd_pool,
+      0);
 
-  return res;
+    VkSemaphoreCreateInfo sem_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    struct cr_frame_t* frame = &ctx->frameloop.frames[i];
+
+    if(frame->render_finished_per_image) {
+
+      vkDestroySemaphore(ctx->logical_dev, frame->image_available, NULL);
+      for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+        vkDestroySemaphore(ctx->logical_dev, frame->render_finished_per_image[i], NULL);
+      }
+      free(frame->render_finished_per_image);
+      frame->render_finished_per_image = NULL;
+    }
+
+    _VK_CHECK(ctx, vkCreateSemaphore(
+      ctx->swapchain.logical_dev, 
+      &sem_info, NULL, &frame->image_available)); 
+
+    frame->render_finished_per_image = cr_util_alloc(ctx, 
+      ctx->swapchain.n_imgs, 
+      sizeof(*frame->render_finished_per_image));
+
+    for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+      _VK_CHECK(ctx, vkCreateSemaphore(
+        ctx->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
+    }
+  }
+
+
+  ctx->pending_resize.pending = false;
+
+  ctx->frameloop.frame_idx = 0;
+  ctx->_swapchain_img_idx = 0;
+
+ 
+  return true;
+
+err:
+  return false;
 }
 
+static inline size_t
+align_up(size_t v, size_t alignment) {
+  return (v + alignment - 1) & ~(alignment - 1);
+}
+
+size_t 
+_staging_ring_alloc(struct cr_staging_ring_t* ring, size_t n, size_t align) {
+  size_t size = align_up(n, align);
+
+  if (ring->head + size <= ring->capacity) {
+    if (ring->head < ring->tail && ring->head + size > ring->tail) {
+      return SIZE_MAX; // out of space
+    }
+    size_t off = ring->head;
+    ring->head += size;
+    return off;
+  }
+
+  size_t wrapped_head = 0;
+
+  if (size > ring->tail) {
+    return 0; 
+  }
+
+  ring->head = size;
+  return wrapped_head;
+}
 
 bool
 _get_swapchain_info_from_physical_device(
@@ -495,7 +1016,7 @@ _get_swapchain_surface_format(const struct _swapchain_info_t* swapchain) {
 
 VkPresentModeKHR 
 _get_swapchain_present_mode(const struct _swapchain_info_t* swapchain) {
-  for(uint32_t i = 0; i < swapchain->n_fmts; i++) {
+for(uint32_t i = 0; i < swapchain->n_present_modes; i++) {
     if(swapchain->present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) 
       return swapchain->present_modes[i]; 
   }
@@ -599,635 +1120,6 @@ _get_instanced_pipeline_input_state(struct _vertex_input_state_t* o_input_state)
   };
 }
 
-const char* _vk_result_to_string(VkResult r)
-{
-  switch (r) {
-    case VK_SUCCESS: return "VK_SUCCESS";
-    case VK_NOT_READY: return "VK_NOT_READY";
-    case VK_TIMEOUT: return "VK_TIMEOUT";
-    case VK_EVENT_SET: return "VK_EVENT_SET";
-        case VK_EVENT_RESET: return "VK_EVENT_RESET";
-        case VK_INCOMPLETE: return "VK_INCOMPLETE";
-
-        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
-        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
-        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
-        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
-        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
-        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
-        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
-        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
-        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
-        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
-        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
-        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
-
-        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
-        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
-
-        default: return "VK_ERROR_UNKNOWN";
-    }
-}
-
-
-bool 
-_create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h) {
-  if(ctx->swapchain.imgs) free(ctx->swapchain.imgs);
-  if(ctx->swapchain.img_views) free(ctx->swapchain.img_views);
-  memset(&ctx->swapchain, 0, sizeof(ctx->swapchain));
-
-  struct _swapchain_info_t info;
-  if(!_get_swapchain_info_from_physical_device(ctx, ctx->phys_dev, ctx->surf.surf, &info)) {
-    CR_ERROR(ctx->log, "Failed to get swapchain info from physical device.");
-    goto err;
-  }
-
-  VkSurfaceFormatKHR fmt = _get_swapchain_surface_format(&info);
-  VkPresentModeKHR present_mode = _get_swapchain_present_mode(&info);
-  VkExtent2D extent = _get_swapchain_extent(&info, w, h);
-
-  uint32_t n_imgs = info.caps.minImageCount + 1;
-  if(info.caps.maxImageCount > 0 && n_imgs > info.caps.maxImageCount) {
-    n_imgs = info.caps.maxImageCount;
-  }
-
-  VkSwapchainCreateInfoKHR create_info = {
-    .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR, 
-    .surface = ctx->surf.surf,
-    .minImageCount = n_imgs,
-    .imageFormat = fmt.format, 
-    .imageColorSpace = fmt.colorSpace,
-    .imageExtent = extent,
-    .imageArrayLayers = 1,
-    .imageUsage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-    .preTransform = info.caps.currentTransform,
-    .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-    .presentMode = present_mode,
-    .clipped = VK_TRUE
-  };
-
-  if(ctx->graphics_queue_family != ctx->present_queue_family) {
-    create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-    create_info.queueFamilyIndexCount = 2;
-    uint32_t families[2] = {
-      ctx->graphics_queue_family,
-      ctx->present_queue_family
-    };
-    create_info.pQueueFamilyIndices = families;
-  } else {
-    create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  }
-  
-  _VK_CHECK(ctx, vkCreateSwapchainKHR(ctx->logical_dev, &create_info, NULL, &o_swapchain->swapchain_handle));
-
-  vkGetSwapchainImagesKHR(ctx->logical_dev, o_swapchain->swapchain_handle, &o_swapchain->n_imgs, NULL);
-  o_swapchain->imgs = calloc(o_swapchain->n_imgs, sizeof(VkImage));
-  vkGetSwapchainImagesKHR(ctx->logical_dev, o_swapchain->swapchain_handle, &o_swapchain->n_imgs, o_swapchain->imgs);
-
-
-  o_swapchain->img_views = calloc(o_swapchain->n_imgs, sizeof(VkImageView));
-
-  o_swapchain->present_mode = present_mode;
-  o_swapchain->fmt = fmt.format;
-  o_swapchain->dimensions = extent;
-  o_swapchain->logical_dev = ctx->logical_dev;
-
-  for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
-    VkImageViewCreateInfo view_info = {
-      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-      .image = o_swapchain->imgs[i],
-      .format = o_swapchain->fmt,
-      .viewType = VK_IMAGE_VIEW_TYPE_2D,
-      .subresourceRange = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .levelCount = 1, 
-        .layerCount = 1
-      }
-    };
-
-    _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &view_info, NULL, &o_swapchain->img_views[i]));
-  }
-
-  CR_TRACE(ctx->log, "Initialized Vulkan swapchain (width: %i, height: %i)", 
-             o_swapchain->dimensions.width, o_swapchain->dimensions.height);
-
-  return true;
-
-err:
-  return false;
-
-}
-
-bool
-_create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family) {
-  VkCommandPoolCreateInfo pool_info = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .queueFamilyIndex = graphics_queue_family, 
-    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-  };
-
-  for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
-    struct cr_frame_t* frame = &o_frameloop->frames[i];
-  
-    _VK_CHECK(ctx, vkCreateCommandPool(
-      ctx->swapchain.logical_dev, &pool_info, NULL, &frame->cmd_pool));
-
-    VkCommandBufferAllocateInfo buf_info = {
-      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      .commandPool = frame->cmd_pool,
-      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-      .commandBufferCount = 1
-    };
-
-    _VK_CHECK(ctx, vkAllocateCommandBuffers(ctx->swapchain.logical_dev, &buf_info, &frame->cmd_buf));
-
-    VkSemaphoreCreateInfo sem_info = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-
-    _VK_CHECK(ctx, vkCreateSemaphore(
-      ctx->swapchain.logical_dev, 
-      &sem_info, NULL, &frame->image_available)); 
-
-    frame->render_finished_per_image = calloc(
-      ctx->swapchain.n_imgs, 
-      sizeof(*frame->render_finished_per_image));
-
-    for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
-      _VK_CHECK(ctx, vkCreateSemaphore(
-        ctx->swapchain.logical_dev, &sem_info, NULL, &frame->render_finished_per_image[i]));
-    }
-
-    VkFenceCreateInfo fence_info = {
-      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-      .flags = VK_FENCE_CREATE_SIGNALED_BIT
-    };
-
-    _VK_CHECK(ctx, vkCreateFence(
-      ctx->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
-  
-    CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
-             i);
-
-    frame->batch_state = (struct cr_batch_state_t){0};
-    frame->batch_state.vertex.batch_group_cap =  CR_MAX_BATCH * CR_INITIAL_BATCH_CAP;
-    frame->batch_state.instanced.batch_group_cap =  CR_MAX_BATCH * CR_INITIAL_BATCH_CAP;
-
-    if(!_render_init_vertex_state(ctx, frame)) {
-      CR_ERROR(ctx->log, "Failed to initialize vertex state of the batch renderer for frame %i.", i)
-      return false;
-    }
-    if(!_render_init_instanced_state(ctx, frame)) {
-      CR_ERROR(ctx->log, "Failed to initialize vertex state of the batch renderer for frame %i.", i)
-      return false;
-    }
-  }
-
-  o_frameloop->frame_idx = 0;
-
-  VkAttachmentDescription clear_attachment = {
-    .format = ctx->swapchain.fmt,
-    .samples = VK_SAMPLE_COUNT_1_BIT, 
-
-    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-
-    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-
-    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-
-    .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-  };
-
-  VkAttachmentReference clear_reference = {
-    .attachment = 0,
-    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
-  };
-
-  VkSubpassDescription subpass_desc = {
-    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-    .colorAttachmentCount = 1,
-    .pColorAttachments = &clear_reference,
-  };
-
-  VkSubpassDependency dep = {
-    .srcSubpass = VK_SUBPASS_EXTERNAL,
-    .dstSubpass = 0,
-
-    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-
-    .srcAccessMask = 0,
-    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-  };
-
-  VkRenderPassCreateInfo pass_info = {
-    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-    .attachmentCount = 1,
-    .pAttachments = &clear_attachment,
-    .subpassCount = 1,
-    .pSubpasses = &subpass_desc,
-    .dependencyCount = 1,
-    .pDependencies = &dep,
-  };
-
-  _VK_CHECK(
-    ctx, 
-    vkCreateRenderPass(ctx->swapchain.logical_dev, &pass_info, NULL, &o_frameloop->crnt_pass));
-
-  o_frameloop->fbs = calloc(ctx->swapchain.n_imgs, sizeof(*o_frameloop->fbs));
-
-
-  for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
-    VkImageView attachments[] = {
-      ctx->swapchain.img_views[i]
-    };
-
-    VkFramebufferCreateInfo fb_info = {
-      .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-      .renderPass = o_frameloop->crnt_pass,
-      .attachmentCount = 1,
-      .pAttachments = attachments, 
-      .width = ctx->swapchain.dimensions.width,
-      .height = ctx->swapchain.dimensions.height,
-      .layers = 1
-    };
-
-    _VK_CHECK(ctx, vkCreateFramebuffer(ctx->swapchain.logical_dev, &fb_info, NULL, 
-                                       &o_frameloop->fbs[i]) != VK_SUCCESS);
-    
-    CR_TRACE(ctx->log, "Initialized Vulkan frameloop framebuffer for swapchain image view %i", 
-             i); 
-  }
-    
-  CR_TRACE(ctx->log, "Initialized Vulkan frameloop."); 
-
-
-  return true;
-
-err:
-
-  return false;
-}
-
-bool 
-_create_shader_module(struct 
-  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
-  size_t file_size;
-  unsigned char* file_data = cr_util_read_file(filepath, &file_size);
-  if(!file_data || !file_size) goto err; 
-
-  VkShaderModuleCreateInfo shader_info = {0};
-  shader_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  shader_info.codeSize = file_size;
-  shader_info.pCode = (const uint32_t*)file_data;
-
-  _VK_CHECK(ctx, vkCreateShaderModule(ctx->logical_dev, &shader_info, NULL, o_module));
-
-  CR_TRACE(ctx->log, "Successfully created Vulkan shader module for file '%s'", filepath)
-
-  free(file_data);
-
-
-  return true;
-
-err:
-  return false;
-}
-
-bool     
-_create_pipeline(
-  struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
-  const char* shader_subpath, VkPipeline* o_pipeline) {
-  VkShaderModule vert_mod, frag_mod;
-
-  const char* state_dir = cr_util_get_state_folder();
-  char shader_dir[PATH_MAX];
-  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/%s", state_dir, _CR_BRAND_NAME, shader_subpath);
-
-  char vert_src[PATH_MAX];
-  snprintf(vert_src, sizeof(vert_src), "%s/basic_vert.spv", shader_dir);
-  char frag_src[PATH_MAX];
-  snprintf(frag_src, sizeof(frag_src), "%s/basic_frag.spv", shader_dir);
-
-  if(!_create_shader_module(ctx, vert_src, &vert_mod)) {
-    CR_ERROR(ctx->log, "Failed to create vertex shader byte code for file '%s'", 
-             vert_src);
-    goto err;
-  }
-  if(!_create_shader_module(ctx, frag_src, &frag_mod)) {
-    CR_ERROR(ctx->log, "Failed to create fragment shader byte code for file '%s'", 
-             frag_src);
-    goto err;
-  }
-
-  VkPipelineShaderStageCreateInfo shader_stages[2] = {
-    (VkPipelineShaderStageCreateInfo){
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-      .stage = VK_SHADER_STAGE_VERTEX_BIT,
-      .pName = "main",
-      .module = vert_mod,
-    },
-    (VkPipelineShaderStageCreateInfo){
-      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-      .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-      .pName = "main",
-      .module = frag_mod,
-    }
-  };
-
-
-  VkPipelineInputAssemblyStateCreateInfo assmebly_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-    .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-  };
-
-  VkPipelineRasterizationStateCreateInfo raster_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-    .polygonMode = VK_POLYGON_MODE_FILL,
-    .cullMode = VK_CULL_MODE_NONE,
-    .frontFace = VK_FRONT_FACE_CLOCKWISE,
-    .lineWidth = 1.0f,
-  };
-
-
-  VkPipelineMultisampleStateCreateInfo msaa_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
-  };
-
-  VkPipelineColorBlendAttachmentState blend = {
-    .blendEnable = VK_TRUE,
-    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-    .colorBlendOp = VK_BLEND_OP_ADD,
-    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
-    .alphaBlendOp = VK_BLEND_OP_ADD,
-    .colorWriteMask = 0xF
-  };
-
-  VkPipelineColorBlendStateCreateInfo blend_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-    .attachmentCount = 1,
-    .pAttachments = &blend
-  };
-
-  VkDynamicState dynamic_states[] = {
-    VK_DYNAMIC_STATE_VIEWPORT,
-    VK_DYNAMIC_STATE_SCISSOR
-  };
-
-  VkPipelineDynamicStateCreateInfo dynamic_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-    .dynamicStateCount = 2,
-    .pDynamicStates = dynamic_states
-  };
-
-  VkPipelineViewportStateCreateInfo viewport_state = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-    .viewportCount = 1,
-    .pViewports = NULL,
-    .scissorCount = 1,
-    .pScissors = NULL,
-  };
-
-  VkGraphicsPipelineCreateInfo pipeline_info = {
-    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-    .stageCount = 2,
-    .pStages = shader_stages,
-    .pVertexInputState = &vertex_input_state,
-    .pInputAssemblyState = &assmebly_state,
-    .pColorBlendState = &blend_state,
-    .pMultisampleState = &msaa_state,
-    .pRasterizationState = &raster_state,
-    .pDynamicState = &dynamic_state,
-    .pViewportState = &viewport_state,
-    .layout = ctx->pipeline_layout,
-    .renderPass = ctx->frameloop.crnt_pass,
-    .subpass = 0
-  };
-
-  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, o_pipeline));
-
-  vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
-  vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
-
-  CR_TRACE(ctx->log, "Initialized %s graphics pipeline for surface %p.", shader_subpath, ctx->surf.surf);
-
-
-  return true;
-err:
-  return false;
-}
-
-bool 
-_create_vma_context(struct 
-  cr_context_t* ctx) {
-  VmaAllocatorCreateInfo allocator_info = {
-    .device = ctx->logical_dev,
-    .physicalDevice = ctx->phys_dev,
-    .instance = ctx->instance 
-  };
-
-  vmaCreateAllocator(&allocator_info, &_vma_allocator);
- 
-  CR_TRACE(ctx->log, "Initialized VMA allocator."); 
-
-  return true;
-err:
-  return false;
-} 
-bool 
-_create_gpu_buffer(
-  struct 
-  cr_context_t* ctx, 
-  VkDeviceSize size,
-  enum cr_gpu_buffer_type_t type,
-  enum cr_gpu_buffer_memory_type_t mem_type,
-  struct cr_gpu_buffer_t* o_buf
-) {
-  if(!o_buf || !ctx) _PARAM_CHECK_FAIL(); 
-  *o_buf = (struct cr_gpu_buffer_t){0};
-
-  VkBufferUsageFlags usage;
-  VkMemoryPropertyFlags mem_props;
-  switch(mem_type) {
-    case CR_GPU_BUFFER_MEM_DEVICE_LOCAL:
-      usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-      mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-      break;
-    case CR_GPU_BUFFER_MEM_STAGING:
-      usage |= 
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-      mem_props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-      break;
-    default: {
-      CR_FATAL(ctx->log, "Invalid buffer memory type for GPU buffer creation specified: %i. Use enumeration values of cr_gpu_buffer_type_t.", 
-               type);
-      break;
-    }
-  }
-
-  switch(type) {
-    case CR_GPU_BUFFER_INDEX: usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT; break;
-    case CR_GPU_BUFFER_VERTEX: usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; break;
-    default: {
-      CR_FATAL(ctx->log, "Invalid buffer type for GPU buffer creation specified: %i. Use enumeration values of cr_gpu_buffer_memory_type_t.", 
-               type);
-      break;
-    }
-  }
-  
-  VkBufferCreateInfo buffer_info = {
-    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-    .size = size,
-    .usage = usage,
-  };
-
-  VmaAllocationCreateInfo alloc_info = {};
-  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-  alloc_info.requiredFlags = mem_props;
-  if(mem_type == CR_GPU_BUFFER_MEM_STAGING) 
-    alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-
-  VkBuffer buffer;
-  VmaAllocation allocation; 
-  _VK_CHECK(ctx, vmaCreateBuffer(_vma_allocator, &buffer_info, &alloc_info, &buffer, &allocation, NULL));
-
-  if(mem_type == CR_GPU_BUFFER_MEM_STAGING)  {
-    VmaAllocationInfo retrieved_info;
-    vmaGetAllocationInfo(_vma_allocator, allocation, &retrieved_info); 
-    o_buf->mem_handle = retrieved_info.pMappedData;
-  }
-
-  o_buf->buf = buffer;
-  o_buf->_vma_allocation = allocation;
-  o_buf->buf_size = size;
-  o_buf->_mem_props = mem_props;
-  o_buf->_usage = usage;
-
-  o_buf->type = type;
-  o_buf->mem_type = mem_type;
-
-  CR_TRACE(ctx->log, "Successfully allocated GPU buffer %p with size %li", buffer, size);
-
-  return true;
-err:
-  return false;
-
-}
-
-static bool 
-_destroy_gpu_buffer(
-  struct cr_context_t* ctx, 
-  struct cr_gpu_buffer_t* buf
-) {
-  if(!ctx || !buf || !buf->_vma_allocation) return true;
-
-  vkDeviceWaitIdle(ctx->logical_dev);
-
-  vmaDestroyBuffer(_vma_allocator, buf->buf, (VmaAllocation)buf->_vma_allocation);
-
-  CR_TRACE(ctx->log, "Successfully destroyed GPU buffer %p of size %lu.\n", buf->buf, buf->buf_size);
-
-  memset(buf, 0, sizeof(*buf));
-
-  return true;
-} 
-
-static bool     
-_resize_gpu_buffer(
-  struct cr_context_t* ctx, 
-  struct cr_gpu_buffer_t* buf,
-  VkDeviceSize new_size 
-) {
-  struct cr_gpu_buffer_t new_buf;
-  if(!_create_gpu_buffer(ctx, new_size, buf->type,  buf->mem_type, &new_buf)) {
-    return false;
-  }
-
-  void* old_contents = buf->mem_handle;
-  void* new_contents = new_buf.mem_handle;
-
-  memcpy(new_contents, old_contents, CR_MIN(new_size, buf->buf_size));
-  
-  CR_TRACE(ctx->log, "Successfully resized GPU buffer %p from size %lu to size %lu (new buffer => %p)\n", buf->buf, buf->buf_size, new_size, new_buf.buf);
-
-  _destroy_gpu_buffer(ctx, buf);
-
-  *buf = new_buf;
-
-  printf("resize buffer.\n");
-  return true;
-}
-
-bool 
-_render_init_instanced_state(struct cr_context_t* ctx, struct cr_frame_t* frame) {
-  if(!_create_gpu_buffer(
-    ctx, 4  * sizeof(struct cr_instance_vertex_t),
-    CR_GPU_BUFFER_VERTEX,
-    CR_GPU_BUFFER_MEM_STAGING,
-  &frame->batch_state.instanced.vbo)) {
-    CR_ERROR(ctx->log, "Failed to create static vertex GPU Buffer for instanced batch state.");
-    return false;
-  }
-
-  struct cr_instance_vertex_t* vertices =  frame->batch_state.instanced.vbo.mem_handle;
-
-  vertices[0] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 0.0f } };
-  vertices[1] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 0.0f, } };
-  vertices[2] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 1.0f } };
-  vertices[3] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 1.0f} };
-
-  if(!_create_gpu_buffer(
-    ctx, 6 * sizeof(uint32_t), 
-    CR_GPU_BUFFER_INDEX,
-    CR_GPU_BUFFER_MEM_STAGING, 
-    &frame->batch_state.instanced.ibo)) {
-    CR_ERROR(ctx->log, "Failed to create static index GPU Buffer for instanced batch state.");
-    return false;
-  }
-
-  if(!_create_gpu_buffer(
-    ctx, frame->batch_state.instanced.batch_group_cap * sizeof(struct cr_instance_t), 
-    CR_GPU_BUFFER_VERTEX,
-    CR_GPU_BUFFER_MEM_STAGING,
-    &frame->batch_state.instanced.instance_buf)) {
-    CR_ERROR(ctx->log, "Failed to create instance data GPU Buffer for instanced batch state.");
-    return false;
-  }
-
-  uint32_t* indices_mapped = (uint32_t*)frame->batch_state.instanced.ibo.mem_handle;
-
-  indices_mapped[0] = 0;
-  indices_mapped[1] = 1;
-  indices_mapped[2] = 2;
-
-  indices_mapped[3] = 2;
-  indices_mapped[4] = 3;
-  indices_mapped[5] = 0;
-
-  return true; 
-}
-bool 
-_render_init_vertex_state(struct cr_context_t* ctx, struct cr_frame_t* frame) {
-
-  if(!_create_gpu_buffer(
-    ctx, frame->batch_state.vertex.batch_group_cap * sizeof(struct cr_vertex_t), 
-    CR_GPU_BUFFER_VERTEX,
-    CR_GPU_BUFFER_MEM_STAGING,
-    &frame->batch_state.vertex.vbo)) {
-    CR_ERROR(ctx->log, "Failed to create static GPU Buffer for vertex batch state.");
-    return false;
-  }
-
-  return true; 
-
-}
-
 
 bool 
 cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
@@ -1244,6 +1136,7 @@ cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t*
 
   return true;
 }
+
 bool 
 cr_context_destroy(struct cr_context_t* ctx) {
   return true;
@@ -1254,17 +1147,27 @@ cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color) {
   memcpy(ctx->_pass_info.clear_color, color, sizeof(vec4));
 }
 
+static float last_time = 0, delta_time = 0;
 bool  
 cr_draw_begin(struct cr_context_t* ctx) {
   if(ctx->pending_resize.pending) {
-    if(!_handle_resize(ctx)) {
+    if(!_render_handle_resize(ctx)) {
       CR_ERROR(ctx->log, "Failed to handle resize to size: %ix%i. ", ctx->pending_resize.width, ctx->pending_resize.height);
       goto err;
     }
   }
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
-    ctx->_skip_render = false;
+
+  ctx->staging_ring.tail = frame->staging_end;
+  frame->staging_begin = ctx->staging_ring.head;
+  frame->staging_end   = ctx->staging_ring.head; 
+
+  ctx->_skip_render = false;
+ 
+  if(!cr_mem_upadate_lazy_destroys(ctx)) goto err; 
+
+  frame->_n_pending_buffer_destroys = 0;
 
   ctx->_swapchain_img_idx = 0;
   VkResult res = vkAcquireNextImageKHR(
@@ -1288,42 +1191,17 @@ cr_draw_begin(struct cr_context_t* ctx) {
   _VK_CHECK(ctx, vkResetFences(ctx->logical_dev, 1, &frame->in_flight_fence));
   _VK_CHECK(ctx, vkResetCommandPool(ctx->logical_dev, frame->cmd_pool, 0));
 
-  VkCommandBufferBeginInfo begin_info = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
-  };
-
-  _VK_CHECK(ctx, vkBeginCommandBuffer(frame->cmd_buf, &begin_info));
-
-  VkClearValue clear = {
-    .color = {
-      ctx->_pass_info.clear_color[0],
-      ctx->_pass_info.clear_color[1],
-      ctx->_pass_info.clear_color[2],
-      ctx->_pass_info.clear_color[3]
-    }
-  };
-  VkRenderPassBeginInfo renderpass_info = {
-    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-    .renderPass = ctx->frameloop.crnt_pass,
-    .framebuffer = ctx->frameloop.fbs[ctx->_swapchain_img_idx],
-    .renderArea = {
-      .offset = {0, 0},
-      .extent = ctx->swapchain.dimensions
-    },
-    .pClearValues = &clear,
-    .clearValueCount = 1
-  };
-
-  vkCmdBeginRenderPass(frame->cmd_buf, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
-
-
-  _render_begin_batch(ctx);
-
   frame->batch_state.instanced.instance_write_offset = 0;
-  frame->batch_state.vertex.vertex_write_offset = 0;
   frame->batch_state.instanced.n_instances = 0;
-  ctx->n_pending_draws = 0;
   frame->batch_state.vertex.n_vertices = 0;
+  frame->batch_state.vertex.vertex_write_offset = 0;
+
+  float current_time = glfwGetTime();
+
+  delta_time = current_time - last_time;
+  last_time = current_time;
+  printf("FPS: %.2f\n", 1.0f / delta_time);
+
 
   return true;
 
@@ -1335,56 +1213,56 @@ void
 cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
-  if(frame->batch_state.instanced.n_instances >= CR_MAX_BATCH) {
-    _render_flush(ctx, true);
+  if(instanced_pipeline.batching->n_elements >= CR_MAX_BATCH) {
+    cr_pipeline_flush(ctx, &instanced_pipeline, 
+                      instanced_pipeline.batching->n_elements,
+                      6);
   }
 
-  uint32_t index = frame->batch_state.instanced.instance_write_offset +
-                 frame->batch_state.instanced.n_instances;
+  uint32_t write_idx = cr_pipeline_get_batch_write_idx(&instanced_pipeline);
 
-  if(index >= frame->batch_state.instanced.batch_group_cap) {
-    frame->batch_state.instanced.batch_group_cap *= 2;
-    if(!_resize_gpu_buffer(ctx, &frame->batch_state.instanced.instance_buf, frame->batch_state.instanced.batch_group_cap * sizeof(struct cr_instance_t))) {
-      CR_ERROR(ctx->log, "Failed to resize GPU buffer for instance data.\n");
-      return;
-  
-    }
-  }
-  struct cr_instance_t* instances =  frame->batch_state.instanced.instance_buf.mem_handle;
+  cr_pipeline_ensure_batch_data_size(ctx, &instanced_pipeline, write_idx);
 
-  instances[index] = (struct cr_instance_t){
-    .pos = {pos[0], pos[1]},
-    .size = {size[0], size[1]},
-    .color = {color[0], color[1], color[2], color[3]}
-  };
+  struct cr_instance_t* instances = (struct cr_instance_t*)instanced_pipeline.batching->data;
+    instances[write_idx
+    ] = (struct cr_instance_t){
+      .pos   = { pos[0], pos[1] },
+      .size  = { size[0], size[1] },
+      .color = { color[0], color[1], color[2], color[3] }
+    };
 
-  frame->batch_state.instanced.n_instances++;
+  instanced_pipeline.batching[ctx->frameloop.frame_idx].n_elements++;
 }
 
 void 
 cr_draw_vertex(struct cr_context_t* ctx, vec2 pos, vec4 color) { 
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
-  struct cr_vertex_t* vertices =  frame->batch_state.vertex.vbo.mem_handle;
-  
+
   if(frame->batch_state.vertex.n_vertices >= CR_MAX_BATCH) {
     _render_flush(ctx, false);
   }
 
-  uint32_t index = frame->batch_state.vertex.vertex_write_offset +
-    frame->batch_state.vertex.n_vertices;
+  uint32_t idx = frame->batch_state.vertex.vertex_write_offset + frame->batch_state.vertex.n_vertices;
 
-  if(index >= frame->batch_state.vertex.batch_group_cap) {
-    frame->batch_state.vertex.batch_group_cap *= 2;
-    if(!_resize_gpu_buffer(ctx, &frame->batch_state.vertex.vbo, frame->batch_state.vertex.batch_group_cap * sizeof(struct cr_vertex_t))) {
-      CR_ERROR(ctx->log, "Failed to resize GPU buffer for vertex data.\n");
+  if(idx >= frame->batch_state.vertex.total_vertex_cap_cpu) {
+    frame->batch_state.vertex.total_vertex_cap_cpu =
+      CR_MAX(frame->batch_state.vertex.total_vertex_cap_cpu * 2,
+             idx);
+
+    struct cr_vertex_t* new_cpu_vertices = realloc(frame->batch_state.vertex.cpu_vertices,  frame->batch_state.vertex.total_vertex_cap_cpu * sizeof(struct cr_vertex_t));
+    if(!new_cpu_vertices) {
+      CR_ERROR(ctx->log, "Failed to resize CPU buffer for vertex data.\n");
       return;
     }
+    frame->batch_state.vertex.cpu_vertices = new_cpu_vertices;
   }
 
-  vertices[index] = (struct cr_vertex_t){
+  frame->batch_state.vertex.cpu_vertices[idx] = (struct cr_vertex_t){
     .pos = {pos[0], pos[1]},
-    .color = {color[0], color[1], color[2], color[3]}
+    .color = {color[0], color[1], color[2], color[3]},
   };
+
+  
   frame->batch_state.vertex.n_vertices++;
 }
 
@@ -1416,26 +1294,70 @@ static void _render_set_dynamic_state(struct cr_context_t* ctx) {
   vkCmdPushConstants(
     frame->cmd_buf, 
     ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
-
-
 }
 
-void _render_commit_draw_command_instanced(struct cr_frame_t* frame, struct cr_draw_command_t* cmd) {
+static void 
+_render_upload_to_device_local_gpu_buffer(
+  struct cr_context_t* ctx, struct cr_frame_t* frame, 
+  void* data, uint32_t size, struct cr_gpu_buffer_t* device_local_buf
+) {
+
+  struct cr_staging_ring_t* ring = &ctx->staging_ring;
+
+  size_t offset = _staging_ring_alloc(ring, size, 
+        ctx->phys_dev_limits.optimalBufferCopyOffsetAlignment);
+  if (offset == SIZE_MAX) {
+    CR_FATAL(ctx->log, "Staging ring out of memory this frame");
+  }
+
+  memcpy((uint8_t*)ring->buf.mem_handle + offset, data, size);
+
+  VkBufferCopy copy_region = (VkBufferCopy){
+    .size = size,
+    .srcOffset = offset,
+    .dstOffset = 0
+  };
+
+  vkCmdCopyBuffer(frame->cmd_buf, ring->buf.buf, device_local_buf->buf, 1, &copy_region);
+
+  VkBufferMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+    .dstAccessMask = device_local_buf->type == CR_GPU_BUFFER_INDIRECT ? VK_ACCESS_INDIRECT_COMMAND_READ_BIT : VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, 
+    .buffer = device_local_buf->buf,
+    .offset = 0,
+    .size   = VK_WHOLE_SIZE 
+  };
+
+  vkCmdPipelineBarrier(
+    frame->cmd_buf,
+    VK_PIPELINE_STAGE_TRANSFER_BIT,
+    device_local_buf->type == CR_GPU_BUFFER_INDIRECT ? VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT : VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+    0,
+    0, NULL,
+    1, &barrier,
+    0, NULL
+  );
+}
+
+void _render_commit_draw_command_instanced(
+  struct cr_context_t* ctx, 
+  struct cr_frame_t* frame, 
+  struct cr_draw_command_t* cmd) {
   VkDeviceSize vbo_offsets[] = { 0, 
     cmd->instance_write_offset * sizeof(struct cr_instance_t) };  
 
   VkBuffer render_bufs[] = {
-    frame->batch_state.instanced.vbo.buf,
+    ctx->_instanced_static.vbo.buf,
     frame->batch_state.instanced.instance_buf.buf,
   };
   vkCmdBindVertexBuffers(frame->cmd_buf, 0, 2, render_bufs, vbo_offsets);
-  vkCmdBindIndexBuffer(frame->cmd_buf, frame->batch_state.instanced.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(frame->cmd_buf, ctx->_instanced_static.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
 
   vkCmdDrawIndexed(frame->cmd_buf, 6, cmd->n_instances, 0, 0, 0); 
 }
 
 void _render_commit_draw_command_vertex(struct cr_frame_t* frame, struct cr_draw_command_t* cmd) {
-
   VkDeviceSize vbo_offsets[] = {cmd->vertex_write_offset * sizeof(struct cr_vertex_t) };  
 
   VkBuffer render_bufs[] = { frame->batch_state.vertex.vbo.buf };
@@ -1451,39 +1373,161 @@ cr_draw_end(struct cr_context_t* ctx) {
     return true;
   }
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
+  
+  VkCommandBufferBeginInfo begin_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+  };
 
-  if(frame->batch_state.instanced.n_instances > 0) {
-    vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->instance_pipeline);
-    _render_set_dynamic_state(ctx);
+  _VK_CHECK(ctx, vkBeginCommandBuffer(frame->cmd_buf, &begin_info));
+ 
+  uint32_t total_instances = frame->batch_state.instanced.instance_write_offset + frame->batch_state.instanced.n_instances;
+ 
+  uint32_t total_vertices = frame->batch_state.vertex.vertex_write_offset + frame->batch_state.vertex.n_vertices;
 
+  if(total_instances > 0) {
     if(!_render_flush(ctx, true)) {
       CR_ERROR(ctx->log, "Failed to flush the renderer.");
       goto err;
     }
-    for(uint32_t i = 0; i < ctx->n_pending_draws; i++) {
-      if(!ctx->pending_draws[i].instanced_draw) continue;
-      _render_commit_draw_command_instanced(frame, &ctx->pending_draws[i]);
+
+    if(total_instances > frame->batch_state.instanced.total_instance_cap) {
+      frame->batch_state.instanced.total_instance_cap =
+        CR_MAX(frame->batch_state.instanced.total_instance_cap * 2,
+               total_instances);
+
+      if(!_resize_gpu_buffer(ctx, &frame->batch_state.instanced.instance_buf, frame->batch_state.instanced.total_instance_cap * sizeof(struct cr_instance_t))) {
+        CR_ERROR(ctx->log, "Failed to resize instance buffer.");
+        goto err;
+      }
     }
+
+    _render_upload_to_device_local_gpu_buffer(
+      ctx, frame, 
+      frame->batch_state.instanced.cpu_instances,
+      total_instances * sizeof(struct cr_instance_t),
+      &frame->batch_state.instanced.instance_buf
+    );
   }
 
-  if(frame->batch_state.vertex.n_vertices > 0) {
-    vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vertex_pipeline);
-    _render_set_dynamic_state(ctx);
-
+  if(total_vertices > 0) {
     if(!_render_flush(ctx, false)) {
       CR_ERROR(ctx->log, "Failed to flush the renderer.");
       goto err;
     }
-    for(uint32_t i = 0; i < ctx->n_pending_draws; i++) {
-      if(ctx->pending_draws[i].instanced_draw) continue;
-      _render_commit_draw_command_vertex(frame, &ctx->pending_draws[i]);
+
+
+    if(total_vertices > frame->batch_state.vertex.total_vertex_cap) {
+      frame->batch_state.vertex.total_vertex_cap =
+        CR_MAX(frame->batch_state.vertex.total_vertex_cap * 2,
+               total_vertices);
+
+      if(!_resize_gpu_buffer(ctx, &frame->batch_state.vertex.vbo, frame->batch_state.vertex.total_vertex_cap * sizeof(struct cr_vertex_t))) {
+        CR_ERROR(ctx->log, "Failed to resize vertex buffer.");
+        goto err;
+      }
     }
+
+    _render_upload_to_device_local_gpu_buffer(
+      ctx, frame, 
+      frame->batch_state.vertex.cpu_vertices,
+      total_vertices * sizeof(struct cr_vertex_t),
+      &frame->batch_state.vertex.vbo 
+    );
   }
+
+  if(frame->_n_indirect_cmds_instanced > 0) {
+    _render_upload_to_device_local_gpu_buffer(
+      ctx, frame, 
+      frame->_indirect_cmds_instanced,
+      frame->_n_indirect_cmds_instanced * sizeof(VkDrawIndexedIndirectCommand),
+      &frame->batch_state.instanced._indirect_cmd_buf
+    );
+  }
+
+  if(frame->_n_indirect_cmds_vertex > 0) {
+    _render_upload_to_device_local_gpu_buffer(
+      ctx, frame, 
+      frame->_indirect_cmds_vertex,
+      frame->_n_indirect_cmds_vertex * sizeof(VkDrawIndirectCommand),
+      &frame->batch_state.vertex._indirect_cmd_buf
+    );
+  }
+
+  VkClearValue clear = {
+    .color = {
+      ctx->_pass_info.clear_color[0],
+      ctx->_pass_info.clear_color[1],
+      ctx->_pass_info.clear_color[2],
+      ctx->_pass_info.clear_color[3]
+    }
+  };
+  VkRenderPassBeginInfo renderpass_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+    .renderPass = ctx->frameloop.crnt_pass,
+    .framebuffer = ctx->frameloop.fbs[ctx->_swapchain_img_idx],
+    .renderArea = {
+      .offset = {0, 0},
+      .extent = ctx->swapchain.dimensions
+    },
+    .pClearValues = &clear,
+    .clearValueCount = 1
+  };
+
+
+  vkCmdBeginRenderPass(frame->cmd_buf, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+  if(total_instances > 0) {
+    vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->instance_pipeline);
+    _render_set_dynamic_state(ctx);
+
+    VkDeviceSize vbo_offsets[] = { 0, 0};  
+
+    VkBuffer render_bufs[] = {
+      ctx->_instanced_static.vbo.buf,
+      frame->batch_state.instanced.instance_buf.buf,
+    };
+
+    vkCmdBindVertexBuffers(frame->cmd_buf, 0, 2, render_bufs, vbo_offsets);
+    vkCmdBindIndexBuffer(frame->cmd_buf, ctx->_instanced_static.ibo.buf, 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexedIndirect(
+      frame->cmd_buf,
+      frame->batch_state.instanced._indirect_cmd_buf.buf,
+      0,
+      frame->_n_indirect_cmds_instanced,
+      sizeof(VkDrawIndexedIndirectCommand)
+    );
+
+  }
+
+ if(total_vertices > 0) {
+    vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx->vertex_pipeline);
+    _render_set_dynamic_state(ctx);
+
+    VkDeviceSize vbo_offsets[] = { 0 };  
+
+    VkBuffer render_bufs[] = {
+      frame->batch_state.vertex.vbo.buf,
+    };
+
+    vkCmdBindVertexBuffers(frame->cmd_buf, 0, 1, render_bufs, vbo_offsets);
+
+    vkCmdDrawIndirect(
+      frame->cmd_buf,
+      frame->batch_state.vertex._indirect_cmd_buf.buf,
+      0,
+      frame->_n_indirect_cmds_vertex,
+      sizeof(VkDrawIndirectCommand)
+    );
+  }
+
+  frame->_n_indirect_cmds_instanced = 0;
+  frame->_n_indirect_cmds_vertex = 0;
 
   vkCmdEndRenderPass(frame->cmd_buf);
   _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
 
-  VkDeviceSize offset = 0;
 
   VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -1512,7 +1556,10 @@ cr_draw_end(struct cr_context_t* ctx) {
 
   vkQueuePresentKHR(ctx->present_queue, &present_info);
 
+  frame->staging_end = ctx->staging_ring.head;
+
   ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
+
 
   return true;
 

@@ -2,12 +2,15 @@
 #include <stdbool.h>
 #include <stdio.h>
 #define _GNU_SOURCE
-#include "../include/corender/util.h"
+#include "util.h"
+#include "../include/corender/corender.h"
 #include <time.h>
 #include <stdlib.h>
 #include <linux/limits.h>
 #include <unistd.h>
 #include <sys/stat.h>
+
+#define _SUBSYS_NAME "UTIL"
 
 char* cr_util_get_state_folder(void) {
   const char* state_home = getenv("XDG_STATE_HOME");
@@ -130,4 +133,45 @@ cr_util_read_file(const char* filepath, size_t* o_filesize) {
 
   return data;
 
+}
+
+void* 
+cr_util_alloc(void* ctx, size_t n, size_t size) {
+  void* ret = calloc(n, size);
+  if(!ret) {
+    CR_FATAL(((struct cr_context_t*)ctx)->log, "calloc() failed: Out of memory.\n");
+    return NULL;
+  }
+  return ret;
+}
+
+const char* 
+cr_util_vk_result_to_string(VkResult r)
+{
+  switch (r) {
+    case VK_SUCCESS: return "VK_SUCCESS";
+    case VK_NOT_READY: return "VK_NOT_READY";
+    case VK_TIMEOUT: return "VK_TIMEOUT";
+    case VK_EVENT_SET: return "VK_EVENT_SET";
+        case VK_EVENT_RESET: return "VK_EVENT_RESET";
+        case VK_INCOMPLETE: return "VK_INCOMPLETE";
+
+        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
+        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
+        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
+        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
+        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
+        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
+        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
+
+        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
+
+        default: return "VK_ERROR_UNKNOWN";
+    }
 }

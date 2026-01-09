@@ -2,12 +2,26 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <vulkan/vulkan_core.h>
 
 #define _CR_BRAND_NAME "corender"  
 #define _CR_VERSION "alpha 0.1"
 
 #define CR_MAX(a, b) a > b ? a : b
 #define CR_MIN(a, b) a < b ? a : b
+
+
+
+#define CR_MAX_BINDING_DESC 2
+#define CR_MAX_VERT_ATTRS 5
+#define CR_MAX_STATIC_BUFS 8
+#define CR_MAX_DYNAMIC_BUFS 8
+
+#define CR_MAX_BATCH 3 * 10000
+#define CR_INITIAL_BATCH_CAP 4
+#define CR_MAX_PENDING_BUFFER_DESTROYS 32
+
+#define CR_INITIAL_INDIRECT_DRAW_CAP 8 
 
 enum cr_log_level_t {
   CR_LL_TRACE = 0,
@@ -96,6 +110,22 @@ enum cr_log_level_t {
     } while (0);                                                                    \
   } \
 
+#define _PARAM_CHECK_FAIL()                                               \
+  do {                                                                    \
+    fprintf(stderr, "corender: Fatal: Did not pass parameter check.");    \
+    exit(1);                                                              \
+  } while (0);                                                \
+
+#define _VK_CHECK(ctx, expr)                                  \
+do {                                                          \
+  VkResult _res = (expr);                                     \
+  if (_res != VK_SUCCESS) {                                   \
+    CR_ERROR(ctx->log, "Vulkan error: %s (%i) - %s failed.",  \
+    cr_util_vk_result_to_string(_res), _res, #expr);          \
+    goto err;                                                 \
+  }                                                           \
+} while (0)
+
 
 void cr_util_log_header(FILE* stream, enum cr_log_level_t lvl);
 
@@ -104,3 +134,7 @@ char* cr_util_log_get_filepath();
 char* cr_util_get_state_folder();
 
 unsigned char* cr_util_read_file(const char* filepath, size_t* o_filesize);
+
+void* cr_util_alloc(void* ctx, size_t n, size_t size);
+
+const char* cr_util_vk_result_to_string(VkResult r);

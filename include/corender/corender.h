@@ -5,14 +5,12 @@
 #include <stdio.h>
 #include <cglm/cglm.h>
 
+#define CR_FRAME_COUNT 2
+
 struct cr_surface_t {
   VkSurfaceKHR surf;
   uint32_t width, height;
 };
-
-#define CR_FRAME_COUNT 2
-#define CR_MAX_BATCH 3 * 10000
-#define CR_INITIAL_BATCH_CAP 4
 
 struct cr_instance_vertex_t {
   vec2 pos;
@@ -28,54 +26,6 @@ struct cr_instance_t {
   vec4 color;
 };
 
-enum cr_gpu_buffer_type_t {
-  CR_GPU_BUFFER_INDEX = 0,
-  CR_GPU_BUFFER_VERTEX,
-};
-
-enum cr_gpu_buffer_memory_type_t {
-  CR_GPU_BUFFER_MEM_DEVICE_LOCAL = 0,
-  CR_GPU_BUFFER_MEM_STAGING,
-};
-
-struct cr_gpu_buffer_t {
-  VkBuffer buf;
-  size_t buf_size;
-  void* mem_handle;
-  
-  enum cr_gpu_buffer_type_t type;
-  enum cr_gpu_buffer_memory_type_t mem_type;
-
-  void* _vma_allocation;
-  VkBufferUsageFlags _usage;
-  VkMemoryPropertyFlags _mem_props;
-
-};
-
-struct cr_instanced_batch_state_t {
-  struct cr_gpu_buffer_t vbo, ibo, instance_buf;
-  uint32_t n_instances;
-
-  uint32_t instance_write_offset;
-  uint32_t batch_group_cap;
-};
-
-struct cr_vertex_batch_state_t { 
-  uint32_t n_vertices;
-  
-  struct cr_gpu_buffer_t vbo; 
-
-  uint32_t vertex_write_offset;
-  uint32_t batch_group_cap;
-
-};
-struct cr_batch_state_t {
-  struct cr_vertex_batch_state_t vertex;
-
-  struct cr_instanced_batch_state_t instanced;
-
-};
-
 struct cr_frame_t {
   VkCommandPool cmd_pool;
   VkCommandBuffer cmd_buf;
@@ -83,8 +33,19 @@ struct cr_frame_t {
   VkSemaphore image_available;
   VkSemaphore* render_finished_per_image;
   VkFence in_flight_fence;
+  
+  //struct cr_gpu_buffer_t _pending_buffer_destroys[CR_MAX_PENDING_BUFFER_DESTROYS];
+  uint32_t _n_pending_buffer_destroys;
 
-  struct cr_batch_state_t batch_state;
+  VkDrawIndexedIndirectCommand* _indirect_cmds_instanced;
+  uint32_t _n_indirect_cmds_instanced;
+  
+  VkDrawIndirectCommand* _indirect_cmds_vertex;
+  uint32_t _n_indirect_cmds_vertex;
+
+
+  size_t staging_begin; // value of ring.head at frame begin
+  size_t staging_end;   // max head reached in this frame
 };
 
 struct cr_swapchain_t {
@@ -157,12 +118,10 @@ struct cr_draw_command_t {
 struct cr_context_t {
   VkInstance instance;
   VkPhysicalDevice phys_dev;
+  VkPhysicalDeviceLimits phys_dev_limits; 
   VkDevice logical_dev;
   uint32_t graphics_queue_family, present_queue_family;
   VkQueue graphics_queue, present_queue;
-  VkCommandPool cmd_pool;
-
-  VkPipeline instance_pipeline, vertex_pipeline;
 
   VkPipelineLayout pipeline_layout;
 
@@ -182,8 +141,10 @@ struct cr_context_t {
 
   struct cr_render_pass_info _pass_info;
 
-  struct cr_draw_command_t pending_draws[4096];
+  struct cr_draw_command_t pending_draws[1024];
   uint32_t n_pending_draws;
+
+  bool _have_multi_draw_indirect;
 };
 
 bool cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
