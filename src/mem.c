@@ -465,3 +465,8 @@ cr_mem_staging_ring_end(struct cr_frame_t* frame) {
 
   return true;
 }
+
+VmaAllocator 
+cr_mem_get_allocator(){ 
+  return _vma_allocator;
+}

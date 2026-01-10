@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <time.h>
 #include <vulkan/vulkan_core.h>
 
@@ -40,6 +41,9 @@ struct _push_constant_t {
 
 struct cr_pipeline_t instanced_pipeline = {0};
 struct cr_pipeline_t vertex_pipeline    = {0};
+
+static VmaAllocation _last_depth_alloc;
+static float _instance_z_index = 0.1;
 
 static bool     _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static bool     _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
@@ -89,7 +93,7 @@ _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_
   ctx->log.quiet = info->log_quiet;
   ctx->log.verbose = info->log_verbose;
 
-  CR_TRACE(ctx->log, "Initialized log-state: (verbose: %s, quiet: %s, log-to-file: %s)", 
+    CR_TRACE(ctx->log, "Initialized log-state: (verbose: %s, quiet: %s, log-to-file: %s)", 
            ctx->log.verbose ? "true" : "false",
            ctx->log.quiet ? "true" : "false",
            info->log_to_file ? "true" : "false");;
@@ -123,6 +127,11 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
   if(!_create_logical_device(ctx)) {
     CR_ERROR(ctx->log, "Failed to create Vulkan logical device.");
     return false;
+    }
+
+  if(!cr_mem_init(ctx)) {
+    CR_ERROR(ctx->log, "Failed to create VMA context."); 
+    return false;
   }
 
   if(ctx->surf.surf) {
@@ -132,11 +141,6 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
                ctx->surf.width, ctx->surf.height);
       return false;
     }
-  }
-
-  if(!cr_mem_init(ctx)) {
-    CR_ERROR(ctx->log, "Failed to create VMA context."); 
-    return false;
   }
 
   if(!_create_frameloop(ctx, &ctx->frameloop, ctx->graphics_queue_family)) {
@@ -152,9 +156,10 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
 
   cr_draw_set_clear_color(ctx, (vec4){0.1f, 0.1f, 0.1f, 1.0f});
 
-  return true;
 
-err:
+    return true;
+
+  err:
   return false;
 }
 
@@ -270,8 +275,8 @@ err:
 bool 
 _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h) {
   if(!ctx || !o_swapchain) _PARAM_CHECK_FAIL();
-  if(ctx->swapchain.imgs) free(ctx->swapchain.imgs);
-  if(ctx->swapchain.img_views) free(ctx->swapchain.img_views);
+  if(o_swapchain->imgs) free(o_swapchain->imgs);
+  if(o_swapchain->img_views) free(o_swapchain->img_views);
 
   memset(o_swapchain, 0, sizeof(*o_swapchain));
 
@@ -331,24 +336,82 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   o_swapchain->dimensions = extent;
   o_swapchain->logical_dev = ctx->logical_dev;
 
-  for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
-    VkImageViewCreateInfo view_info = {
-      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-      .image = o_swapchain->imgs[i],
-      .format = o_swapchain->fmt,
-      .viewType = VK_IMAGE_VIEW_TYPE_2D,
-      .subresourceRange = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-        .levelCount = 1, 
+  VkImageCreateInfo depth_image_info = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .imageType = VK_IMAGE_TYPE_2D,
+    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+    .extent = {
+      .width  = o_swapchain->dimensions.width,
+      .height = o_swapchain->dimensions.height,
+      .depth  = 1
+    },
+    .mipLevels = 1,
+    .arrayLayers = 1,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .tiling = VK_IMAGE_TILING_OPTIMAL,
+    .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
+  VmaAllocationCreateInfo depth_alloc_info = {
+    .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+    .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+  };
+  _VK_CHECK(ctx, vmaCreateImage(
+    cr_mem_get_allocator(),
+    &depth_image_info,
+    &depth_alloc_info,
+    &o_swapchain->depth_image,
+    &_last_depth_alloc,
+    NULL
+  ));
+
+  VkImageViewCreateInfo depth_view_info = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .image = o_swapchain->depth_image,
+    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+    .subresourceRange = {
+        .aspectMask =
+        VK_IMAGE_ASPECT_DEPTH_BIT |
+        VK_IMAGE_ASPECT_STENCIL_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
         .layerCount = 1
       }
     };
+
+  _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &depth_view_info, NULL, &o_swapchain->img_view_depth));
+
+  for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
+
+    VkImageViewCreateInfo view_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = o_swapchain->imgs[i],
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = ctx->swapchain.fmt,
+      .components = {
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY
+      },
+      .subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+      }
+    };
+
 
     _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &view_info, NULL, &o_swapchain->img_views[i]));
   }
 
   CR_TRACE(ctx->log, "Initialized Vulkan swapchain (width: %i, height: %i)", 
-             o_swapchain->dimensions.width, o_swapchain->dimensions.height);
+           o_swapchain->dimensions.width, o_swapchain->dimensions.height);
 
   return true;
 
@@ -402,13 +465,21 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     _VK_CHECK(ctx, vkCreateFence(
       ctx->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
 
+    VkQueryPoolCreateInfo qp_info = {
+      .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+      .queryType  = VK_QUERY_TYPE_TIMESTAMP,
+      .queryCount = 2,
+    };
+
+    vkCreateQueryPool(ctx->logical_dev, &qp_info, NULL, &frame->timestamp_pool);
+
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
              i);
   }
 
   o_frameloop->frame_idx = 0;
 
-  VkAttachmentDescription clear_attachment = {
+  VkAttachmentDescription color_attachment = {
     .format = ctx->swapchain.fmt,
     .samples = VK_SAMPLE_COUNT_1_BIT, 
 
@@ -423,34 +494,74 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
   };
 
-  VkAttachmentReference clear_reference = {
+  VkAttachmentReference color_reference = {
     .attachment = 0,
     .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
   };
 
-  VkSubpassDescription subpass_desc = {
+  VkFormat depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
+
+  VkFormatProperties props;
+  vkGetPhysicalDeviceFormatProperties(ctx->phys_dev,
+                                      depth_format, &props);
+
+  assert(props.optimalTilingFeatures &
+         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+
+  VkAttachmentDescription depth_attachment = {
+    .format = depth_format,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+  VkAttachmentReference depth_reference = {
+    .attachment = 1, 
+    .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+  };
+
+
+  VkSubpassDescription subpass = {
     .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
     .colorAttachmentCount = 1,
-    .pColorAttachments = &clear_reference,
+    .pColorAttachments = &color_reference,
+    .pDepthStencilAttachment = &depth_reference
   };
 
   VkSubpassDependency dep = {
     .srcSubpass = VK_SUBPASS_EXTERNAL,
     .dstSubpass = 0,
 
-    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    .srcStageMask =
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+
+    .dstStageMask =
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
 
     .srcAccessMask = 0,
-    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    .dstAccessMask =
+    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+  };
+
+  VkAttachmentDescription attachments[] = {
+    color_attachment,
+    depth_attachment
   };
 
   VkRenderPassCreateInfo pass_info = {
     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-    .attachmentCount = 1,
-    .pAttachments = &clear_attachment,
+    .attachmentCount = 2,
+    .pAttachments = attachments,
     .subpassCount = 1,
-    .pSubpasses = &subpass_desc,
+    .pSubpasses = &subpass,
     .dependencyCount = 1,
     .pDependencies = &dep,
   };
@@ -464,13 +575,14 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
 
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
     VkImageView attachments[] = {
-      ctx->swapchain.img_views[i]
+      ctx->swapchain.img_views[i],
+      ctx->swapchain.img_view_depth,
     };
 
     VkFramebufferCreateInfo fb_info = {
       .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
       .renderPass = o_frameloop->crnt_pass,
-      .attachmentCount = 1,
+      .attachmentCount = 2,
       .pAttachments = attachments, 
       .width = ctx->swapchain.dimensions.width,
       .height = ctx->swapchain.dimensions.height,
@@ -513,43 +625,49 @@ bool _create_render_pipelines(
 
   {
 
-    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline,  (VkVertexInputAttributeDescription) {
-      .location = 0,
-      .binding = 0,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_instance_vertex_t, pos)
-    });
+    cr_pipeline_add_vertex_input_attribute(
+      &instanced_pipeline,
+      (VkVertexInputAttributeDescription){
+        .location = 0,
+        .binding  = 0,
+        .format   = VK_FORMAT_R16G16_SFLOAT,
+        .offset   = offsetof(struct cr_instance_t, px)
+      });
 
-    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline, (VkVertexInputAttributeDescription){
-      .location = 1,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, pos)
-    });
-    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline, (VkVertexInputAttributeDescription){
-      .location = 2,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, size)
-    });
-    cr_pipeline_add_vertex_input_attribute(&instanced_pipeline, (VkVertexInputAttributeDescription){
-      .location = 3,
-      .binding = 1,
-      .format = VK_FORMAT_R32G32B32A32_SFLOAT,
-      .offset = offsetof(struct cr_instance_t, color)
-    });
+    cr_pipeline_add_vertex_input_attribute(
+      &instanced_pipeline,
+      (VkVertexInputAttributeDescription){
+        .location = 1,
+        .binding  = 0,
+        .format   = VK_FORMAT_R16G16_SFLOAT,
+        .offset   = offsetof(struct cr_instance_t, sx)
+      });
+
+    cr_pipeline_add_vertex_input_attribute(
+      &instanced_pipeline,
+      (VkVertexInputAttributeDescription){
+        .location = 2,
+        .binding  = 0,
+        .format   = VK_FORMAT_R8G8B8A8_UNORM,
+        .offset   = offsetof(struct cr_instance_t, r)
+      });
+
+    cr_pipeline_add_vertex_input_attribute(
+      &instanced_pipeline,
+      (VkVertexInputAttributeDescription){
+        .location = 3,
+        .binding  = 0,
+        .format   = VK_FORMAT_R32_SFLOAT,
+        .offset   = offsetof(struct cr_instance_t, z)
+      });
 
     cr_pipeline_add_binding_desc(&instanced_pipeline,
-                                 (VkVertexInputBindingDescription){ 
-                                 .binding = 0,
-                                 .stride = sizeof(struct cr_instance_vertex_t),
-                                 .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+                                 (VkVertexInputBindingDescription){
+                                 .binding   = 0,
+                                 .stride    = sizeof(struct cr_instance_t), 
+                                 .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
                                  });
-    cr_pipeline_add_binding_desc(&instanced_pipeline, (VkVertexInputBindingDescription){ 
-      .binding = 1,
-      .stride = sizeof(struct cr_instance_t),
-      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
-    });
+
 
 
     char* vertex_path, *fragment_path;
@@ -560,34 +678,11 @@ bool _create_render_pipelines(
     info.fragment_path = fragment_path; 
     info.batch_element_size = sizeof(struct cr_instance_t);
     info.elements_per_batch = CR_MAX_BATCH; 
-    info.indices_per_instance = 6;
+    info.vertices_per_instance = 6;
 
     cr_pipeline_init(
       ctx, &instanced_pipeline, &info 
     );
-
-    struct cr_instance_vertex_t vertices[4]; 
-
-    vertices[0] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 0.0f } };
-    vertices[1] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 0.0f, } };
-    vertices[2] = (struct cr_instance_vertex_t){ .pos = { 1.0f, 1.0f } };
-    vertices[3] = (struct cr_instance_vertex_t){ .pos = { 0.0f, 1.0f} };
-
-    uint32_t indices[6]; 
-
-    indices[0] = 0;
-    indices[1] = 1;
-    indices[2] = 2;
-
-    indices[3] = 2;
-    indices[4] = 3;
-    indices[5] = 0;
-
-    cr_pipeline_add_static_buffer(ctx, &instanced_pipeline, vertices,
-                                  sizeof(vertices), CR_GPU_BUFFER_VERTEX);
-    
-    cr_pipeline_add_static_buffer(ctx, &instanced_pipeline, indices,
-                                  sizeof(indices), CR_GPU_BUFFER_INDEX);
     
     cr_pipeline_batching_allocate_buffer(ctx, &instanced_pipeline, 
                                    CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * sizeof(struct cr_instance_t),
@@ -849,6 +944,7 @@ bool _pick_physical_device(struct cr_context_t* ctx) {
 
   return false;
 }
+
 bool 
 _render_handle_resize(struct cr_context_t* ctx) {
   vkDeviceWaitIdle(ctx->logical_dev);
@@ -862,7 +958,14 @@ _render_handle_resize(struct cr_context_t* ctx) {
     CR_TRACE(ctx->log, "Destroyed image view for swapchain image %i", i); 
   }
 
+
+  vmaDestroyImage(cr_mem_get_allocator(), ctx->swapchain.depth_image, _last_depth_alloc);
+  printf("Got erea\n");
+  vkDestroyImageView(ctx->logical_dev, ctx->swapchain.img_view_depth, NULL);
+  printf("Got erea\n");
+
   free(ctx->frameloop.fbs);
+
 
   vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
 
@@ -872,13 +975,14 @@ _render_handle_resize(struct cr_context_t* ctx) {
 
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
     VkImageView attachments[] = {
-      ctx->swapchain.img_views[i]
+      ctx->swapchain.img_views[i],
+      ctx->swapchain.img_view_depth
     };
 
     VkFramebufferCreateInfo fb_info = {
       .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
       .renderPass = ctx->frameloop.crnt_pass,
-      .attachmentCount = 1,
+      .attachmentCount = 2,
       .pAttachments = attachments, 
       .width = ctx->swapchain.dimensions.width,
       .height = ctx->swapchain.dimensions.height,
@@ -1037,6 +1141,32 @@ cr_draw_begin(struct cr_context_t* ctx) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
 
+  uint64_t timestamps[2];
+
+  uint32_t read_frame = (ctx->frameloop.frame_idx + CR_FRAME_COUNT - 1) % CR_FRAME_COUNT;
+
+  VkQueryPool pool = ctx->frameloop.frames[read_frame].timestamp_pool;
+
+  vkGetQueryPoolResults(
+    ctx->logical_dev,
+    pool,
+    0, 2,
+    sizeof(timestamps),
+    timestamps,
+    sizeof(uint64_t),
+    VK_QUERY_RESULT_64_BIT
+  );
+
+
+  VkPhysicalDeviceProperties props;
+  vkGetPhysicalDeviceProperties(ctx->phys_dev, &props);
+
+  double timestampPeriod = props.limits.timestampPeriod; // ns
+
+  double gpu_ms =
+    (timestamps[1] - timestamps[0]) * timestampPeriod * 1e-6;
+
+
   cr_mem_staging_ring_begin(frame);
 
   ctx->_skip_render = false;
@@ -1094,12 +1224,24 @@ err:
 }
 
 void 
-cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color) {
-    struct cr_instance_t instance = (struct cr_instance_t){
-      .pos   = { pos[0], pos[1] },
-      .size  = { size[0], size[1] },
-      .color = { color[0], color[1], color[2], color[3] }
+cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size,  uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+
+  if (pos[0] + size[0] < 0 || pos[1] + size[1] < 0 ||
+    pos[0] > ctx->swapchain.dimensions.width || pos[1] > ctx->swapchain.dimensions.height) return;
+  struct cr_instance_t instance = (struct cr_instance_t){
+    .px = (_Float16)pos[0], 
+      .py = (_Float16)pos[1], 
+      .sx = (_Float16)size[0], 
+      .sy = (_Float16)size[1], 
+      .r =  r, 
+      .g =  g, 
+      .b =  b, 
+      .a =  a, 
+      .z = _instance_z_index
     };
+
+  float z_step = 1.0f / 65536.0f;
+  _instance_z_index += z_step; 
 
   if(!cr_pipeline_batching_write_to_batch(ctx, &instanced_pipeline, &instance, ctx->frameloop.frame_idx)) {
 
@@ -1164,15 +1306,11 @@ cr_draw_end(struct cr_context_t* ctx) {
   cr_pipeline_batching_upload(ctx, &instanced_pipeline, ctx->frameloop.frame_idx);
   cr_pipeline_batching_upload(ctx, &vertex_pipeline, ctx->frameloop.frame_idx);
 
-  VkClearValue clear = {
-    .color = {
-      ctx->_pass_info.clear_color[0],
-      ctx->_pass_info.clear_color[1],
-      ctx->_pass_info.clear_color[2],
-      ctx->_pass_info.clear_color[3]
-    }
-  };
-  VkRenderPassBeginInfo renderpass_info = {
+  VkClearValue clears[2];
+  clears[0].color = (VkClearColorValue){{0, 0, 0, 1}};
+  clears[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};
+
+  VkRenderPassBeginInfo render_pass = {
     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .renderPass = ctx->frameloop.crnt_pass,
     .framebuffer = ctx->frameloop.fbs[ctx->_swapchain_img_idx],
@@ -1180,12 +1318,11 @@ cr_draw_end(struct cr_context_t* ctx) {
       .offset = {0, 0},
       .extent = ctx->swapchain.dimensions
     },
-    .pClearValues = &clear,
-    .clearValueCount = 1
+    .clearValueCount = 2,
+    .pClearValues = clears
   };
 
-
-  vkCmdBeginRenderPass(frame->cmd_buf, &renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBeginRenderPass(frame->cmd_buf, &render_pass, VK_SUBPASS_CONTENTS_INLINE);
 
   cr_pipeline_batching_commit(ctx, &instanced_pipeline, ctx->frameloop.frame_idx);
   cr_pipeline_batching_commit(ctx, &vertex_pipeline, ctx->frameloop.frame_idx);
@@ -1224,6 +1361,8 @@ cr_draw_end(struct cr_context_t* ctx) {
   cr_mem_staging_ring_end(frame);
 
   ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
+
+  _instance_z_index = 0;
 
 
   return true;

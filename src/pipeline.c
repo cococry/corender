@@ -12,20 +12,20 @@
 #define _SUBSYS_NAME "PIPELINE"
 
 #define _PARAM_CHECK_FAIL()                                               \
-  do {                                                                    \
-    fprintf(stderr, "corender: Fatal: Did not pass parameter check.");    \
-    exit(1);                                                              \
-  } while (0);                                                            \
+do {                                                                    \
+  fprintf(stderr, "corender: Fatal: Did not pass parameter check.");    \
+  exit(1);                                                              \
+} while (0);                                                            \
 
 
 static void _vk_render_set_dynamic_state(struct cr_context_t* ctx);
 
 static bool _create_shader_module(struct 
-  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
+                                  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
 
 static bool 
 _create_shader_module(struct 
-  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
+                      cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
 
 static bool     
 _vk_create_pipeline(
@@ -67,11 +67,11 @@ void _vk_render_set_dynamic_state(struct cr_context_t* ctx) {
 
 bool 
 _create_shader_module(struct 
-  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
+                      cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
 
 bool 
 _create_shader_module(struct 
-  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
+                      cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
   if(!ctx || !filepath || !o_module) _PARAM_CHECK_FAIL();
   size_t file_size;
   unsigned char* file_data = cr_util_read_file(filepath, &file_size);
@@ -149,7 +149,7 @@ _vk_create_pipeline(
   };
 
   VkPipelineColorBlendAttachmentState blend = {
-    .blendEnable = VK_TRUE,
+    .blendEnable = VK_FALSE,
     .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
     .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
     .colorBlendOp = VK_BLEND_OP_ADD,
@@ -184,6 +184,15 @@ _vk_create_pipeline(
     .pScissors = NULL,
   };
 
+  VkPipelineDepthStencilStateCreateInfo depth_state = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+    .depthTestEnable = VK_FALSE,
+    .depthWriteEnable = VK_FALSE,
+    .depthCompareOp = VK_COMPARE_OP_LESS,
+    .depthBoundsTestEnable = VK_FALSE,
+    .stencilTestEnable = VK_FALSE
+  };
+
   VkGraphicsPipelineCreateInfo pipeline_info = {
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
     .stageCount = 2,
@@ -195,6 +204,7 @@ _vk_create_pipeline(
     .pRasterizationState = &raster_state,
     .pDynamicState = &dynamic_state,
     .pViewportState = &viewport_state,
+    .pDepthStencilState = &depth_state,
     .layout = ctx->pipeline_layout,
     .renderPass = ctx->frameloop.crnt_pass,
     .subpass = 0
@@ -253,11 +263,11 @@ cr_pipeline_init(struct cr_context_t* ctx,
   };
 
   if(!_vk_create_pipeline(ctx, o_pipeline->input.input_state, 
-                      info->vertex_path, info->fragment_path, &o_pipeline->pipeline)) {
+                          info->vertex_path, info->fragment_path, &o_pipeline->pipeline)) {
     CR_ERROR(ctx->log, "Failed to create Vulkan Pipeline (fragment shader: %s, vertex shader: %s)", info->fragment_path, info->vertex_path);
     goto err;
   }
-    
+
   CR_TRACE(ctx->log, "Created Vulkan Pipeline (fragment shader: %s, vertex shader: %s)", info->fragment_path, info->vertex_path);
 
   for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
@@ -291,7 +301,7 @@ err:
 
 bool 
 cr_pipeline_add_binding_desc(struct cr_pipeline_t* pipeline, 
-    VkVertexInputBindingDescription binding_desc) {
+                             VkVertexInputBindingDescription binding_desc) {
   if(!pipeline) _PARAM_CHECK_FAIL();
 
   if(pipeline->input.n_binding_descs >= CR_MAX_BINDING_DESC) return false;
@@ -302,8 +312,8 @@ cr_pipeline_add_binding_desc(struct cr_pipeline_t* pipeline,
 
 bool
 cr_pipeline_add_vertex_input_attribute(
-    struct cr_pipeline_t* pipeline, 
-    VkVertexInputAttributeDescription vert_attr) {
+  struct cr_pipeline_t* pipeline, 
+  VkVertexInputAttributeDescription vert_attr) {
   if(!pipeline) _PARAM_CHECK_FAIL();
 
   if(pipeline->input.n_vert_attr >= CR_MAX_VERT_ATTRS) return false;
@@ -470,6 +480,15 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
   vkCmdBindVertexBuffers(frame->cmd_buf, 0, n_vbos, vbos, vbo_offsets);
 
   if(draw_indexed) {
+    vkCmdResetQueryPool(frame->cmd_buf, frame->timestamp_pool, 0, 2);
+
+    vkCmdWriteTimestamp(
+      frame->cmd_buf,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+      frame->timestamp_pool,
+      0
+    );
+
     for(uint32_t i = 0; i < pipeline->n_static_buffers; i++) {
       if(pipeline->static_buffers[i].type != CR_GPU_BUFFER_INDEX) continue;
       vkCmdBindIndexBuffer(frame->cmd_buf, pipeline->static_buffers[i].buf, 0, VK_INDEX_TYPE_UINT32);
@@ -482,13 +501,36 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
       batching->n_emitted_draws,
       sizeof(VkDrawIndexedIndirectCommand)
     );
+
+
+    vkCmdWriteTimestamp(
+      frame->cmd_buf,
+      VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+      frame->timestamp_pool,
+      1
+    );
   } else {
+    vkCmdResetQueryPool(frame->cmd_buf, frame->timestamp_pool, 0, 2);
+
+    vkCmdWriteTimestamp(
+      frame->cmd_buf,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+      frame->timestamp_pool,
+      0
+    );
     vkCmdDrawIndirect(
       frame->cmd_buf,
       batching->_indirect_buffer.buf,
       0,
       batching->n_emitted_draws,
       sizeof(VkDrawIndirectCommand)
+    );
+
+    vkCmdWriteTimestamp(
+      frame->cmd_buf,
+      VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+      frame->timestamp_pool ,
+      1
     );
   }
 
@@ -499,12 +541,12 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
 
 bool 
 cr_pipeline_batching_flush(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline,
-                  uint32_t frame_idx){ 
+                           uint32_t frame_idx){ 
   if(!ctx || !pipeline) _PARAM_CHECK_FAIL();
   if(frame_idx >= CR_FRAME_COUNT) return false;
 
   if(ctx->_skip_render) return true;
-  
+
   struct cr_pipeline_batch_state_t* batch = &pipeline->batching[frame_idx];
 
   if(batch->n_emitted_draws >= batch->_emitted_draws_cap_cpu) {
@@ -512,8 +554,8 @@ cr_pipeline_batching_flush(struct cr_context_t* ctx, struct cr_pipeline_t* pipel
 
     batch->_emitted_draws_cap_cpu *= 2;
     batch->emitted_draws = realloc(batch->emitted_draws,
-                                     batch->_emitted_draws_cap_cpu * 
-                                       indirect_draw_size);
+                                   batch->_emitted_draws_cap_cpu * 
+                                   indirect_draw_size);
 
     if(!batch->emitted_draws) {
       CR_ERROR(ctx->log, "Failed to reallocate CPU Indirect Command Buffer.");
@@ -543,12 +585,15 @@ cr_pipeline_batching_flush(struct cr_context_t* ctx, struct cr_pipeline_t* pipel
     bool instanced_pipeline = pipeline->vertices_per_instance > 0;
 
     draws[batch->n_emitted_draws++] = (VkDrawIndirectCommand) {
-        .firstVertex = instanced_pipeline ? 0 : batch->write_offset, 
-        .vertexCount = instanced_pipeline ? pipeline->vertices_per_instance : batch->n_elements,
+      .firstVertex = instanced_pipeline ? 0 : batch->write_offset, 
+      .vertexCount = instanced_pipeline ? pipeline->vertices_per_instance : batch->n_elements,
 
-        .firstInstance = instanced_pipeline ? batch->write_offset : 0, 
-        .instanceCount = instanced_pipeline ? batch->n_elements : 1,
-      };
+      .firstInstance = instanced_pipeline ? batch->write_offset : 0, 
+      .instanceCount = instanced_pipeline ? batch->n_elements : 1,
+    };
+
+    uint32_t draw_idx = batch->n_emitted_draws - 1;
+    VkDrawIndirectCommand* d = &draws[draw_idx];
   }
 
   batch->write_offset += batch->n_elements;

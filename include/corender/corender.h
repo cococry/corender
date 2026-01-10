@@ -21,9 +21,11 @@ struct cr_vertex_t {
   vec4 color;
 };
 
+
 struct cr_instance_t {
-  vec2 pos, size;
-  vec4 color;
+  _Float16 px, py, sx, sy;
+  float z;
+  uint8_t r, g, b, a;
 };
 
 struct cr_frame_t {
@@ -33,6 +35,7 @@ struct cr_frame_t {
   VkSemaphore image_available;
   VkSemaphore* render_finished_per_image;
   VkFence in_flight_fence;
+  VkQueryPool timestamp_pool;
   
   //struct cr_gpu_buffer_t _pending_buffer_destroys[CR_MAX_PENDING_BUFFER_DESTROYS];
   uint32_t _n_pending_buffer_destroys;
@@ -60,7 +63,8 @@ struct cr_swapchain_t {
   uint32_t n_imgs;
   VkImage* imgs;
   VkImageView* img_views;
- 
+  VkImageView img_view_depth;
+  VkImage depth_image;
 };
 
 struct cr_frameloop_t {
@@ -153,7 +157,7 @@ bool cr_context_destroy(struct cr_context_t* ctx);
 void cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color);
 
 bool cr_draw_begin(struct cr_context_t* ctx);
-void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, vec4 color);
+void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void cr_draw_vertex(struct cr_context_t* ctx, vec2 pos, vec4 color);
 bool cr_draw_end(struct cr_context_t* ctx);
 

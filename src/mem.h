@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include "../include/corender/corender.h"
+#include "../vendor/vma/vk_mem_alloc.h"
 
 enum cr_gpu_buffer_type_t {
   CR_GPU_BUFFER_NO_TYPE = 0,
@@ -87,3 +88,5 @@ cr_mem_staging_ring_alloc(struct cr_staging_ring_t* ring, size_t n, size_t align
 
 bool 
 cr_mem_staging_ring_end(struct cr_frame_t* frame);
+
+VmaAllocator cr_mem_get_allocator();

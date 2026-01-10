@@ -76,7 +76,7 @@ int main() {
     .layers = NULL,
     .n_layers = 0,
 
-    .log_verbose = false, 
+    .log_verbose = true, 
     .surface_create = _glfw_surface_create,
     .surface_userdata = window
   };
@@ -99,7 +99,11 @@ int main() {
         rand01(&rng),
         1.0f
       };
-      cr_draw_rect(&ctx, (vec2){x, y}, (vec2){50, 50}, color);
+      cr_draw_rect(&ctx, (vec2){x, y}, (vec2){8, 8},
+                   xorshift32(&rng) % 255,
+                   xorshift32(&rng) % 255,
+                   xorshift32(&rng) % 255,
+                   255);
 
     }
 
