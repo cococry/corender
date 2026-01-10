@@ -1,6 +1,7 @@
 #include "mem.h"
 #include "util.h"
 #include <string.h>
+#include <vulkan/vulkan_core.h>
 #include "../vendor/vma/vk_mem_alloc.h"
 #include "../include/corender/corender.h"
 
@@ -20,6 +21,7 @@ _create_upload_context(struct cr_context_t* ctx, struct cr_upload_context_t* o_u
 
 bool 
 _create_upload_context(struct cr_context_t* ctx, struct cr_upload_context_t* o_upload, uint32_t graphics_queue_family) {
+  if(!ctx || !o_upload) _PARAM_CHECK_FAIL();
 
   VkCommandPoolCreateInfo pool_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -54,6 +56,7 @@ err:
 
 bool 
 cr_mem_init(struct cr_context_t* ctx) {
+  if(!ctx) _PARAM_CHECK_FAIL();
 
   if(!_create_upload_context(ctx, &_upload, ctx->graphics_queue_family)) {
     CR_ERROR(ctx->log, "Failed to GPU buffer create upload context.");
@@ -97,6 +100,7 @@ cr_mem_create_gpu_buffer(
   struct cr_gpu_buffer_t* o_buf
 ) {
   if(!o_buf || !ctx) _PARAM_CHECK_FAIL(); 
+
   *o_buf = (struct cr_gpu_buffer_t){0};
 
   VkBufferUsageFlags usage = 0;
@@ -132,7 +136,7 @@ cr_mem_create_gpu_buffer(
       break;
     }
   }
-  
+
   VkBufferCreateInfo buffer_info = {
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
     .size = size,
@@ -176,9 +180,9 @@ cr_mem_destroy_gpu_buffer(
   struct cr_context_t* ctx, 
   struct cr_gpu_buffer_t* buf
 ) {
-  if(!ctx || !buf || !buf->_vma_allocation) return true;
+  if(!ctx || !buf || !buf->_vma_allocation) _PARAM_CHECK_FAIL(); 
 
-  vkDeviceWaitIdle(ctx->logical_dev);
+  _VK_CHECK(ctx, vkDeviceWaitIdle(ctx->logical_dev));
 
   vmaDestroyBuffer(_vma_allocator, buf->buf, (VmaAllocation)buf->_vma_allocation);
 
@@ -187,6 +191,9 @@ cr_mem_destroy_gpu_buffer(
   memset(buf, 0, sizeof(*buf));
 
   return true;
+
+err:
+  return false;
 } 
 
 bool     
@@ -195,6 +202,8 @@ cr_mem_resize_gpu_buffer(
   struct cr_gpu_buffer_t* buf,
   VkDeviceSize new_size 
 ) {
+  if(!ctx || !buf) _PARAM_CHECK_FAIL();
+
   struct cr_gpu_buffer_t new_buf;
   if(!cr_mem_create_gpu_buffer(ctx, new_size, buf->type,  buf->mem_type, &new_buf)) {
     return false;
@@ -206,7 +215,7 @@ cr_mem_resize_gpu_buffer(
 
     memcpy(new_contents, old_contents, CR_MIN(new_size, buf->buf_size));
   }
-  
+
   CR_TRACE(ctx->log, "Successfully resized GPU buffer %p from size %lu to size %lu (new buffer => %p)\n", buf->buf, buf->buf_size, new_size, new_buf.buf);
 
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
@@ -225,6 +234,8 @@ cr_mem_upload_to_device_local_gpu_buffer(
   void* data, VkDeviceSize size, 
   enum cr_gpu_buffer_type_t type, 
   struct cr_gpu_buffer_t* o_buf) {
+  if(!ctx || !o_buf) _PARAM_CHECK_FAIL();
+
   cr_mem_create_gpu_buffer(ctx, size, type, CR_GPU_BUFFER_MEM_DEVICE_LOCAL, o_buf);
 
   vkWaitForFences(ctx->logical_dev, 1, &_upload.fence, VK_TRUE, UINT64_MAX);
@@ -245,9 +256,10 @@ cr_mem_upload_to_device_local_gpu_buffer(
     size,
     ctx->phys_dev_limits.optimalBufferCopyOffsetAlignment
   );
-if (offset == SIZE_MAX) {
+  if (offset == SIZE_MAX) {
     CR_FATAL(ctx->log, "Staging ring out of memory this frame");
-}
+  }
+
   memcpy((uint8_t*)_staging_ring.buf.mem_handle + offset, data, size);
 
   VkBufferCopy copy = {
@@ -264,10 +276,25 @@ if (offset == SIZE_MAX) {
     &copy
   );
 
+  VkAccessFlags dst_access_mask = 0;
+  switch(o_buf->type) {
+    case CR_GPU_BUFFER_VERTEX:
+      dst_access_mask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+      break;
+    case CR_GPU_BUFFER_INDEX:
+      dst_access_mask = VK_ACCESS_INDEX_READ_BIT;
+      break;
+    case CR_GPU_BUFFER_INDIRECT:
+      dst_access_mask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT; 
+      break;
+    default:
+      CR_FATAL(ctx->log, "Invalid GPU buffer type.");
+      break;
+  }
   VkBufferMemoryBarrier barrier = {
     .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
     .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-    .dstAccessMask = type == CR_GPU_BUFFER_VERTEX ? VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT : VK_ACCESS_INDEX_READ_BIT,
+    .dstAccessMask = dst_access_mask, 
     .buffer = o_buf->buf,
     .offset = 0,
     .size   = size
@@ -276,7 +303,8 @@ if (offset == SIZE_MAX) {
   vkCmdPipelineBarrier(
     _upload.cmd_buf,
     VK_PIPELINE_STAGE_TRANSFER_BIT,
-    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+    o_buf->type != CR_GPU_BUFFER_INDIRECT ? 
+    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
     0,
     0, NULL,
     1, &barrier,
@@ -302,6 +330,79 @@ err:
 
 
 bool 
+cr_mem_transfer_to_device_local_gpu_buffer(
+    struct cr_context_t* ctx,
+    struct cr_frame_t* frame,
+    void* data,
+    size_t size, 
+    const struct cr_gpu_buffer_t* buf) {
+  if(!ctx || !data || !frame ||!ctx) _PARAM_CHECK_FAIL();
+  size_t offset = cr_mem_staging_ring_alloc(
+    &_staging_ring,
+    size,
+    ctx->phys_dev_limits.optimalBufferCopyOffsetAlignment
+  );
+
+  if (offset == SIZE_MAX) {
+    CR_FATAL(ctx->log, "Staging ring out of memory this frame");
+  }
+
+  memcpy((uint8_t*)_staging_ring.buf.mem_handle + offset, data, size);
+
+  VkBufferCopy copy = {
+    .srcOffset = offset,
+    .dstOffset = 0,
+    .size      = size
+  };
+
+  vkCmdCopyBuffer(
+    frame->cmd_buf,
+    _staging_ring.buf.buf,
+    buf->buf,
+    1,
+    &copy
+  );
+
+  
+  VkAccessFlags dst_access_mask = 0;
+  switch(buf->type) {
+    case CR_GPU_BUFFER_VERTEX:
+      dst_access_mask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+      break;
+    case CR_GPU_BUFFER_INDEX:
+      dst_access_mask = VK_ACCESS_INDEX_READ_BIT;
+      break;
+    case CR_GPU_BUFFER_INDIRECT:
+      dst_access_mask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT; 
+      break;
+    default:
+      CR_FATAL(ctx->log, "Invalid GPU buffer type.");
+      break;
+  }
+  VkBufferMemoryBarrier barrier = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+    .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+    .dstAccessMask = dst_access_mask,
+    .buffer = buf->buf,
+    .offset = 0,
+    .size   = VK_WHOLE_SIZE 
+  };
+
+  vkCmdPipelineBarrier(
+    frame->cmd_buf,
+    VK_PIPELINE_STAGE_TRANSFER_BIT,
+    buf->type != CR_GPU_BUFFER_INDIRECT ? 
+    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+    0,
+    0, NULL,
+    1, &barrier,
+    0, NULL
+  );
+
+  return true;
+}
+
+bool 
 cr_mem_upadate_lazy_destroys(struct cr_context_t* ctx) {
   for(uint32_t i = 0; i < _n_deferred_buffer_destroys; i++) {
     if(!cr_mem_destroy_gpu_buffer(ctx, &_deferred_buffer_destroys[i])) {
@@ -311,6 +412,56 @@ cr_mem_upadate_lazy_destroys(struct cr_context_t* ctx) {
     }
   }
   _n_deferred_buffer_destroys = 0;
+
+  return true;
+}
+
+bool 
+cr_mem_staging_ring_begin(struct cr_frame_t* frame) {
+  if(!frame) _PARAM_CHECK_FAIL();
+
+  _staging_ring.tail    = frame->staging_end;
+  frame->staging_begin  = _staging_ring.head;
+  frame->staging_end    = _staging_ring.head; 
+
+  return true;
+}
+
+static inline size_t
+_align_up(size_t v, size_t alignment) {
+  return (v + alignment - 1) & ~(alignment - 1);
+}
+
+size_t 
+cr_mem_staging_ring_alloc(struct cr_staging_ring_t* ring, size_t n, size_t align) {
+  if(!ring) _PARAM_CHECK_FAIL();
+
+  size_t size = _align_up(n, align);
+
+  if (ring->head + size <= ring->capacity) {
+    if (ring->head < ring->tail && ring->head + size > ring->tail) {
+      return SIZE_MAX;
+    }
+    size_t off = ring->head;
+    ring->head += size;
+    return off;
+  }
+
+  size_t wrapped_head = 0;
+
+  if (size > ring->tail) {
+    return 0; 
+  }
+
+  ring->head = size;
+  return wrapped_head;
+}
+
+bool 
+cr_mem_staging_ring_end(struct cr_frame_t* frame) {
+  if(!frame) _PARAM_CHECK_FAIL();
+
+  frame->staging_end = _staging_ring.head;
 
   return true;
 }

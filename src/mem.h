@@ -60,10 +60,6 @@ bool cr_mem_create_gpu_buffer_device_local(
 bool cr_mem_destroy_gpu_buffer(struct cr_context_t* ctx, struct cr_gpu_buffer_t* buf);
 
 bool cr_mem_resize_gpu_buffer(struct cr_context_t* ctx, struct cr_gpu_buffer_t* buf, VkDeviceSize new_size); 
-
-size_t 
-cr_mem_staging_ring_alloc(struct cr_staging_ring_t* ring, size_t n, size_t align);
-
 bool 
 cr_mem_upload_to_device_local_gpu_buffer(
   struct cr_context_t* ctx, 
@@ -72,4 +68,22 @@ cr_mem_upload_to_device_local_gpu_buffer(
   struct cr_gpu_buffer_t* o_buf);
 
 bool 
+cr_mem_transfer_to_device_local_gpu_buffer(
+    struct cr_context_t* ctx,
+    struct cr_frame_t* frame,
+    void* data,
+    size_t size, 
+    const struct cr_gpu_buffer_t* buf
+    );
+
+bool 
 cr_mem_upadate_lazy_destroys(struct cr_context_t* ctx);
+
+bool 
+cr_mem_staging_ring_begin(struct cr_frame_t* frame);
+
+size_t 
+cr_mem_staging_ring_alloc(struct cr_staging_ring_t* ring, size_t n, size_t align);
+
+bool 
+cr_mem_staging_ring_end(struct cr_frame_t* frame);

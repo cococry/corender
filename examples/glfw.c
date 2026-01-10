@@ -66,6 +66,7 @@ int main() {
   const char** exts = glfwGetRequiredInstanceExtensions(&n_exts);
 
   const char* validation_layers[1] = {
+    "VK_LAYER_KHRONOS_validation"
   };
   struct cr_context_init_info_t info = {
     .enable_validation = true,
@@ -88,7 +89,7 @@ int main() {
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
 
-    for (uint32_t i = 0; i < 2; i++) {
+    for (uint32_t i = 0; i < 100000; i++) {
       float x = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.width);
       float y = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.height);
 
@@ -98,22 +99,7 @@ int main() {
         rand01(&rng),
         1.0f
       };
-      
-      vec4 color2 = {
-        rand01(&rng),
-        rand01(&rng),
-        rand01(&rng),
-        1.0f
-      };
-
-      uint32_t size = 40;
-      cr_draw_vertex(&ctx, (vec2){ x, y}, color);
-      cr_draw_vertex(&ctx, (vec2){ x + size , y}, color);
-      cr_draw_vertex(&ctx, (vec2){ x + size , y + size}, color);
-
-      cr_draw_vertex(&ctx, (vec2){ x + size , y + size}, color2);
-      cr_draw_vertex(&ctx, (vec2){ x, y + size}, color2);
-      cr_draw_vertex(&ctx, (vec2){ x, y}, color2);
+      cr_draw_rect(&ctx, (vec2){x, y}, (vec2){50, 50}, color);
 
     }
 
