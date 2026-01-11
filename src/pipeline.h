@@ -43,6 +43,7 @@ struct cr_pipeline_t {
 
   uint32_t indices_per_instance; 
   uint32_t vertices_per_instance;
+  bool use_device_local_buffer;
 
   uint32_t _total_elements_uploaded;
 };
@@ -54,7 +55,9 @@ struct cr_pipeline_init_info_t {
     size_t batch_element_size; 
 
     uint32_t indices_per_instance; 
-    uint32_t vertices_per_instance; 
+    uint32_t vertices_per_instance;
+
+    bool use_device_local_buffer;
 };
 
 bool cr_pipeline_init(struct cr_context_t* ctx, 

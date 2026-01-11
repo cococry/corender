@@ -111,11 +111,17 @@ cr_mem_create_gpu_buffer(
       mem_props = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
       break;
+    case CR_GPU_BUFFER_MEM_MAPPED:
+      mem_props =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+      break;
     case CR_GPU_BUFFER_MEM_STAGING:
       usage |= 
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-      mem_props = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+      mem_props = 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
       break;
     default: {
@@ -143,17 +149,19 @@ cr_mem_create_gpu_buffer(
     .usage = usage,
   };
 
+  bool want_mapping = mem_type == CR_GPU_BUFFER_MEM_STAGING || mem_type == CR_GPU_BUFFER_MEM_MAPPED;
+
   VmaAllocationCreateInfo alloc_info = {};
   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
   alloc_info.requiredFlags = mem_props;
-  if(mem_type == CR_GPU_BUFFER_MEM_STAGING) 
+  if(want_mapping) 
     alloc_info.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
   VkBuffer buffer;
   VmaAllocation allocation; 
   _VK_CHECK(ctx, vmaCreateBuffer(_vma_allocator, &buffer_info, &alloc_info, &buffer, &allocation, NULL));
 
-  if(mem_type == CR_GPU_BUFFER_MEM_STAGING)  {
+  if(want_mapping)  {
     VmaAllocationInfo retrieved_info;
     vmaGetAllocationInfo(_vma_allocator, allocation, &retrieved_info); 
     o_buf->mem_handle = retrieved_info.pMappedData;
@@ -182,8 +190,6 @@ cr_mem_destroy_gpu_buffer(
 ) {
   if(!ctx || !buf || !buf->_vma_allocation) _PARAM_CHECK_FAIL(); 
 
-  _VK_CHECK(ctx, vkDeviceWaitIdle(ctx->logical_dev));
-
   vmaDestroyBuffer(_vma_allocator, buf->buf, (VmaAllocation)buf->_vma_allocation);
 
   CR_TRACE(ctx->log, "Successfully destroyed GPU buffer %p of size %lu.\n", buf->buf, buf->buf_size);
@@ -209,19 +215,18 @@ cr_mem_resize_gpu_buffer(
     return false;
   }
 
-  if(buf->mem_type == CR_GPU_BUFFER_MEM_STAGING) {
-    void* old_contents = buf->mem_handle;
-    void* new_contents = new_buf.mem_handle;
-
-    memcpy(new_contents, old_contents, CR_MIN(new_size, buf->buf_size));
+    if (buf->mem_handle && new_buf.mem_handle) {
+    memcpy(
+      new_buf.mem_handle,
+      buf->mem_handle,
+      CR_MIN(new_size, buf->buf_size)
+    );
   }
 
   CR_TRACE(ctx->log, "Successfully resized GPU buffer %p from size %lu to size %lu (new buffer => %p)\n", buf->buf, buf->buf_size, new_size, new_buf.buf);
 
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
 
-  if(frame->_n_pending_buffer_destroys < CR_MAX_PENDING_BUFFER_DESTROYS) 
-    _deferred_buffer_destroys[_n_deferred_buffer_destroys++] = *buf;
 
   *buf = new_buf;
 

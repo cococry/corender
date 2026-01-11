@@ -42,8 +42,8 @@ struct _push_constant_t {
 struct cr_pipeline_t instanced_pipeline = {0};
 struct cr_pipeline_t vertex_pipeline    = {0};
 
-static VmaAllocation _last_depth_alloc;
-static float _instance_z_index = 0.1;
+static VmaAllocation _depth_allocs[CR_FRAME_COUNT];
+static uint64_t _frame_start_time = 0.0f;
 
 static bool     _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
 static bool     _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
@@ -61,7 +61,7 @@ static bool     _pick_physical_device(struct cr_context_t* ctx);
 static bool                   _renderer_handle_resize(struct cr_context_t* ctx);
 
 static bool                   _get_swapchain_info_from_physical_device(struct cr_context_t* ctx, VkPhysicalDevice dev, 
-                                                                   VkSurfaceKHR surf, struct _swapchain_info_t* o_info);
+                                                                       VkSurfaceKHR surf, struct _swapchain_info_t* o_info);
 static VkSurfaceFormatKHR     _get_swapchain_surface_format(const struct _swapchain_info_t* swapchain);
 static VkPresentModeKHR       _get_swapchain_present_mode(const struct _swapchain_info_t* swapchain);
 static VkExtent2D             _get_swapchain_extent(
@@ -81,7 +81,7 @@ _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_
   if(info->log_to_file) {
     ctx->log.stream = fopen(cr_util_log_get_filepath(), "a");
     if(!ctx->log.stream) return false;
-      
+
     if(setvbuf(ctx->log.stream, NULL, _IONBF, 0) != 0) {
       CR_ERROR(ctx->log, "setvbuf() failed: %s", strerror(errno));
       return false;
@@ -93,7 +93,7 @@ _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_
   ctx->log.quiet = info->log_quiet;
   ctx->log.verbose = info->log_verbose;
 
-    CR_TRACE(ctx->log, "Initialized log-state: (verbose: %s, quiet: %s, log-to-file: %s)", 
+  CR_TRACE(ctx->log, "Initialized log-state: (verbose: %s, quiet: %s, log-to-file: %s)", 
            ctx->log.verbose ? "true" : "false",
            ctx->log.quiet ? "true" : "false",
            info->log_to_file ? "true" : "false");;
@@ -104,7 +104,7 @@ _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_
 bool 
 _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   if(!ctx || !info) _PARAM_CHECK_FAIL();
-  
+
   if(!_create_instance(ctx, info)) {
     CR_ERROR(ctx->log, "Failed to create Vulkan instance.");
     return false;
@@ -127,7 +127,7 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
   if(!_create_logical_device(ctx)) {
     CR_ERROR(ctx->log, "Failed to create Vulkan logical device.");
     return false;
-    }
+  }
 
   if(!cr_mem_init(ctx)) {
     CR_ERROR(ctx->log, "Failed to create VMA context."); 
@@ -157,9 +157,9 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
   cr_draw_set_clear_color(ctx, (vec4){0.1f, 0.1f, 0.1f, 1.0f});
 
 
-    return true;
+  return true;
 
-  err:
+err:
   return false;
 }
 
@@ -226,11 +226,11 @@ _create_logical_device(struct cr_context_t* ctx) {
   VkDeviceQueueCreateInfo queues[2];
 
   queues[queue_count++] = (VkDeviceQueueCreateInfo) {
-      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-      .queueFamilyIndex = ctx->graphics_queue_family,
-      .queueCount = 1,
-      .pQueuePriorities = &priority
-    };
+    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+    .queueFamilyIndex = ctx->graphics_queue_family,
+    .queueCount = 1,
+    .pQueuePriorities = &priority
+  };
 
   if(ctx->graphics_queue_family != ctx->present_queue_family) {
     queues[queue_count++] = (VkDeviceQueueCreateInfo) {
@@ -260,8 +260,8 @@ _create_logical_device(struct cr_context_t* ctx) {
 
   _VK_CHECK(ctx, vkCreateDevice(ctx->phys_dev, &device_info, NULL, &ctx->logical_dev));
 
-    CR_TRACE(ctx->log, "Initialized Vulkan logical device (graphics queue index: %i, present queue index; %i)",
-             ctx->graphics_queue_family, ctx->present_queue_family);
+  CR_TRACE(ctx->log, "Initialized Vulkan logical device (graphics queue index: %i, present queue index; %i)",
+           ctx->graphics_queue_family, ctx->present_queue_family);
 
   vkGetDeviceQueue(ctx->logical_dev, ctx->graphics_queue_family, 0, &ctx->graphics_queue);
   vkGetDeviceQueue(ctx->logical_dev, ctx->present_queue_family, 0, &ctx->present_queue);
@@ -277,6 +277,8 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   if(!ctx || !o_swapchain) _PARAM_CHECK_FAIL();
   if(o_swapchain->imgs) free(o_swapchain->imgs);
   if(o_swapchain->img_views) free(o_swapchain->img_views);
+  if(o_swapchain->img_views_depth) free(o_swapchain->img_views_depth);
+  if(o_swapchain->depth_images) free(o_swapchain->depth_images);
 
   memset(o_swapchain, 0, sizeof(*o_swapchain));
 
@@ -321,7 +323,7 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
     create_info.queueFamilyIndexCount = 0;
     create_info.pQueueFamilyIndices = NULL;
   }
-  
+
   _VK_CHECK(ctx, vkCreateSwapchainKHR(ctx->logical_dev, &create_info, NULL, &o_swapchain->swapchain_handle));
 
   _VK_CHECK(ctx, vkGetSwapchainImagesKHR(ctx->logical_dev, o_swapchain->swapchain_handle, &o_swapchain->n_imgs, NULL));
@@ -330,12 +332,16 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
 
 
   o_swapchain->img_views = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImageView));
+  o_swapchain->img_views_depth = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImageView));
+  o_swapchain->depth_images = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImage));
 
   o_swapchain->present_mode = present_mode;
   o_swapchain->fmt = fmt.format;
   o_swapchain->dimensions = extent;
   o_swapchain->logical_dev = ctx->logical_dev;
 
+
+  for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
   VkImageCreateInfo depth_image_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     .imageType = VK_IMAGE_TYPE_2D,
@@ -361,30 +367,27 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
     cr_mem_get_allocator(),
     &depth_image_info,
     &depth_alloc_info,
-    &o_swapchain->depth_image,
-    &_last_depth_alloc,
+    &o_swapchain->depth_images[i],
+    &_depth_allocs[i],
     NULL
   ));
 
   VkImageViewCreateInfo depth_view_info = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-    .image = o_swapchain->depth_image,
+    .image = o_swapchain->depth_images[i],
     .viewType = VK_IMAGE_VIEW_TYPE_2D,
     .format = VK_FORMAT_D24_UNORM_S8_UINT,
     .subresourceRange = {
-        .aspectMask =
-        VK_IMAGE_ASPECT_DEPTH_BIT |
-        VK_IMAGE_ASPECT_STENCIL_BIT,
-        .baseMipLevel = 0,
-        .levelCount = 1,
-        .baseArrayLayer = 0,
-        .layerCount = 1
-      }
-    };
+      .aspectMask =
+      VK_IMAGE_ASPECT_DEPTH_BIT |
+      VK_IMAGE_ASPECT_STENCIL_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
 
-  _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &depth_view_info, NULL, &o_swapchain->img_view_depth));
-
-  for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
 
     VkImageViewCreateInfo view_info = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -408,6 +411,8 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
 
 
     _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &view_info, NULL, &o_swapchain->img_views[i]));
+
+    _VK_CHECK(ctx, vkCreateImageView(ctx->logical_dev, &depth_view_info, NULL, &o_swapchain->img_views_depth[i]));
   }
 
   CR_TRACE(ctx->log, "Initialized Vulkan swapchain (width: %i, height: %i)", 
@@ -429,7 +434,7 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
 
   for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
     struct cr_frame_t* frame = &o_frameloop->frames[i];
-  
+
     _VK_CHECK(ctx, vkCreateCommandPool(
       ctx->swapchain.logical_dev, &pool_info, NULL, &frame->cmd_pool));
 
@@ -449,8 +454,8 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
       &sem_info, NULL, &frame->image_available)); 
 
     frame->render_finished_per_image = cr_util_alloc(ctx,
-      ctx->swapchain.n_imgs, 
-      sizeof(*frame->render_finished_per_image));
+                                                     ctx->swapchain.n_imgs, 
+                                                     sizeof(*frame->render_finished_per_image));
 
     for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
       _VK_CHECK(ctx, vkCreateSemaphore(
@@ -465,13 +470,15 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     _VK_CHECK(ctx, vkCreateFence(
       ctx->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
 
-    VkQueryPoolCreateInfo qp_info = {
-      .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
-      .queryType  = VK_QUERY_TYPE_TIMESTAMP,
-      .queryCount = 2,
-    };
+    if(ctx->enable_time_measuring) {
+      VkQueryPoolCreateInfo qp_info = {
+        .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+        .queryType  = VK_QUERY_TYPE_TIMESTAMP,
+        .queryCount = 2,
+      };
 
-    vkCreateQueryPool(ctx->logical_dev, &qp_info, NULL, &frame->timestamp_pool);
+      vkCreateQueryPool(ctx->logical_dev, &qp_info, NULL, &frame->timestamp_pool);
+    }
 
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
              i);
@@ -500,13 +507,6 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
   };
 
   VkFormat depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
-
-  VkFormatProperties props;
-  vkGetPhysicalDeviceFormatProperties(ctx->phys_dev,
-                                      depth_format, &props);
-
-  assert(props.optimalTilingFeatures &
-         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
 
   VkAttachmentDescription depth_attachment = {
@@ -576,7 +576,7 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
     VkImageView attachments[] = {
       ctx->swapchain.img_views[i],
-      ctx->swapchain.img_view_depth,
+      ctx->swapchain.img_views_depth[i],
     };
 
     VkFramebufferCreateInfo fb_info = {
@@ -591,11 +591,11 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
 
     _VK_CHECK(ctx, vkCreateFramebuffer(ctx->swapchain.logical_dev, &fb_info, NULL, 
                                        &o_frameloop->fbs[i]) != VK_SUCCESS);
-    
+
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop framebuffer for swapchain image view %i", 
              i); 
   }
-    
+
   CR_TRACE(ctx->log, "Initialized Vulkan frameloop."); 
 
 
@@ -652,14 +652,6 @@ bool _create_render_pipelines(
         .offset   = offsetof(struct cr_instance_t, r)
       });
 
-    cr_pipeline_add_vertex_input_attribute(
-      &instanced_pipeline,
-      (VkVertexInputAttributeDescription){
-        .location = 3,
-        .binding  = 0,
-        .format   = VK_FORMAT_R32_SFLOAT,
-        .offset   = offsetof(struct cr_instance_t, z)
-      });
 
     cr_pipeline_add_binding_desc(&instanced_pipeline,
                                  (VkVertexInputBindingDescription){
@@ -679,14 +671,15 @@ bool _create_render_pipelines(
     info.batch_element_size = sizeof(struct cr_instance_t);
     info.elements_per_batch = CR_MAX_BATCH; 
     info.vertices_per_instance = 6;
+    info.use_device_local_buffer = true;
 
     cr_pipeline_init(
       ctx, &instanced_pipeline, &info 
     );
-    
+
     cr_pipeline_batching_allocate_buffer(ctx, &instanced_pipeline, 
-                                   CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * sizeof(struct cr_instance_t),
-                                   CR_GPU_BUFFER_VERTEX);
+                                         CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * sizeof(struct cr_instance_t),
+                                         CR_GPU_BUFFER_VERTEX);
   }
 
 
@@ -697,7 +690,7 @@ bool _create_render_pipelines(
                                  .stride = sizeof(struct cr_vertex_t),
                                  .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
                                  }
-    );
+                                 );
 
     cr_pipeline_add_vertex_input_attribute(
       &vertex_pipeline,
@@ -717,7 +710,7 @@ bool _create_render_pipelines(
         .format = VK_FORMAT_R32G32_SFLOAT,
         .offset = offsetof(struct cr_vertex_t, pos)
       });
-    
+
 
     char* vertex_path, *fragment_path;
     cr_pipeline_get_internal_shader_paths("default", &vertex_path, &fragment_path);
@@ -731,13 +724,13 @@ bool _create_render_pipelines(
     cr_pipeline_init(ctx, &vertex_pipeline, &info);
 
     cr_pipeline_batching_allocate_buffer(ctx, &vertex_pipeline, 
-                                    CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * 3 * sizeof(struct cr_vertex_t),
-                                   CR_GPU_BUFFER_VERTEX);
-  
+                                         CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * 3 * sizeof(struct cr_vertex_t),
+                                         CR_GPU_BUFFER_VERTEX);
+
   }
 
 
- 
+
   return true;
 err:
   return false;
@@ -746,7 +739,7 @@ err:
 
 bool 
 _create_shader_module(struct 
-  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
+                      cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
   size_t file_size;
   unsigned char* file_data = cr_util_read_file(filepath, &file_size);
   if(!file_data || !file_size) goto err; 
@@ -949,20 +942,19 @@ bool
 _render_handle_resize(struct cr_context_t* ctx) {
   vkDeviceWaitIdle(ctx->logical_dev);
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
+    vmaDestroyImage(cr_mem_get_allocator(), ctx->swapchain.depth_images[i], _depth_allocs[i]);
     vkDestroyFramebuffer(
       ctx->swapchain.logical_dev,
       ctx->frameloop.fbs[i], NULL); 
     CR_TRACE(ctx->log, "Destroyed framebuffer for swapchain image %i", i); 
 
     vkDestroyImageView(ctx->logical_dev, ctx->swapchain.img_views[i], NULL);
+    vkDestroyImageView(ctx->logical_dev, ctx->swapchain.img_views_depth[i], NULL);
+
     CR_TRACE(ctx->log, "Destroyed image view for swapchain image %i", i); 
   }
 
 
-  vmaDestroyImage(cr_mem_get_allocator(), ctx->swapchain.depth_image, _last_depth_alloc);
-  printf("Got erea\n");
-  vkDestroyImageView(ctx->logical_dev, ctx->swapchain.img_view_depth, NULL);
-  printf("Got erea\n");
 
   free(ctx->frameloop.fbs);
 
@@ -976,7 +968,7 @@ _render_handle_resize(struct cr_context_t* ctx) {
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
     VkImageView attachments[] = {
       ctx->swapchain.img_views[i],
-      ctx->swapchain.img_view_depth
+      ctx->swapchain.img_views_depth[i]
     };
 
     VkFramebufferCreateInfo fb_info = {
@@ -1020,8 +1012,8 @@ _render_handle_resize(struct cr_context_t* ctx) {
       &sem_info, NULL, &frame->image_available)); 
 
     frame->render_finished_per_image = cr_util_alloc(ctx, 
-      ctx->swapchain.n_imgs, 
-      sizeof(*frame->render_finished_per_image));
+                                                     ctx->swapchain.n_imgs, 
+                                                     sizeof(*frame->render_finished_per_image));
 
     for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
       _VK_CHECK(ctx, vkCreateSemaphore(
@@ -1035,7 +1027,7 @@ _render_handle_resize(struct cr_context_t* ctx) {
   ctx->frameloop.frame_idx = 0;
   ctx->_swapchain_img_idx = 0;
 
- 
+
   return true;
 
 err:
@@ -1052,7 +1044,7 @@ _get_swapchain_info_from_physical_device(
   struct cr_context_t* ctx,
   VkPhysicalDevice dev, 
   VkSurfaceKHR surf,
-struct _swapchain_info_t* o_info 
+  struct _swapchain_info_t* o_info 
 ) {
   _VK_CHECK(ctx, vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev, surf, &o_info->caps));
   _VK_CHECK(ctx, vkGetPhysicalDeviceSurfaceFormatsKHR(dev, surf, &o_info->n_fmts, NULL));
@@ -1070,14 +1062,14 @@ VkSurfaceFormatKHR
 _get_swapchain_surface_format(const struct _swapchain_info_t* swapchain) {
   for(uint32_t i = 0; i < swapchain->n_fmts; i++) {
     if(swapchain->fmts[i].format == VK_FORMAT_B8G8R8_SRGB && 
-       swapchain->fmts[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) return swapchain->fmts[i];
+      swapchain->fmts[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) return swapchain->fmts[i];
   }
   return swapchain->fmts[0];
 }
 
 VkPresentModeKHR 
 _get_swapchain_present_mode(const struct _swapchain_info_t* swapchain) {
-for(uint32_t i = 0; i < swapchain->n_present_modes; i++) {
+  for(uint32_t i = 0; i < swapchain->n_present_modes; i++) {
     if(swapchain->present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) 
       return swapchain->present_modes[i]; 
   }
@@ -1106,6 +1098,8 @@ bool
 cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   memset(ctx, 0, sizeof *ctx);
   ctx->_skip_render = false;
+  ctx->enable_time_measuring = info->enable_time_measuring;
+
   if(!_create_log_context(ctx, info)) {
     CR_ERROR(ctx->log, "Failed to create logging context.");
     return false;
@@ -1128,8 +1122,6 @@ cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color) {
   memcpy(ctx->_pass_info.clear_color, color, sizeof(vec4));
 }
 
-static double last_time = 0.0f, delta_time = 0.0f, last_print_time = 0.0f;
-static uint32_t frame_count = 0;
 bool  
 cr_draw_begin(struct cr_context_t* ctx) {
   if(ctx->pending_resize.pending) {
@@ -1141,41 +1133,46 @@ cr_draw_begin(struct cr_context_t* ctx) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
   vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
 
-  uint64_t timestamps[2];
+  if(ctx->enable_time_measuring) {
+    uint64_t timestamps[2];
 
-  uint32_t read_frame = (ctx->frameloop.frame_idx + CR_FRAME_COUNT - 1) % CR_FRAME_COUNT;
+    uint32_t read_frame = (ctx->frameloop.frame_idx + CR_FRAME_COUNT - 1) % CR_FRAME_COUNT;
 
-  VkQueryPool pool = ctx->frameloop.frames[read_frame].timestamp_pool;
+    VkQueryPool pool = ctx->frameloop.frames[read_frame].timestamp_pool;
 
-  vkGetQueryPoolResults(
-    ctx->logical_dev,
-    pool,
-    0, 2,
-    sizeof(timestamps),
-    timestamps,
-    sizeof(uint64_t),
-    VK_QUERY_RESULT_64_BIT
-  );
+    vkGetQueryPoolResults(
+      ctx->logical_dev,
+      pool,
+      0, 2,
+      sizeof(timestamps),
+      timestamps,
+      sizeof(uint64_t),
+      VK_QUERY_RESULT_64_BIT
+    );
 
 
-  VkPhysicalDeviceProperties props;
-  vkGetPhysicalDeviceProperties(ctx->phys_dev, &props);
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(ctx->phys_dev, &props);
 
-  double timestampPeriod = props.limits.timestampPeriod; // ns
+    double timestampPeriod = props.limits.timestampPeriod; 
 
-  double gpu_ms =
-    (timestamps[1] - timestamps[0]) * timestampPeriod * 1e-6;
+    double gpu_ms = (timestamps[1] - timestamps[0]) * timestampPeriod * 1e-6;
 
+    ctx->ms_gpu = gpu_ms;
+  }
 
   cr_mem_staging_ring_begin(frame);
 
   ctx->_skip_render = false;
- 
-  if(!cr_mem_upadate_lazy_destroys(ctx)) goto err; 
 
-  frame->_n_pending_buffer_destroys = 0;
+  //if(!cr_mem_upadate_lazy_destroys(ctx)) goto err; 
 
   ctx->_swapchain_img_idx = 0;
+
+  if(ctx->enable_time_measuring) {
+    _frame_start_time = cr_util_get_time_ns();
+  }
+
   VkResult res = vkAcquireNextImageKHR(
     ctx->logical_dev,
     ctx->swapchain.swapchain_handle,
@@ -1202,21 +1199,6 @@ cr_draw_begin(struct cr_context_t* ctx) {
 
   float current_time = glfwGetTime();
 
-  frame_count++;
-  delta_time = current_time - last_time;
-
-  last_time = current_time;
-
-  if(current_time - last_print_time >= 5.0f) {
-    double elapsed = current_time - last_print_time;
-    double fps = frame_count / elapsed;
-
-    printf("FPS: %.2f\n", fps);
-
-    frame_count = 0;
-    last_print_time = current_time;
-  }
-
   return true;
 
 err: 
@@ -1230,18 +1212,14 @@ cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size,  uint8_t r, uint8_t 
     pos[0] > ctx->swapchain.dimensions.width || pos[1] > ctx->swapchain.dimensions.height) return;
   struct cr_instance_t instance = (struct cr_instance_t){
     .px = (_Float16)pos[0], 
-      .py = (_Float16)pos[1], 
-      .sx = (_Float16)size[0], 
-      .sy = (_Float16)size[1], 
-      .r =  r, 
-      .g =  g, 
-      .b =  b, 
-      .a =  a, 
-      .z = _instance_z_index
-    };
-
-  float z_step = 1.0f / 65536.0f;
-  _instance_z_index += z_step; 
+    .py = (_Float16)pos[1], 
+    .sx = (_Float16)size[0], 
+    .sy = (_Float16)size[1], 
+    .r =  r, 
+    .g =  g, 
+    .b =  b, 
+    .a =  a, 
+  };
 
   if(!cr_pipeline_batching_write_to_batch(ctx, &instanced_pipeline, &instance, ctx->frameloop.frame_idx)) {
 
@@ -1289,13 +1267,15 @@ static void _render_set_dynamic_state(struct cr_context_t* ctx) {
     ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
 }
 
+
 bool 
 cr_draw_end(struct cr_context_t* ctx) {
-  if(ctx->_skip_render) {
-    return true;
-  }
+  if(!ctx) _PARAM_CHECK_FAIL();
+
+  if(ctx->_skip_render) return true;
+
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
-  
+
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
@@ -1307,7 +1287,7 @@ cr_draw_end(struct cr_context_t* ctx) {
   cr_pipeline_batching_upload(ctx, &vertex_pipeline, ctx->frameloop.frame_idx);
 
   VkClearValue clears[2];
-  clears[0].color = (VkClearColorValue){{0, 0, 0, 1}};
+  clears[0].color = (VkClearColorValue){{0.1, 0.1, 0.1, 1}};
   clears[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};
 
   VkRenderPassBeginInfo render_pass = {
@@ -1347,7 +1327,7 @@ cr_draw_end(struct cr_context_t* ctx) {
   _VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
 
 
-   VkPresentInfoKHR present_info = {
+  VkPresentInfoKHR present_info = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,
     .pWaitSemaphores = &frame->render_finished_per_image[ctx->_swapchain_img_idx],
@@ -1362,8 +1342,12 @@ cr_draw_end(struct cr_context_t* ctx) {
 
   ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
 
-  _instance_z_index = 0;
 
+  if(ctx->enable_time_measuring) {
+    uint64_t frame_end = cr_util_get_time_ns();
+
+    ctx->ms_cpu = (frame_end - _frame_start_time) / 1e6;
+  }
 
   return true;
 

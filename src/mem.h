@@ -16,6 +16,7 @@ enum cr_gpu_buffer_type_t {
 
 enum cr_gpu_buffer_memory_type_t {
   CR_GPU_BUFFER_MEM_DEVICE_LOCAL = 0,
+  CR_GPU_BUFFER_MEM_MAPPED,
   CR_GPU_BUFFER_MEM_STAGING,
 };
 

@@ -8,6 +8,8 @@
 #include <linux/limits.h>
 #include <stdbool.h>
 #include <vulkan/vulkan_core.h>
+#include <assert.h>
+
 
 #define _SUBSYS_NAME "PIPELINE"
 
@@ -287,11 +289,14 @@ cr_pipeline_init(struct cr_context_t* ctx,
     batching->_element_cap_cpu = info->elements_per_batch * CR_INITIAL_BATCH_CAP;
 
     batching->element_stride = info->batch_element_size; 
-    batching->data = cr_util_alloc(ctx, batching->element_cap, info->batch_element_size);
+    if(info->use_device_local_buffer) {
+      batching->data = cr_util_alloc(ctx, batching->element_cap, info->batch_element_size);
+    }
   }
 
   o_pipeline->vertices_per_instance = info->vertices_per_instance; 
   o_pipeline->indices_per_instance = info->indices_per_instance;
+  o_pipeline->use_device_local_buffer = info->use_device_local_buffer;
 
   return true;
 
@@ -339,14 +344,18 @@ bool
 cr_pipeline_batching_allocate_buffer(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline,size_t size, enum cr_gpu_buffer_type_t type) {
   if(!ctx|| !pipeline) _PARAM_CHECK_FAIL();
   for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
-    if(pipeline->batching[i].gpu_buffer.buf) continue;
+    struct cr_pipeline_batch_state_t* batching = &pipeline->batching[i];
+    if(batching->gpu_buffer.buf) continue;
     if(!cr_mem_create_gpu_buffer(
       ctx, size, 
       type,
-      CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
-      &pipeline->batching[i].gpu_buffer)) {
+      pipeline->use_device_local_buffer ? CR_GPU_BUFFER_MEM_DEVICE_LOCAL : CR_GPU_BUFFER_MEM_MAPPED,
+      &batching->gpu_buffer)) {
       CR_ERROR(ctx->log, "Failed to create dynamic GPU Buffer.");
       return false;
+    }
+    if(!pipeline->use_device_local_buffer) {
+      batching->data = batching->gpu_buffer.mem_handle;
     }
   }
 
@@ -381,24 +390,26 @@ cr_pipeline_batching_upload(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
       return false;
     }
 
-    if(total_elements > batching->element_cap) {
-      batching->element_cap = CR_MAX(batching->element_cap * 2,
-                                     total_elements);
+    if(pipeline->use_device_local_buffer) {
+      if(total_elements > batching->element_cap) {
+        batching->element_cap = CR_MAX(batching->element_cap * 2,
+                                       total_elements);
 
-      if(!cr_mem_resize_gpu_buffer(ctx, &batching->gpu_buffer, batching->element_cap * batching->element_stride)) {
-        CR_ERROR(ctx->log, "Failed to resize batching buffer.");
-        return false;
+        if(!cr_mem_resize_gpu_buffer(ctx, &batching->gpu_buffer, batching->element_cap * batching->element_stride)) {
+          CR_ERROR(ctx->log, "Failed to resize batching buffer.");
+          return false;
+        }
       }
+
+      cr_mem_transfer_to_device_local_gpu_buffer(
+        ctx,
+        &ctx->frameloop.frames[frame_idx],
+        batching->data,
+        total_elements * batching->element_stride,
+        &batching->gpu_buffer
+      );
+
     }
-
-    cr_mem_transfer_to_device_local_gpu_buffer(
-      ctx,
-      &ctx->frameloop.frames[frame_idx],
-      batching->data,
-      total_elements * batching->element_stride,
-      &batching->gpu_buffer
-    );
-
     pipeline->_total_elements_uploaded = total_elements;
   }
 
@@ -409,7 +420,7 @@ cr_pipeline_batching_upload(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
       batching->emitted_draws_cap = CR_MAX(batching->emitted_draws_cap * 2,
                                            batching->n_emitted_draws);
 
-      if(!cr_mem_resize_gpu_buffer(ctx, &batching->gpu_buffer, batching->emitted_draws_cap * indirect_draw_size)) {
+      if(!cr_mem_resize_gpu_buffer(ctx, &batching->_indirect_buffer, batching->emitted_draws_cap * indirect_draw_size)) {
 
         CR_ERROR(ctx->log, "Failed to resize indirect drawing buffer.");
         return false;
@@ -479,7 +490,7 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
 
   vkCmdBindVertexBuffers(frame->cmd_buf, 0, n_vbos, vbos, vbo_offsets);
 
-  if(draw_indexed) {
+  if(ctx->enable_time_measuring) {
     vkCmdResetQueryPool(frame->cmd_buf, frame->timestamp_pool, 0, 2);
 
     vkCmdWriteTimestamp(
@@ -488,7 +499,9 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
       frame->timestamp_pool,
       0
     );
+  }
 
+  if(draw_indexed) {
     for(uint32_t i = 0; i < pipeline->n_static_buffers; i++) {
       if(pipeline->static_buffers[i].type != CR_GPU_BUFFER_INDEX) continue;
       vkCmdBindIndexBuffer(frame->cmd_buf, pipeline->static_buffers[i].buf, 0, VK_INDEX_TYPE_UINT32);
@@ -502,22 +515,29 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
       sizeof(VkDrawIndexedIndirectCommand)
     );
 
-
-    vkCmdWriteTimestamp(
-      frame->cmd_buf,
-      VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-      frame->timestamp_pool,
-      1
-    );
   } else {
-    vkCmdResetQueryPool(frame->cmd_buf, frame->timestamp_pool, 0, 2);
+if (!pipeline->use_device_local_buffer) {
+    VkBufferMemoryBarrier barrier = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .buffer = batching->gpu_buffer.buf,
+        .offset = 0,
+        .size = VK_WHOLE_SIZE
+    };
 
-    vkCmdWriteTimestamp(
-      frame->cmd_buf,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-      frame->timestamp_pool,
-      0
+    vkCmdPipelineBarrier(
+        frame->cmd_buf,
+        VK_PIPELINE_STAGE_HOST_BIT,
+        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+        0,
+        0, NULL,
+        1, &barrier,
+        0, NULL
     );
+}
     vkCmdDrawIndirect(
       frame->cmd_buf,
       batching->_indirect_buffer.buf,
@@ -525,14 +545,17 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
       batching->n_emitted_draws,
       sizeof(VkDrawIndirectCommand)
     );
+  }
 
+  if(ctx->enable_time_measuring) {
     vkCmdWriteTimestamp(
       frame->cmd_buf,
       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-      frame->timestamp_pool ,
+      frame->timestamp_pool,
       1
     );
   }
+
 
   batching->n_emitted_draws = 0;
 
@@ -622,6 +645,9 @@ cr_pipeline_batching_write_to_batch(struct cr_context_t* ctx, struct cr_pipeline
 
   if(!cr_pipeline_batching_ensure_batch_size(ctx, pipeline, write_idx, frame_idx)) return false;
 
+  size_t bytes_needed = ((size_t)write_idx + 1) * batching->element_stride;
+  assert(batching->data != NULL);
+  assert(bytes_needed <= batching->gpu_buffer.buf_size);
   void* dest = (char*)batching->data + write_idx * batching->element_stride;
   memcpy(dest, element, batching->element_stride);
 
@@ -646,18 +672,29 @@ cr_pipeline_batching_ensure_batch_size(
   uint32_t frame_idx) {
   if(!pipeline || !ctx || frame_idx >= CR_FRAME_COUNT) _PARAM_CHECK_FAIL();
 
-  if(write_idx >= pipeline->batching[frame_idx]._element_cap_cpu) {
-    pipeline->batching[frame_idx]._element_cap_cpu = 
-      CR_MAX(pipeline->batching[frame_idx]._element_cap_cpu * 2,
+  struct cr_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
+  if(write_idx >= batching->_element_cap_cpu) {
+    batching->_element_cap_cpu = 
+      CR_MAX(batching->_element_cap_cpu * 2,
              write_idx);
 
-    void* new = realloc(pipeline->batching[frame_idx].data,
-                        pipeline->batching[frame_idx]._element_cap_cpu * pipeline->batching->element_stride);
-    if(!new) {
-      CR_ERROR(ctx->log, "Failed to resize CPU buffer for instance data.\n");
-      return false;
+    if(!pipeline->use_device_local_buffer) {
+      if(!cr_mem_resize_gpu_buffer(ctx, &batching->gpu_buffer, batching->_element_cap_cpu * batching->element_stride)) {
+        CR_ERROR(ctx->log, "Failed to resize batching buffer.");
+        return false;
+      }
+      batching->element_cap = batching->_element_cap_cpu;
+      batching->data = batching->gpu_buffer.mem_handle;
     }
-    pipeline->batching[frame_idx].data  = new;
+    else {
+      void* new = realloc(batching->data,
+                          batching->_element_cap_cpu * batching->element_stride);
+      if(!new) {
+        CR_ERROR(ctx->log, "Failed to resize CPU buffer for instance data.\n");
+        return false;
+      }
+      batching->data  = new;
+    }
   }
 
   return true;

@@ -3,7 +3,6 @@
 layout(location = 0) in vec2 i_pos;
 layout(location = 1) in vec2 i_size;
 layout(location = 2) in vec4 i_color;
-layout(location = 3) in float i_z;
 
 layout (location = 0) flat out vec4 v_color;
 
@@ -25,5 +24,5 @@ const vec2 quad[6] = vec2[](
 
 void main() {
   v_color = i_color;
-  gl_Position = vec4((quad[gl_VertexIndex] * i_size + i_pos) * pc.ndc_to_px_scale + pc.ndc_to_px_offset, i_z,1.0);
+  gl_Position = vec4((quad[gl_VertexIndex] * i_size + i_pos) * pc.ndc_to_px_scale + pc.ndc_to_px_offset, 0.0,1.0);
 }

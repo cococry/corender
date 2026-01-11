@@ -176,3 +176,10 @@ cr_util_vk_result_to_string(VkResult r)
         default: return "VK_ERROR_UNKNOWN";
     }
 }
+
+uint64_t 
+cr_util_get_time_ns() {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  return (uint64_t)ts.tv_sec * 1000000000ull + ts.tv_nsec;
+}

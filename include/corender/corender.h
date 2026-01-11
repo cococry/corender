@@ -24,7 +24,6 @@ struct cr_vertex_t {
 
 struct cr_instance_t {
   _Float16 px, py, sx, sy;
-  float z;
   uint8_t r, g, b, a;
 };
 
@@ -36,16 +35,6 @@ struct cr_frame_t {
   VkSemaphore* render_finished_per_image;
   VkFence in_flight_fence;
   VkQueryPool timestamp_pool;
-  
-  //struct cr_gpu_buffer_t _pending_buffer_destroys[CR_MAX_PENDING_BUFFER_DESTROYS];
-  uint32_t _n_pending_buffer_destroys;
-
-  VkDrawIndexedIndirectCommand* _indirect_cmds_instanced;
-  uint32_t _n_indirect_cmds_instanced;
-  
-  VkDrawIndirectCommand* _indirect_cmds_vertex;
-  uint32_t _n_indirect_cmds_vertex;
-
 
   size_t staging_begin; // value of ring.head at frame begin
   size_t staging_end;   // max head reached in this frame
@@ -63,8 +52,8 @@ struct cr_swapchain_t {
   uint32_t n_imgs;
   VkImage* imgs;
   VkImageView* img_views;
-  VkImageView img_view_depth;
-  VkImage depth_image;
+  VkImageView* img_views_depth;
+  VkImage* depth_images;
 };
 
 struct cr_frameloop_t {
@@ -93,7 +82,7 @@ struct cr_context_init_info_t {
   const char** layers;
   size_t n_layers;
 
-  bool enable_validation;
+  bool enable_validation, enable_time_measuring;
 
   void* surface_userdata;
   cr_surface_create_func_t surface_create;
@@ -149,6 +138,9 @@ struct cr_context_t {
   uint32_t n_pending_draws;
 
   bool _have_multi_draw_indirect;
+
+  double ms_gpu, ms_cpu;
+  bool enable_time_measuring;
 };
 
 bool cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);

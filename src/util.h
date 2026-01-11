@@ -17,8 +17,8 @@
 #define CR_MAX_STATIC_BUFS 8
 #define CR_MAX_DYNAMIC_BUFS 8
 
-#define CR_MAX_BATCH 3 * 10000
-#define CR_INITIAL_BATCH_CAP 4
+#define CR_MAX_BATCH 3 
+#define CR_INITIAL_BATCH_CAP 2
 #define CR_MAX_PENDING_BUFFER_DESTROYS 32
 
 #define CR_INITIAL_INDIRECT_DRAW_CAP 8 
@@ -138,3 +138,6 @@ unsigned char* cr_util_read_file(const char* filepath, size_t* o_filesize);
 void* cr_util_alloc(void* ctx, size_t n, size_t size);
 
 const char* cr_util_vk_result_to_string(VkResult r);
+
+uint64_t cr_util_get_time_ns();
+

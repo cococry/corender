@@ -72,11 +72,12 @@ int main() {
     .enable_validation = true,
     .n_exts = n_exts,
     .exts = exts,
+    .enable_time_measuring = true,
 
     .layers = NULL,
     .n_layers = 0,
 
-    .log_verbose = true, 
+    .log_verbose = false, 
     .surface_create = _glfw_surface_create,
     .surface_userdata = window
   };
@@ -89,7 +90,7 @@ int main() {
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
 
-    for (uint32_t i = 0; i < 100000; i++) {
+    for (uint32_t i = 0; i < 1000000; i++) {
       float x = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.width);
       float y = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.height);
 
@@ -105,7 +106,9 @@ int main() {
                    xorshift32(&rng) % 255,
                    255);
 
+
     }
+      printf("MS GPU: %f\n", ctx.ms_gpu);
 
     cr_draw_end(&ctx);
     glfwPollEvents();
