@@ -1,7 +1,7 @@
 
+#define _GNU_SOURCE
 #include <stdbool.h>
 #include <stdio.h>
-#define _GNU_SOURCE
 #include "util.h"
 #include "../include/corender/corender.h"
 #include <time.h>
@@ -9,6 +9,7 @@
 #include <linux/limits.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #define _SUBSYS_NAME "UTIL"
 
@@ -59,7 +60,7 @@ cr_util_log_get_filepath() {
   strftime(timestamp, sizeof(timestamp), "%Y-%m-%d-%H%M", &t);
 
   // scheme: <log_dir>/<appname>-<timestamp>-<pid>.log
-  static char logfile[PATH_MAX];
+  static char logfile[sizeof(log_dir) + sizeof(_CR_BRAND_NAME) + sizeof(timestamp) + sizeof(pid) + 8];
   snprintf(logfile, sizeof(logfile), "%s/%s-%s-%d.log",
            log_dir, _CR_BRAND_NAME, timestamp, pid);
 
