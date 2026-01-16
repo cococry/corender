@@ -110,11 +110,20 @@ enum cr_log_level_t {
     } while (0);                                                                    \
   } \
 
-#define _PARAM_CHECK_FAIL()                                               \
-  do {                                                                    \
-    fprintf(stderr, "corender: Fatal: Did not pass parameter check.");    \
-    exit(1);                                                              \
-  } while (0);                                                \
+#define _PARAM_CHECK_FAIL()                                                     \
+  do {                                                                          \
+    fprintf(stderr,                                                            \
+      "\033[1;31m"                                                             \
+      "corender: Fatal parameter check failed\n"                               \
+      "  Function: %s\n"                                                       \
+      "  File:     %s\n"                                                       \
+      "  Line:     %d\n"                                                       \
+      "\033[0m",                                                               \
+      __func__, __FILE__, __LINE__);                                           \
+    fflush(stderr);                                                            \
+    exit(1);                                                                   \
+  } while (0)
+
 
 #define _VK_CHECK(ctx, expr)                                  \
 do {                                                          \

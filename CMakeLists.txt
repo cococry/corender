@@ -44,6 +44,7 @@ add_custom_target(shaders ALL
     COMMAND ${CMAKE_COMMAND} -E rm -rf $ENV{HOME}/.local/state/corender/shaders
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin/shaders/default
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin/shaders/instanced
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin/shaders/compute
 
     COMMAND glslc -fshader-stage=vertex
         ${CMAKE_SOURCE_DIR}/shaders/instanced/basic_vert.glsl
@@ -60,6 +61,22 @@ add_custom_target(shaders ALL
     COMMAND glslc -fshader-stage=fragment
         ${CMAKE_SOURCE_DIR}/shaders/default/basic_frag.glsl
         -o ${CMAKE_BINARY_DIR}/bin/shaders/default/basic_frag.spv
+
+    COMMAND glslc -fshader-stage=compute
+        ${CMAKE_SOURCE_DIR}/shaders/compute/bin_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/bin_compute.spv
+
+    COMMAND glslc -fshader-stage=compute
+        ${CMAKE_SOURCE_DIR}/shaders/compute/fill_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/fill_compute.spv
+
+    COMMAND glslc -fshader-stage=compute
+        ${CMAKE_SOURCE_DIR}/shaders/compute/prefix_xor_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/prefix_xor_compute.spv
+
+    COMMAND glslc -fshader-stage=compute
+        ${CMAKE_SOURCE_DIR}/shaders/compute/tile_parity_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/tile_parity_compute.spv
 
     COMMAND ${CMAKE_COMMAND} -E make_directory $ENV{HOME}/.local/state/corender
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -82,6 +99,7 @@ foreach(example ${EXAMPLE_SRCS})
             OpenGL::GL
             Vulkan::Vulkan
             stdc++
+            glia
     )
 
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")

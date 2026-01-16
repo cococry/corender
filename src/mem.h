@@ -12,6 +12,7 @@ enum cr_gpu_buffer_type_t {
   CR_GPU_BUFFER_INDEX,
   CR_GPU_BUFFER_VERTEX,
   CR_GPU_BUFFER_INDIRECT,
+  CR_GPU_BUFFER_SSBO,
 };
 
 enum cr_gpu_buffer_memory_type_t {

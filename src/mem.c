@@ -135,6 +135,7 @@ cr_mem_create_gpu_buffer(
     case CR_GPU_BUFFER_INDEX: usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT; break;
     case CR_GPU_BUFFER_VERTEX: usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; break;
     case CR_GPU_BUFFER_INDIRECT: usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT; break;
+    case CR_GPU_BUFFER_SSBO: usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; break;
     case CR_GPU_BUFFER_NO_TYPE: break;
     default: {
       CR_FATAL(ctx->log, "Invalid buffer type for GPU buffer creation specified: %i. Use enumeration values of cr_gpu_buffer_memory_type_t.", 
@@ -340,8 +341,10 @@ cr_mem_transfer_to_device_local_gpu_buffer(
     struct cr_frame_t* frame,
     void* data,
     size_t size, 
-    const struct cr_gpu_buffer_t* buf) {
-  if(!ctx || !data || !frame ||!ctx) _PARAM_CHECK_FAIL();
+    const struct cr_gpu_buffer_t* buf
+) {
+  if (!ctx || !data || !frame || !buf) _PARAM_CHECK_FAIL();
+
   size_t offset = cr_mem_staging_ring_alloc(
     &_staging_ring,
     size,
@@ -352,7 +355,11 @@ cr_mem_transfer_to_device_local_gpu_buffer(
     CR_FATAL(ctx->log, "Staging ring out of memory this frame");
   }
 
-  memcpy((uint8_t*)_staging_ring.buf.mem_handle + offset, data, size);
+  memcpy(
+    (uint8_t*)_staging_ring.buf.mem_handle + offset,
+    data,
+    size
+  );
 
   VkBufferCopy copy = {
     .srcOffset = offset,
@@ -368,41 +375,57 @@ cr_mem_transfer_to_device_local_gpu_buffer(
     &copy
   );
 
-  
-  VkAccessFlags dst_access_mask = 0;
-  switch(buf->type) {
+  /* ---- Barrier (TRANSFER → device-local usage) ---- */
+
+  VkPipelineStageFlags2 dst_stage_mask = 0;
+  VkAccessFlags2        dst_access_mask = 0;
+
+  switch (buf->type) {
     case CR_GPU_BUFFER_VERTEX:
-      dst_access_mask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+      dst_stage_mask  = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+      dst_access_mask = VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
       break;
+
     case CR_GPU_BUFFER_INDEX:
-      dst_access_mask = VK_ACCESS_INDEX_READ_BIT;
+      dst_stage_mask  = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+      dst_access_mask = VK_ACCESS_2_INDEX_READ_BIT;
       break;
+
     case CR_GPU_BUFFER_INDIRECT:
-      dst_access_mask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT; 
+      dst_stage_mask  = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+      dst_access_mask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
       break;
+
+    case CR_GPU_BUFFER_SSBO:
+      dst_stage_mask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+                        VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+                        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+      dst_access_mask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+      break;
+
     default:
       CR_FATAL(ctx->log, "Invalid GPU buffer type.");
       break;
   }
-  VkBufferMemoryBarrier barrier = {
-    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-    .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+
+  VkBufferMemoryBarrier2 barrier = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+    .srcStageMask  = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .dstStageMask  = dst_stage_mask,
     .dstAccessMask = dst_access_mask,
-    .buffer = buf->buf,
-    .offset = 0,
-    .size   = VK_WHOLE_SIZE 
+    .buffer        = buf->buf,
+    .offset        = 0,
+    .size          = VK_WHOLE_SIZE
   };
 
-  vkCmdPipelineBarrier(
-    frame->cmd_buf,
-    VK_PIPELINE_STAGE_TRANSFER_BIT,
-    buf->type != CR_GPU_BUFFER_INDIRECT ? 
-    VK_PIPELINE_STAGE_VERTEX_INPUT_BIT : VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-    0,
-    0, NULL,
-    1, &barrier,
-    0, NULL
-  );
+  VkDependencyInfo dep = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .bufferMemoryBarrierCount = 1,
+    .pBufferMemoryBarriers    = &barrier
+  };
+
+  vkCmdPipelineBarrier2(frame->cmd_buf, &dep);
 
   return true;
 }

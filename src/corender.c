@@ -11,7 +11,8 @@
 
 #include "../vendor/vma/vk_mem_alloc.h"
 #include "../include/corender/corender.h"
-#include "pipeline.h"
+#include "compute_pipeline.h"
+#include "raster_pipeline.h"
 #include "util.h"
 #include "mem.h"
 
@@ -39,8 +40,9 @@ struct _push_constant_t {
   vec2 scale, offset;
 };
 
-struct cr_pipeline_t instanced_pipeline = {0};
-struct cr_pipeline_t vertex_pipeline    = {0};
+struct cr_raster_pipeline_t instanced_raster_pipeline = {0};
+struct cr_raster_pipeline_t vertex_raster_pipeline    = {0};
+struct cr_compute_pipeline_t compute_pipeline = {0};
 
 static VmaAllocation _depth_allocs[CR_FRAME_COUNT];
 static uint64_t _frame_start_time = 0.0f;
@@ -52,10 +54,11 @@ static bool     _create_logical_device(struct cr_context_t* ctx);
 static bool     _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
 static bool     _create_upload_context(struct cr_context_t* ctx, struct cr_upload_context_t* o_upload, uint32_t graphics_queue_family);
 static bool     _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family); 
-static bool     _create_render_pipelines(struct cr_context_t* ctx);
+static bool     _create_render_raster_pipelines(struct cr_context_t* ctx);
+static bool     _create_render_compute_pipeline(struct cr_context_t* ctx);
 static bool     _create_shader_module(struct cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
-static bool     _create_pipeline(struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
-                                 const char* shader_subpath, VkPipeline* o_pipeline); 
+static bool     _create_raster_pipeline(struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
+                                 const char* shader_subpath, VkPipeline* o_raster_pipeline); 
 static bool     _pick_physical_device(struct cr_context_t* ctx);
 
 static bool                   _renderer_handle_resize(struct cr_context_t* ctx);
@@ -66,8 +69,8 @@ static VkSurfaceFormatKHR     _get_swapchain_surface_format(const struct _swapch
 static VkPresentModeKHR       _get_swapchain_present_mode(const struct _swapchain_info_t* swapchain);
 static VkExtent2D             _get_swapchain_extent(
   const struct _swapchain_info_t* swapchain, uint32_t w, uint32_t h);
-static void                   _get_vertex_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
-static void                   _get_instanced_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
+static void                   _get_vertex_raster_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
+static void                   _get_instanced_raster_pipeline_input_state(struct _vertex_input_state_t* o_input_state);
 
 static const char*            _vk_result_to_string(VkResult r);
 static bool                   _pick_physical_device(struct cr_context_t* ctx);
@@ -149,8 +152,12 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
     return false;
   }
 
-  if(!_create_render_pipelines(ctx)) {
+  if(!_create_render_raster_pipelines(ctx)) {
     CR_ERROR(ctx->log, "Failed to create batch-rendering pipelines.");
+    return false;
+  }
+  if(!_create_render_compute_pipeline(ctx)) {
+    CR_ERROR(ctx->log, "Failed to create compute pipeline.");
     return false;
   }
 
@@ -248,6 +255,11 @@ _create_logical_device(struct cr_context_t* ctx) {
   VkPhysicalDeviceFeatures enabledFeatures = {};
   enabledFeatures.multiDrawIndirect = ctx->_have_multi_draw_indirect;
 
+  VkPhysicalDeviceSynchronization2Features sync2 = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+    .synchronization2 = VK_TRUE
+  };
+
   VkDeviceCreateInfo device_info = {
     .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
     .pQueueCreateInfos = queues,
@@ -255,6 +267,7 @@ _create_logical_device(struct cr_context_t* ctx) {
     .enabledExtensionCount = ctx->surf.surf ? 1 : 0, 
     .ppEnabledExtensionNames = ctx->surf.surf ? device_exts : NULL,
     .pEnabledFeatures = &enabledFeatures,
+    .pNext = &sync2,
   };
 
 
@@ -271,7 +284,6 @@ _create_logical_device(struct cr_context_t* ctx) {
 err:
   return false;
 }
-
 bool 
 _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h) {
   if(!ctx || !o_swapchain) _PARAM_CHECK_FAIL();
@@ -305,7 +317,7 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
     .imageColorSpace = fmt.colorSpace,
     .imageExtent = extent,
     .imageArrayLayers = 1,
-    .imageUsage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    .imageUsage   = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
     .preTransform = info.caps.currentTransform,
     .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
     .presentMode = present_mode,
@@ -315,7 +327,7 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   uint32_t families[2] = { ctx->graphics_queue_family, ctx->present_queue_family };
 
   if (ctx->graphics_queue_family != ctx->present_queue_family) {
-    create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+    create_info.imageSharingMode = VK_QUEUE_FAMILY_IGNORED;
     create_info.queueFamilyIndexCount = 2;
     create_info.pQueueFamilyIndices = families;
   } else {
@@ -606,13 +618,13 @@ err:
   return false;
 }
 
-bool _create_render_pipelines(
+bool _create_render_raster_pipelines(
   struct cr_context_t* ctx
 ) {
   VkPushConstantRange range = {
     .offset = 0,
     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-    .size = sizeof(struct cr_pipeline_push_constant_t) 
+    .size = sizeof(struct cr_raster_pipeline_push_constant_t) 
   };
 
   VkPipelineLayoutCreateInfo layout_info = {
@@ -625,8 +637,8 @@ bool _create_render_pipelines(
 
   {
 
-    cr_pipeline_add_vertex_input_attribute(
-      &instanced_pipeline,
+    cr_raster_pipeline_add_vertex_input_attribute(
+      &instanced_raster_pipeline,
       (VkVertexInputAttributeDescription){
         .location = 0,
         .binding  = 0,
@@ -634,8 +646,8 @@ bool _create_render_pipelines(
         .offset   = offsetof(struct cr_instance_t, px)
       });
 
-    cr_pipeline_add_vertex_input_attribute(
-      &instanced_pipeline,
+    cr_raster_pipeline_add_vertex_input_attribute(
+      &instanced_raster_pipeline,
       (VkVertexInputAttributeDescription){
         .location = 1,
         .binding  = 0,
@@ -643,8 +655,8 @@ bool _create_render_pipelines(
         .offset   = offsetof(struct cr_instance_t, sx)
       });
 
-    cr_pipeline_add_vertex_input_attribute(
-      &instanced_pipeline,
+    cr_raster_pipeline_add_vertex_input_attribute(
+      &instanced_raster_pipeline,
       (VkVertexInputAttributeDescription){
         .location = 2,
         .binding  = 0,
@@ -653,7 +665,7 @@ bool _create_render_pipelines(
       });
 
 
-    cr_pipeline_add_binding_desc(&instanced_pipeline,
+    cr_raster_pipeline_add_binding_desc(&instanced_raster_pipeline,
                                  (VkVertexInputBindingDescription){
                                  .binding   = 0,
                                  .stride    = sizeof(struct cr_instance_t), 
@@ -663,9 +675,9 @@ bool _create_render_pipelines(
 
 
     char* vertex_path, *fragment_path;
-    cr_pipeline_get_internal_shader_paths("instanced", &vertex_path, &fragment_path);
+    cr_raster_pipeline_get_internal_shader_paths("instanced", &vertex_path, &fragment_path);
 
-    struct cr_pipeline_init_info_t info = {0};
+    struct cr_raster_pipeline_init_info_t info = {0};
     info.vertex_path = vertex_path; 
     info.fragment_path = fragment_path; 
     info.batch_element_size = sizeof(struct cr_instance_t);
@@ -673,18 +685,18 @@ bool _create_render_pipelines(
     info.vertices_per_instance = 6;
     info.use_device_local_buffer = true;
 
-    cr_pipeline_init(
-      ctx, &instanced_pipeline, &info 
+    cr_raster_pipeline_init(
+      ctx, &instanced_raster_pipeline, &info 
     );
 
-    cr_pipeline_batching_allocate_buffer(ctx, &instanced_pipeline, 
+    cr_raster_pipeline_batching_allocate_buffer(ctx, &instanced_raster_pipeline, 
                                          CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * sizeof(struct cr_instance_t),
                                          CR_GPU_BUFFER_VERTEX);
   }
 
 
   {
-    cr_pipeline_add_binding_desc(&vertex_pipeline,
+    cr_raster_pipeline_add_binding_desc(&vertex_raster_pipeline,
                                  (VkVertexInputBindingDescription){ 
                                  .binding = 0,
                                  .stride = sizeof(struct cr_vertex_t),
@@ -692,8 +704,8 @@ bool _create_render_pipelines(
                                  }
                                  );
 
-    cr_pipeline_add_vertex_input_attribute(
-      &vertex_pipeline,
+    cr_raster_pipeline_add_vertex_input_attribute(
+      &vertex_raster_pipeline,
       (VkVertexInputAttributeDescription) {
         .location = 1,
         .binding = 0,
@@ -702,8 +714,8 @@ bool _create_render_pipelines(
       }
     );
 
-    cr_pipeline_add_vertex_input_attribute(
-      &vertex_pipeline,
+    cr_raster_pipeline_add_vertex_input_attribute(
+      &vertex_raster_pipeline,
       (VkVertexInputAttributeDescription) {
         .location = 0,
         .binding = 0,
@@ -713,17 +725,17 @@ bool _create_render_pipelines(
 
 
     char* vertex_path, *fragment_path;
-    cr_pipeline_get_internal_shader_paths("default", &vertex_path, &fragment_path);
+    cr_raster_pipeline_get_internal_shader_paths("default", &vertex_path, &fragment_path);
 
-    struct cr_pipeline_init_info_t info = {0};
+    struct cr_raster_pipeline_init_info_t info = {0};
     info.vertex_path = vertex_path; 
     info.fragment_path = fragment_path; 
     info.batch_element_size = sizeof(struct cr_instance_t);
     info.elements_per_batch = CR_MAX_BATCH; 
 
-    cr_pipeline_init(ctx, &vertex_pipeline, &info);
+    cr_raster_pipeline_init(ctx, &vertex_raster_pipeline, &info);
 
-    cr_pipeline_batching_allocate_buffer(ctx, &vertex_pipeline, 
+    cr_raster_pipeline_batching_allocate_buffer(ctx, &vertex_raster_pipeline, 
                                          CR_MAX_BATCH * CR_INITIAL_BATCH_CAP * 3 * sizeof(struct cr_vertex_t),
                                          CR_GPU_BUFFER_VERTEX);
 
@@ -735,6 +747,32 @@ bool _create_render_pipelines(
 err:
   return false;
 
+}
+
+static 
+bool 
+_create_render_compute_pipeline(struct cr_context_t* ctx) {
+  char* bin_path, *fill_path, *prefix_xor_path, *tile_parity_path;
+
+  cr_compute_pipeline_get_internal_shader_paths("compute", &bin_path, &fill_path, &prefix_xor_path, &tile_parity_path);
+
+  struct cr_compute_pipeline_init_info_t info = {0};
+  info.screen_w = ctx->swapchain.dimensions.width;
+  info.screen_h = ctx->swapchain.dimensions.height;
+  info.tile_size = 32;
+  info.shader_path_fill = fill_path; 
+  info.shader_path_bin  = bin_path; 
+  info.shader_path_parity = tile_parity_path; 
+  info.shader_path_prefix = prefix_xor_path; 
+
+  info.fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD;
+
+  if(!cr_compute_pipeline_init(ctx, &info, &compute_pipeline)) {
+    CR_ERROR(ctx->log, "Failed to set up Vulkan-Compute pipeline.");
+    return false;
+  }
+
+  return true;
 }
 
 bool 
@@ -763,9 +801,9 @@ err:
 }
 
 bool     
-_create_pipeline(
+_create_raster_pipeline(
   struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
-  const char* shader_subpath, VkPipeline* o_pipeline) {
+  const char* shader_subpath, VkPipeline* o_raster_pipeline) {
   VkShaderModule vert_mod, frag_mod;
 
   VkPipelineShaderStageCreateInfo shader_stages[2] = {
@@ -855,7 +893,7 @@ _create_pipeline(
     .subpass = 0
   };
 
-  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, o_pipeline));
+  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, o_raster_pipeline));
 
   vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
   vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
@@ -941,6 +979,7 @@ bool _pick_physical_device(struct cr_context_t* ctx) {
 bool 
 _render_handle_resize(struct cr_context_t* ctx) {
   vkDeviceWaitIdle(ctx->logical_dev);
+
   for(uint32_t i = 0; i < ctx->swapchain.n_imgs; i++) {
     vmaDestroyImage(cr_mem_get_allocator(), ctx->swapchain.depth_images[i], _depth_allocs[i]);
     vkDestroyFramebuffer(
@@ -1026,6 +1065,8 @@ _render_handle_resize(struct cr_context_t* ctx) {
 
   ctx->frameloop.frame_idx = 0;
   ctx->_swapchain_img_idx = 0;
+
+  cr_compute_pipeline_resize(ctx, &compute_pipeline, ctx->swapchain.dimensions.width, ctx->swapchain.dimensions.height);
 
 
   return true;
@@ -1194,8 +1235,8 @@ cr_draw_begin(struct cr_context_t* ctx) {
   _VK_CHECK(ctx, vkResetFences(ctx->logical_dev, 1, &frame->in_flight_fence));
   _VK_CHECK(ctx, vkResetCommandPool(ctx->logical_dev, frame->cmd_pool, 0));
 
-  cr_pipeline_batching_begin(ctx, &instanced_pipeline, ctx->frameloop.frame_idx);
-  cr_pipeline_batching_begin(ctx, &vertex_pipeline, ctx->frameloop.frame_idx);
+  cr_raster_pipeline_batching_begin(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
+  cr_raster_pipeline_batching_begin(ctx, &vertex_raster_pipeline, ctx->frameloop.frame_idx);
 
   float current_time = glfwGetTime();
 
@@ -1221,7 +1262,7 @@ cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size,  uint8_t r, uint8_t 
     .a =  a, 
   };
 
-  if(!cr_pipeline_batching_write_to_batch(ctx, &instanced_pipeline, &instance, ctx->frameloop.frame_idx)) {
+  if(!cr_raster_pipeline_batching_write_to_batch(ctx, &instanced_raster_pipeline, &instance, ctx->frameloop.frame_idx)) {
 
   }
 }
@@ -1232,9 +1273,15 @@ cr_draw_vertex(struct cr_context_t* ctx, vec2 pos, vec4 color) {
     .pos = {pos[0], pos[1]},
     .color = {color[0], color[1], color[2], color[3]},
   };
-  if(!cr_pipeline_batching_write_to_batch(ctx, &vertex_pipeline, &vertex, ctx->frameloop.frame_idx)) {
+  if(!cr_raster_pipeline_batching_write_to_batch(ctx, &vertex_raster_pipeline, &vertex, ctx->frameloop.frame_idx)) {
 
   }
+}
+
+bool 
+cr_draw_segment(struct cr_context_t* ctx, struct cr_segment_t segment) {
+  cr_compute_pipeline_insert_segment(ctx, &compute_pipeline, segment, ctx->_swapchain_img_idx);
+  return true;
 }
 
 static void _render_set_dynamic_state(struct cr_context_t* ctx) {
@@ -1283,8 +1330,13 @@ cr_draw_end(struct cr_context_t* ctx) {
 
   _VK_CHECK(ctx, vkBeginCommandBuffer(frame->cmd_buf, &begin_info));
 
-  cr_pipeline_batching_upload(ctx, &instanced_pipeline, ctx->frameloop.frame_idx);
-  cr_pipeline_batching_upload(ctx, &vertex_pipeline, ctx->frameloop.frame_idx);
+
+  
+  cr_compute_pipeline_dispatch(ctx, &compute_pipeline,ctx->frameloop.frame_idx, ctx->_swapchain_img_idx); 
+  
+  /*
+  cr_raster_pipeline_batching_upload(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
+  cr_raster_pipeline_batching_upload(ctx, &vertex_raster_pipeline, ctx->frameloop.frame_idx);
 
   VkClearValue clears[2];
   clears[0].color = (VkClearColorValue){{0.1, 0.1, 0.1, 1}};
@@ -1304,8 +1356,9 @@ cr_draw_end(struct cr_context_t* ctx) {
 
   vkCmdBeginRenderPass(frame->cmd_buf, &render_pass, VK_SUBPASS_CONTENTS_INLINE);
 
-  cr_pipeline_batching_commit(ctx, &instanced_pipeline, ctx->frameloop.frame_idx);
-  cr_pipeline_batching_commit(ctx, &vertex_pipeline, ctx->frameloop.frame_idx);
+
+  cr_raster_pipeline_batching_commit(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
+  cr_raster_pipeline_batching_commit(ctx, &vertex_raster_pipeline, ctx->frameloop.frame_idx);
 
   vkCmdEndRenderPass(frame->cmd_buf);
   _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
@@ -1323,8 +1376,34 @@ cr_draw_end(struct cr_context_t* ctx) {
     .commandBufferCount = 1,
     .pCommandBuffers = &frame->cmd_buf,
   };
+  *_VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
+  */
 
-  _VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
+
+  _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
+
+  VkPipelineStageFlags wait_stage =
+    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+VkSubmitInfo submit_info = {
+    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .waitSemaphoreCount = 1,
+    .pWaitSemaphores = &frame->image_available, // from vkAcquireNextImageKHR
+    .pWaitDstStageMask = &wait_stage,
+    .commandBufferCount = 1,
+    .pCommandBuffers = &frame->cmd_buf,
+    .signalSemaphoreCount = 1,
+    .pSignalSemaphores = &frame->render_finished_per_image[ctx->_swapchain_img_idx]
+};
+
+_VK_CHECK(ctx,
+    vkQueueSubmit(
+        ctx->graphics_queue,
+        1,
+        &submit_info,
+        frame->in_flight_fence
+    )
+);
 
 
   VkPresentInfoKHR present_info = {

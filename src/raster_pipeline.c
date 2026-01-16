@@ -2,7 +2,7 @@
 #include "../vendor/vma/vk_mem_alloc.h"
 #include "mem.h"
 #include "util.h"
-#include "pipeline.h"
+#include "raster_pipeline.h"
 
 #include <string.h>
 #include <linux/limits.h>
@@ -11,14 +11,7 @@
 #include <assert.h>
 
 
-#define _SUBSYS_NAME "PIPELINE"
-
-#define _PARAM_CHECK_FAIL()                                               \
-do {                                                                    \
-  fprintf(stderr, "corender: Fatal: Did not pass parameter check.");    \
-  exit(1);                                                              \
-} while (0);                                                            \
-
+#define _SUBSYS_NAME "RASTER"
 
 static void _vk_render_set_dynamic_state(struct cr_context_t* ctx);
 
@@ -30,9 +23,9 @@ _create_shader_module(struct
                       cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
 
 static bool     
-_vk_create_pipeline(
+_vk_create_raster_pipeline(
   struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
-  const char* vertex_path, const char* fragment_path,  VkPipeline* o_pipeline);
+  const char* vertex_path, const char* fragment_path,  VkPipeline* o_raster_pipeline);
 
 void _vk_render_set_dynamic_state(struct cr_context_t* ctx) {
   if(!ctx) _PARAM_CHECK_FAIL();
@@ -56,7 +49,7 @@ void _vk_render_set_dynamic_state(struct cr_context_t* ctx) {
 
   vkCmdSetScissor(frame->cmd_buf, 0, 1, &scissor_rect);
 
-  struct cr_pipeline_push_constant_t pc = {
+  struct cr_raster_pipeline_push_constant_t pc = {
     .scale = { 2.0f / ctx->swapchain.dimensions.width,  2.0f / ctx->swapchain.dimensions.height},
     .offset = { -1.0f, -1.0f},
   };
@@ -72,6 +65,7 @@ _create_shader_module(struct
                       cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
 
 bool 
+
 _create_shader_module(struct 
                       cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
   if(!ctx || !filepath || !o_module) _PARAM_CHECK_FAIL();
@@ -97,10 +91,10 @@ err:
 }
 
 bool 
-_vk_create_pipeline(
+_vk_create_raster_pipeline(
   struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
-  const char* vertex_path, const char* fragment_path, VkPipeline* o_pipeline) {
-  if(!ctx || !vertex_path || !fragment_path || !o_pipeline) _PARAM_CHECK_FAIL();
+  const char* vertex_path, const char* fragment_path, VkPipeline* o_raster_pipeline) {
+  if(!ctx || !vertex_path || !fragment_path || !o_raster_pipeline) _PARAM_CHECK_FAIL();
 
   VkShaderModule vert_mod, frag_mod;
 
@@ -212,7 +206,7 @@ _vk_create_pipeline(
     .subpass = 0
   };
 
-  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, o_pipeline));
+  _VK_CHECK(ctx, vkCreateGraphicsPipelines(ctx->logical_dev, VK_NULL_HANDLE, 1, &pipeline_info, NULL, o_raster_pipeline));
 
   vkDestroyShaderModule(ctx->logical_dev, vert_mod, NULL);
   vkDestroyShaderModule(ctx->logical_dev, frag_mod, NULL);
@@ -227,7 +221,7 @@ err:
 }
 
 bool 
-cr_pipeline_get_internal_shader_paths(const char* subpath, char** o_vertex_path, char** o_fragment_path) {
+cr_raster_pipeline_get_internal_shader_paths(const char* subpath, char** o_vertex_path, char** o_fragment_path) {
   const char* state_dir = cr_util_get_state_folder();
   char shader_dir[PATH_MAX];
   snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/%s", state_dir, _CR_BRAND_NAME, subpath);
@@ -248,24 +242,24 @@ cr_pipeline_get_internal_shader_paths(const char* subpath, char** o_vertex_path,
 
 
 bool 
-cr_pipeline_init(struct cr_context_t* ctx, 
-                 struct cr_pipeline_t* o_pipeline, 
-                 const struct cr_pipeline_init_info_t* info
+cr_raster_pipeline_init(struct cr_context_t* ctx, 
+                 struct cr_raster_pipeline_t* o_raster_pipeline, 
+                 const struct cr_raster_pipeline_init_info_t* info
                  ) {
-  if(!ctx || !o_pipeline || !info) _PARAM_CHECK_FAIL();
+  if(!ctx || !o_raster_pipeline || !info) _PARAM_CHECK_FAIL();
 
   size_t indirect_draw_size = info->indices_per_instance > 0 ? sizeof(VkDrawIndexedIndirectCommand) : sizeof(VkDrawIndirectCommand);
 
-  o_pipeline->input.input_state = (VkPipelineVertexInputStateCreateInfo){
+  o_raster_pipeline->input.input_state = (VkPipelineVertexInputStateCreateInfo){
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .vertexBindingDescriptionCount = o_pipeline->input.n_binding_descs,
-    .pVertexBindingDescriptions = o_pipeline->input.binding_desc,
-    .vertexAttributeDescriptionCount = o_pipeline->input.n_vert_attr,
-    .pVertexAttributeDescriptions = o_pipeline->input.vert_attrs
+    .vertexBindingDescriptionCount = o_raster_pipeline->input.n_binding_descs,
+    .pVertexBindingDescriptions = o_raster_pipeline->input.binding_desc,
+    .vertexAttributeDescriptionCount = o_raster_pipeline->input.n_vert_attr,
+    .pVertexAttributeDescriptions = o_raster_pipeline->input.vert_attrs
   };
 
-  if(!_vk_create_pipeline(ctx, o_pipeline->input.input_state, 
-                          info->vertex_path, info->fragment_path, &o_pipeline->pipeline)) {
+  if(!_vk_create_raster_pipeline(ctx, o_raster_pipeline->input.input_state, 
+                          info->vertex_path, info->fragment_path, &o_raster_pipeline->pipeline)) {
     CR_ERROR(ctx->log, "Failed to create Vulkan Pipeline (fragment shader: %s, vertex shader: %s)", info->fragment_path, info->vertex_path);
     goto err;
   }
@@ -273,7 +267,7 @@ cr_pipeline_init(struct cr_context_t* ctx,
   CR_TRACE(ctx->log, "Created Vulkan Pipeline (fragment shader: %s, vertex shader: %s)", info->fragment_path, info->vertex_path);
 
   for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
-    struct cr_pipeline_batch_state_t* batching = &o_pipeline->batching[i];
+    struct cr_raster_pipeline_batch_state_t* batching = &o_raster_pipeline->batching[i];
     batching->emitted_draws_cap = CR_INITIAL_INDIRECT_DRAW_CAP;
     batching->_emitted_draws_cap_cpu = CR_INITIAL_INDIRECT_DRAW_CAP;
 
@@ -294,9 +288,9 @@ cr_pipeline_init(struct cr_context_t* ctx,
     }
   }
 
-  o_pipeline->vertices_per_instance = info->vertices_per_instance; 
-  o_pipeline->indices_per_instance = info->indices_per_instance;
-  o_pipeline->use_device_local_buffer = info->use_device_local_buffer;
+  o_raster_pipeline->vertices_per_instance = info->vertices_per_instance; 
+  o_raster_pipeline->indices_per_instance = info->indices_per_instance;
+  o_raster_pipeline->use_device_local_buffer = info->use_device_local_buffer;
 
   return true;
 
@@ -305,7 +299,7 @@ err:
 }
 
 bool 
-cr_pipeline_add_binding_desc(struct cr_pipeline_t* pipeline, 
+cr_raster_pipeline_add_binding_desc(struct cr_raster_pipeline_t* pipeline, 
                              VkVertexInputBindingDescription binding_desc) {
   if(!pipeline) _PARAM_CHECK_FAIL();
 
@@ -316,8 +310,8 @@ cr_pipeline_add_binding_desc(struct cr_pipeline_t* pipeline,
 }
 
 bool
-cr_pipeline_add_vertex_input_attribute(
-  struct cr_pipeline_t* pipeline, 
+cr_raster_pipeline_add_vertex_input_attribute(
+  struct cr_raster_pipeline_t* pipeline, 
   VkVertexInputAttributeDescription vert_attr) {
   if(!pipeline) _PARAM_CHECK_FAIL();
 
@@ -327,7 +321,7 @@ cr_pipeline_add_vertex_input_attribute(
   return true;
 }
 
-bool cr_pipeline_add_static_buffer(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline, void* data, size_t size, enum cr_gpu_buffer_type_t type) {
+bool cr_raster_pipeline_add_static_buffer(struct cr_context_t* ctx, struct cr_raster_pipeline_t* pipeline, void* data, size_t size, enum cr_gpu_buffer_type_t type) {
   if(!pipeline || !ctx) _PARAM_CHECK_FAIL();
 
   if(pipeline->n_static_buffers >= CR_MAX_STATIC_BUFS) return false;
@@ -341,10 +335,10 @@ bool cr_pipeline_add_static_buffer(struct cr_context_t* ctx, struct cr_pipeline_
 }
 
 bool 
-cr_pipeline_batching_allocate_buffer(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline,size_t size, enum cr_gpu_buffer_type_t type) {
+cr_raster_pipeline_batching_allocate_buffer(struct cr_context_t* ctx, struct cr_raster_pipeline_t* pipeline,size_t size, enum cr_gpu_buffer_type_t type) {
   if(!ctx|| !pipeline) _PARAM_CHECK_FAIL();
   for(uint32_t i = 0; i < CR_FRAME_COUNT; i++) {
-    struct cr_pipeline_batch_state_t* batching = &pipeline->batching[i];
+    struct cr_raster_pipeline_batch_state_t* batching = &pipeline->batching[i];
     if(batching->gpu_buffer.buf) continue;
     if(!cr_mem_create_gpu_buffer(
       ctx, size, 
@@ -363,12 +357,12 @@ cr_pipeline_batching_allocate_buffer(struct cr_context_t* ctx, struct cr_pipelin
 }
 
 bool 
-cr_pipeline_batching_begin(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline, uint32_t frame_idx) {
+cr_raster_pipeline_batching_begin(struct cr_context_t* ctx, struct cr_raster_pipeline_t* pipeline, uint32_t frame_idx) {
   (void)ctx;
   if(!pipeline) _PARAM_CHECK_FAIL();
   if(frame_idx >= CR_FRAME_COUNT) return false;
 
-  struct cr_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
+  struct cr_raster_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
 
   batching->n_elements = 0;
   batching->write_offset = 0;
@@ -377,15 +371,15 @@ cr_pipeline_batching_begin(struct cr_context_t* ctx, struct cr_pipeline_t* pipel
 }
 
 bool 
-cr_pipeline_batching_upload(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline, uint32_t frame_idx) {
+cr_raster_pipeline_batching_upload(struct cr_context_t* ctx, struct cr_raster_pipeline_t* pipeline, uint32_t frame_idx) {
   if(!ctx || !pipeline) _PARAM_CHECK_FAIL();
   if(frame_idx >= CR_FRAME_COUNT) return false;
 
-  uint32_t total_elements = cr_pipeline_batching_get_write_idx(pipeline, frame_idx); 
-  struct cr_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
+  uint32_t total_elements = cr_raster_pipeline_batching_get_write_idx(pipeline, frame_idx); 
+  struct cr_raster_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
 
   if(total_elements > 0) {
-    if(!cr_pipeline_batching_flush(ctx, pipeline, frame_idx)) {
+    if(!cr_raster_pipeline_batching_flush(ctx, pipeline, frame_idx)) {
       CR_ERROR(ctx->log, "Failed to flush the renderer.");
       return false;
     }
@@ -440,12 +434,12 @@ cr_pipeline_batching_upload(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
 }
 
 bool 
-cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline, uint32_t frame_idx) {
+cr_raster_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_raster_pipeline_t* pipeline, uint32_t frame_idx) {
   if(!ctx || !pipeline) _PARAM_CHECK_FAIL();
   if(frame_idx >= CR_FRAME_COUNT) return false;
 
   uint32_t total_elements = pipeline->_total_elements_uploaded;
-  struct cr_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
+  struct cr_raster_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
 
   struct cr_frame_t* frame = &ctx->frameloop.frames[frame_idx];
 
@@ -468,14 +462,14 @@ cr_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_pipeline_t* pipe
 
   VkBuffer vbos[n_vbos]; 
 
-  bool instanced_pipeline = pipeline->indices_per_instance > 0 || pipeline->vertices_per_instance > 0;
+  bool instanced_raster_pipeline = pipeline->indices_per_instance > 0 || pipeline->vertices_per_instance > 0;
   for(uint32_t i = 0; i < pipeline->input.n_binding_descs; i++) {
     if(pipeline->input.binding_desc[i].inputRate == VK_VERTEX_INPUT_RATE_VERTEX) {
       bool input_rate_means_static_buffer = pipeline->n_static_buffers > 0 && i < n_vbos && pipeline->static_buffers[i].type == CR_GPU_BUFFER_VERTEX;
       vbos[pipeline->input.binding_desc[i].binding] = input_rate_means_static_buffer ? pipeline->static_buffers[i].buf : batching->gpu_buffer.buf; 
     } 
     else if(pipeline->input.binding_desc[i].inputRate == VK_VERTEX_INPUT_RATE_INSTANCE) {
-      if(!instanced_pipeline) {
+      if(!instanced_raster_pipeline) {
         CR_FATAL(ctx->log,  "A binding description with VK_VERTEX_INPUT_RATE_INSTANCE "
                  "exists in the pipeline's (%p) input state but "
                  "pipeline->indices_per_instance & pipeline->vertices_per_instance are both 0.", pipeline);
@@ -563,14 +557,14 @@ if (!pipeline->use_device_local_buffer) {
 }
 
 bool 
-cr_pipeline_batching_flush(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline,
+cr_raster_pipeline_batching_flush(struct cr_context_t* ctx, struct cr_raster_pipeline_t* pipeline,
                            uint32_t frame_idx){ 
   if(!ctx || !pipeline) _PARAM_CHECK_FAIL();
   if(frame_idx >= CR_FRAME_COUNT) return false;
 
   if(ctx->_skip_render) return true;
 
-  struct cr_pipeline_batch_state_t* batch = &pipeline->batching[frame_idx];
+  struct cr_raster_pipeline_batch_state_t* batch = &pipeline->batching[frame_idx];
 
   if(batch->n_emitted_draws >= batch->_emitted_draws_cap_cpu) {
     size_t indirect_draw_size = pipeline->indices_per_instance > 0 ? sizeof(VkDrawIndexedIndirectCommand) : sizeof(VkDrawIndirectCommand);
@@ -587,32 +581,32 @@ cr_pipeline_batching_flush(struct cr_context_t* ctx, struct cr_pipeline_t* pipel
   }
 
   if(pipeline->indices_per_instance > 0) {
-    bool instanced_pipeline = pipeline->indices_per_instance > 0;
+    bool instanced_raster_pipeline = pipeline->indices_per_instance > 0;
 
     VkDrawIndexedIndirectCommand* draws =  (VkDrawIndexedIndirectCommand*)
       batch->emitted_draws;
 
 
     draws[batch->n_emitted_draws++] = (VkDrawIndexedIndirectCommand){
-      .firstIndex    = instanced_pipeline ? 0 : batch->write_offset, 
-      .indexCount    = instanced_pipeline ? pipeline->indices_per_instance : batch->n_elements,
+      .firstIndex    = instanced_raster_pipeline ? 0 : batch->write_offset, 
+      .indexCount    = instanced_raster_pipeline ? pipeline->indices_per_instance : batch->n_elements,
 
-      .firstInstance = instanced_pipeline ? batch->write_offset : 0,
-      .instanceCount = instanced_pipeline ? batch->n_elements : 1,
+      .firstInstance = instanced_raster_pipeline ? batch->write_offset : 0,
+      .instanceCount = instanced_raster_pipeline ? batch->n_elements : 1,
     };
 
   } else {
     VkDrawIndirectCommand* draws =  (VkDrawIndirectCommand*)
       batch->emitted_draws;
 
-    bool instanced_pipeline = pipeline->vertices_per_instance > 0;
+    bool instanced_raster_pipeline = pipeline->vertices_per_instance > 0;
 
     draws[batch->n_emitted_draws++] = (VkDrawIndirectCommand) {
-      .firstVertex = instanced_pipeline ? 0 : batch->write_offset, 
-      .vertexCount = instanced_pipeline ? pipeline->vertices_per_instance : batch->n_elements,
+      .firstVertex = instanced_raster_pipeline ? 0 : batch->write_offset, 
+      .vertexCount = instanced_raster_pipeline ? pipeline->vertices_per_instance : batch->n_elements,
 
-      .firstInstance = instanced_pipeline ? batch->write_offset : 0, 
-      .instanceCount = instanced_pipeline ? batch->n_elements : 1,
+      .firstInstance = instanced_raster_pipeline ? batch->write_offset : 0, 
+      .instanceCount = instanced_raster_pipeline ? batch->n_elements : 1,
     };
 
     uint32_t draw_idx = batch->n_emitted_draws - 1;
@@ -630,20 +624,20 @@ err:
 }
 
 bool 
-cr_pipeline_batching_write_to_batch(struct cr_context_t* ctx, struct cr_pipeline_t* pipeline, const void* element, uint32_t frame_idx) {
+cr_raster_pipeline_batching_write_to_batch(struct cr_context_t* ctx, struct cr_raster_pipeline_t* pipeline, const void* element, uint32_t frame_idx) {
   if(!ctx || !pipeline || !element) _PARAM_CHECK_FAIL();
 
   if(frame_idx >= CR_FRAME_COUNT) return false;
 
-  struct cr_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
+  struct cr_raster_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
 
   if(batching->n_elements >= CR_MAX_BATCH) {
-    cr_pipeline_batching_flush(ctx, pipeline, frame_idx);
+    cr_raster_pipeline_batching_flush(ctx, pipeline, frame_idx);
   }
 
-  uint32_t write_idx = cr_pipeline_batching_get_write_idx(pipeline, frame_idx);
+  uint32_t write_idx = cr_raster_pipeline_batching_get_write_idx(pipeline, frame_idx);
 
-  if(!cr_pipeline_batching_ensure_batch_size(ctx, pipeline, write_idx, frame_idx)) return false;
+  if(!cr_raster_pipeline_batching_ensure_batch_size(ctx, pipeline, write_idx, frame_idx)) return false;
 
   size_t bytes_needed = ((size_t)write_idx + 1) * batching->element_stride;
   assert(batching->data != NULL);
@@ -658,21 +652,21 @@ cr_pipeline_batching_write_to_batch(struct cr_context_t* ctx, struct cr_pipeline
 }
 
 uint32_t 
-cr_pipeline_batching_get_write_idx(struct cr_pipeline_t* pipeline, uint32_t frame_idx) {
+cr_raster_pipeline_batching_get_write_idx(struct cr_raster_pipeline_t* pipeline, uint32_t frame_idx) {
   if(!pipeline) _PARAM_CHECK_FAIL();
   if(frame_idx >= CR_FRAME_COUNT) _PARAM_CHECK_FAIL();
   return pipeline->batching[frame_idx].write_offset + pipeline->batching[frame_idx].n_elements;
 }
 
 bool 
-cr_pipeline_batching_ensure_batch_size(
+cr_raster_pipeline_batching_ensure_batch_size(
   struct cr_context_t* ctx, 
-  struct cr_pipeline_t* pipeline,
+  struct cr_raster_pipeline_t* pipeline,
   uint32_t write_idx,
   uint32_t frame_idx) {
   if(!pipeline || !ctx || frame_idx >= CR_FRAME_COUNT) _PARAM_CHECK_FAIL();
 
-  struct cr_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
+  struct cr_raster_pipeline_batch_state_t* batching = &pipeline->batching[frame_idx];
   if(write_idx >= batching->_element_cap_cpu) {
     batching->_element_cap_cpu = 
       CR_MAX(batching->_element_cap_cpu * 2,

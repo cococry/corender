@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include "../include/corender/corender.h"
+#include <glia/glia.h>
 
 
 static struct cr_context_t ctx; 
@@ -72,12 +73,12 @@ int main() {
     .enable_validation = true,
     .n_exts = n_exts,
     .exts = exts,
-    .enable_time_measuring = true,
+    .enable_time_measuring = false,
 
-    .layers = NULL,
-    .n_layers = 0,
+    .layers = validation_layers,
+    .n_layers = 1,
 
-    .log_verbose = false, 
+    .log_verbose = true, 
     .surface_create = _glfw_surface_create,
     .surface_userdata = window
   };
@@ -85,30 +86,21 @@ int main() {
 
   srand(time(0));
 
+  ia_init(window);
+
     uint32_t rng = 0x12345678;
+
+
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {  0,  0}, .p1 = {64,  0} });
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {64,  0}, .p1 = {32, 64} });
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {32, 64}, .p1 = {  0,  0} });
 
-    for (uint32_t i = 0; i < 1000000; i++) {
-      float x = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.width);
-      float y = (float)(xorshift32(&rng) % ctx.swapchain.dimensions.height);
-
-      vec4 color = {
-        rand01(&rng),
-        rand01(&rng),
-        rand01(&rng),
-        1.0f
-      };
-      cr_draw_rect(&ctx, (vec2){x, y}, (vec2){8, 8},
-                   xorshift32(&rng) % 255,
-                   xorshift32(&rng) % 255,
-                   xorshift32(&rng) % 255,
-                   255);
-
-
+    if(ia_key_is_released(GLFW_KEY_DOWN)) {
+      printf("DOwn!\n");
     }
-      printf("MS GPU: %f\n", ctx.ms_gpu);
 
     cr_draw_end(&ctx);
     glfwPollEvents();

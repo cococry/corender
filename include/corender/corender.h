@@ -21,6 +21,10 @@ struct cr_vertex_t {
   vec4 color;
 };
 
+struct cr_segment_t {
+  vec2 p0, p1;
+};
+
 
 struct cr_instance_t {
   _Float16 px, py, sx, sy;
@@ -115,6 +119,7 @@ struct cr_context_t {
   VkDevice logical_dev;
   uint32_t graphics_queue_family, present_queue_family;
   VkQueue graphics_queue, present_queue;
+  VkDescriptorPool descriptor_pool;
 
   VkPipelineLayout pipeline_layout;
 
@@ -151,6 +156,7 @@ void cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color);
 bool cr_draw_begin(struct cr_context_t* ctx);
 void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void cr_draw_vertex(struct cr_context_t* ctx, vec2 pos, vec4 color);
+bool cr_draw_segment(struct cr_context_t* ctx, struct cr_segment_t segment);
 bool cr_draw_end(struct cr_context_t* ctx);
 
 void cr_surface_resize(struct cr_context_t* ctx, uint32_t width, uint32_t height);
