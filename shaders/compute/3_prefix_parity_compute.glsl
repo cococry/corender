@@ -6,7 +6,7 @@
 layout(local_size_x = 32) in;
 
 layout(set = 0, binding = 3, std430) buffer BaseParity {
-    uint num_crossings[];
+    uint base_parity[];
 };
 
 layout(set = 0, binding = 4, std430) buffer PrefixParity {
@@ -35,7 +35,7 @@ void main() {
 
     uint val = 0;
     if (lane < pc.n_tiles_x)
-        val = uint(num_crossings[idx]) & 1;
+        val = uint(base_parity[idx]) & 1; 
 
     uint excl = subgroupExclusiveXor(val);
 

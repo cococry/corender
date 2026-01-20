@@ -73,7 +73,7 @@ int main() {
     .enable_validation = true,
     .n_exts = n_exts,
     .exts = exts,
-    .enable_time_measuring = false,
+    .enable_time_measuring = true,
 
     .layers = validation_layers,
     .n_layers = 1,
@@ -92,6 +92,7 @@ int main() {
 
 
   float size = 10.0f;
+  bool up = true;
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
@@ -100,11 +101,16 @@ int main() {
 cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {size,  0},    .p1 = {size / 2.0f,     size} });
 cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {size /2.0f,     size}, .p1 = {0,     0} });
 
+    float add = 0.01f; 
+    if(up)
+      size += add;
+    else 
+      size -= add;
 
-    if(ia_key_is_released(GLFW_KEY_DOWN)) {
-      printf("DOwn!\n");
-      size += 2;
-    }
+    if(size >= 300.0f && up) up = false;
+
+    if(size <= 10 && !up) up = true;
+
 
     cr_draw_end(&ctx);
     glfwPollEvents();

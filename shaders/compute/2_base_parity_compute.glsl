@@ -24,7 +24,7 @@ layout(set = 0, binding = 2, std430) buffer TileSegmentIndices {
 };
 
 layout(set = 0, binding = 3, std430) buffer BaseParity {
-    uint num_crossings[];
+    uint base_parity[];
 };
 
 layout(push_constant) uniform push_constant {
@@ -79,8 +79,7 @@ void main() {
       if (x_hit >= float(x0) && x_hit < float(x0 + int(pc.tile_size))) {
         uint row = tile.y * pc.tile_size + scan;   
         uint idx = row * pc.n_tiles_x + tile.x;
-        atomicAdd(num_crossings[idx], 1);
-
+        base_parity[idx] ^= 1;
       }
     }
   }
