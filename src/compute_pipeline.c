@@ -1,8 +1,12 @@
 #include "compute_pipeline.h"
 #include "mem.h"
 #include "util.h"
+#include <errno.h>
 #include <linux/limits.h>
+#include <stdint.h>
 #include <string.h>
+#include <dirent.h>
+#include <sys/types.h>
 #include <vulkan/vulkan_core.h>
 
 #define _SUBSYS_NAME "COMPUTE"
@@ -199,7 +203,7 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
   };
   bindings[3] = (VkDescriptorSetLayoutBinding){
     .binding = 3,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
     .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
   };
@@ -211,7 +215,7 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
   };
   bindings[5] =  (VkDescriptorSetLayoutBinding){
     .binding = 5,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
     .descriptorCount = 1,
     .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
   };
@@ -282,15 +286,15 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
 
   cr_mem_create_gpu_buffer(
     ctx, 
-    sizeof(uint32_t) * tiles_x * tiles_y, 
+    sizeof(uint32_t) * tiles_x * tiles_y * i.tile_size, 
     CR_GPU_BUFFER_SSBO, 
-    CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->parity_in_buf);
+    CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->base_parity_buf);
   
   cr_mem_create_gpu_buffer(
     ctx, 
-    sizeof(uint32_t) * tiles_x * tiles_y, 
+    sizeof(uint32_t) * tiles_x * tiles_y * i.tile_size, 
     CR_GPU_BUFFER_SSBO, 
-    CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->tile_parity_buf);
+    CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->prefix_parity_buf);
 
 
   cr_compute_pipeline_resize(ctx, pipeline, ctx->swapchain.dimensions.width, ctx->swapchain.dimensions.height);
@@ -323,13 +327,13 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
       .range  = VK_WHOLE_SIZE
     };
     
-    VkDescriptorBufferInfo parity_in_info = {
-      .buffer = pipeline->parity_in_buf.buf,
+    VkDescriptorBufferInfo base_parity_info = {
+      .buffer = pipeline->base_parity_buf.buf,
       .offset = 0,
       .range  = VK_WHOLE_SIZE
     };
-    VkDescriptorBufferInfo tile_parity_info = {
-      .buffer = pipeline->tile_parity_buf.buf,
+    VkDescriptorBufferInfo prefix_parity_info = {
+      .buffer = pipeline->prefix_parity_buf.buf,
       .offset = 0,
       .range  = VK_WHOLE_SIZE
     };
@@ -338,23 +342,23 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
       .imageLayout = VK_IMAGE_LAYOUT_GENERAL
     };
 
-    VkWriteDescriptorSet writes[6] = {
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = _global_sets[i],
-        .dstBinding = 0,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .descriptorCount = 1,
-        .pBufferInfo = &segment_info
-      },
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = _global_sets[i],
-        .dstBinding = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .descriptorCount = 1,
-        .pBufferInfo = &tile_info
-      },
+    VkWriteDescriptorSet writes[6] = {0};
+    writes[0] = (VkWriteDescriptorSet){
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = _global_sets[i],
+      .dstBinding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = 1,
+      .pBufferInfo = &segment_info
+    };
+    writes[1] = (VkWriteDescriptorSet){
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = _global_sets[i],
+      .dstBinding = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = 1,
+      .pBufferInfo = &tile_info};
+    writes[2] = (VkWriteDescriptorSet)
       {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = _global_sets[i],
@@ -362,34 +366,36 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         .descriptorCount = 1,
         .pBufferInfo = &segment_indices_info
-      },
+      };
+    writes[3] = (VkWriteDescriptorSet)
       {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = _global_sets[i],
         .dstBinding = 3,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         .descriptorCount = 1,
-        .pImageInfo = &image_info
-      },
+        .pBufferInfo = &base_parity_info
+      };
+    writes[4] = (VkWriteDescriptorSet)
       {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = _global_sets[i],
         .dstBinding = 4,
         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         .descriptorCount = 1,
-        .pBufferInfo = &tile_parity_info
-      },
+        .pBufferInfo = &prefix_parity_info
+      };
+    writes[5] = (VkWriteDescriptorSet)
       {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = _global_sets[i],
         .dstBinding = 5,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
         .descriptorCount = 1,
-        .pBufferInfo = &parity_in_info
-      },
-    };
+        .pImageInfo = &image_info
+      };
 
-    vkUpdateDescriptorSets(ctx->logical_dev, 4, writes, 0, NULL);
+    vkUpdateDescriptorSets(ctx->logical_dev, 6, writes, 0, NULL);
   }
 
   VkPipelineLayoutCreateInfo layout_info = {
@@ -413,7 +419,7 @@ bool
 cr_compute_pipeline_init(
   struct cr_context_t* ctx, struct cr_compute_pipeline_init_info_t* info, 
   struct cr_compute_pipeline_t* pipeline) {
-  if(!info || !pipeline || !ctx || !info->shader_path_bin || !info->shader_path_fill) return false;
+  if(!info || !pipeline || !ctx || !info->shader_paths || !info->n_shaders) return false;
 
   memset(pipeline, 0, sizeof(struct cr_compute_pipeline_t));
 
@@ -421,31 +427,39 @@ cr_compute_pipeline_init(
 
   _global_sets = cr_util_alloc(ctx, ctx->swapchain.n_imgs, sizeof(VkDescriptorSet));
   if(!_vk_pipeline_layout_init(ctx, pipeline)) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline layout with shader paths: ('%s', '%s')", info->shader_path_fill,
-             info->shader_path_bin);
+    CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline layout."); 
     return false;
+  }
+  for (uint32_t i = 0; i < info->n_shaders; i++) {
+    VkPipeline* vk_pipe = NULL;
+
+    const char* path = info->shader_paths[i];
+
+    if (strstr(path, "bin") != NULL)
+      vk_pipe = &pipeline->pipeline_bin;
+    else if (strstr(path, "base_parity") != NULL)
+      vk_pipe = &pipeline->pipeline_base_parity;
+    else if (strstr(path, "prefix_parity") != NULL)
+      vk_pipe = &pipeline->pipeline_prefix_parity;
+    else if (strstr(path, "fill") != NULL)
+      vk_pipe = &pipeline->pipeline_fill;
+    else {
+      CR_ERROR(ctx->log,
+               "Invalid compute-shader stage in path: %s",
+               path);
+      continue;
+    }
+
+    if (!_vk_create_compute_pipeline(ctx, path, vk_pipe)) {
+      CR_ERROR(ctx->log,
+               "Failed to create Vulkan compute pipeline with shader path: '%s'",
+               path);
+      return false;
+    }
   }
 
-  if(!_vk_create_compute_pipeline(ctx, info->shader_path_fill, &pipeline->pipeline_fill)) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline with shader path: '%s'", info->shader_path_fill);
-    return false;
-  }
 
-  if(!_vk_create_compute_pipeline(ctx, info->shader_path_bin, &pipeline->pipeline_bin)) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline with shader path: '%s'", info->shader_path_bin);
-    return false;
-  }
-  
-  if(!_vk_create_compute_pipeline(ctx, info->shader_path_prefix, &pipeline->pipeline_prefix)) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline with shader path: '%s'", info->shader_path_prefix);
-    return false;
-  }
-
-  if(!_vk_create_compute_pipeline(ctx, info->shader_path_parity, &pipeline->pipeline_parity)) {
-    CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline with shader path: '%s'", info->shader_path_parity);
-    return false;
-  }
-
+  CR_TRACE(ctx->log, "Successfully initialized compute state.");
   return true;
 }
 
@@ -466,7 +480,7 @@ cr_compute_pipeline_resize(struct cr_context_t* ctx, struct cr_compute_pipeline_
     VkWriteDescriptorSet write = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = _global_sets[i],
-      .dstBinding = 3,
+      .dstBinding = 5,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -482,164 +496,39 @@ cr_compute_pipeline_resize(struct cr_context_t* ctx, struct cr_compute_pipeline_
   return true;
 }
 
-bool
-cr_compute_pipeline_dispatch(
-  struct cr_context_t* ctx,
-  struct cr_compute_pipeline_t* pipeline,
-  uint32_t frame_idx,
-  uint32_t swapchain_image_idx
-) {
-  struct cr_frame_t* frame = &ctx->frameloop.frames[frame_idx];
+static void _vk_clear_compute_buffer(struct cr_frame_t* frame, struct cr_gpu_buffer_t* buf) {
+  // clear/reset tile buffer per frame 
+  vkCmdFillBuffer(
+    frame->cmd_buf,
+    buf->buf,
+    0,
+    VK_WHOLE_SIZE,
+    0
+  );
 
-  if(pipeline->dynamic[swapchain_image_idx].n_segments > 0) 
-    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].segment_data,
-                                               pipeline->dynamic[swapchain_image_idx].n_segments * 
-                                               sizeof(struct cr_segment_t),
-                                               &pipeline->dynamic[swapchain_image_idx].segment_buf);
-
-
-  uint32_t screen_w = ctx->swapchain.dimensions.width;
-  uint32_t screen_h = ctx->swapchain.dimensions.height;
-  uint32_t tile_size = 32; 
-
-  uint32_t tiles_x = (screen_w + tile_size - 1) / tile_size;
-  uint32_t tiles_y = (screen_h + tile_size - 1) / tile_size;
-
-  uint32_t n_segments = pipeline->dynamic[swapchain_image_idx].n_segments;
-
-  struct cr_compute_pipeline_push_constant_t pc = {
-    .tile_size = tile_size,
-    .n_tiles_x = tiles_x,
-    .n_tiles_y = tiles_y,
-    .n_segments = n_segments,
-    .fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD,
-    .screen_w = screen_w,
-    .screen_h = screen_h,
-    .n_paths = pipeline->dynamic[swapchain_image_idx].n_paths
+  // prevent read/write hazard - barrier from TRANSFER/WRITE -> COMPUTE/READWRITE
+  VkBufferMemoryBarrier2 clear_barrier = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+    .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
+    .buffer = buf->buf, 
+    .size = VK_WHOLE_SIZE,
+    .offset        = 0,
   };
 
-  {
-    // clear/reset tile buffer per frame 
-    vkCmdFillBuffer(
-      frame->cmd_buf,
-      pipeline->tile_buf.buf,
-      0,
-      VK_WHOLE_SIZE,
-      0
-    );
+  VkDependencyInfo clear_dep = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .bufferMemoryBarrierCount = 1,
+    .pBufferMemoryBarriers = &clear_barrier
+  };
 
-    // prevent read/write hazard - barrier from TRANSFER/WRITE -> COMPUTE/READWRITE
-    VkBufferMemoryBarrier2 clear_barrier = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-      .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-      .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
-      .buffer = pipeline->tile_buf.buf,
-      .size = VK_WHOLE_SIZE,
-      .offset        = 0,
-    };
+  vkCmdPipelineBarrier2(frame->cmd_buf, &clear_dep);
+}
 
-    VkDependencyInfo clear_dep = {
-      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-      .bufferMemoryBarrierCount = 1,
-      .pBufferMemoryBarriers = &clear_barrier
-    };
-
-    vkCmdPipelineBarrier2(frame->cmd_buf, &clear_dep);
-  }
-  {
-    // clear/reset tile buffer per frame 
-    vkCmdFillBuffer(
-      frame->cmd_buf,
-      pipeline->tile_parity_buf.buf,
-      0,
-      VK_WHOLE_SIZE,
-      0
-    );
-
-    // prevent read/write hazard - barrier from TRANSFER/WRITE -> COMPUTE/READWRITE
-    VkBufferMemoryBarrier2 clear_barrier = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-      .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-      .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
-      .buffer = pipeline->tile_parity_buf.buf,
-      .size = VK_WHOLE_SIZE,
-      .offset        = 0,
-    };
-
-    VkDependencyInfo clear_dep = {
-      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-      .bufferMemoryBarrierCount = 1,
-      .pBufferMemoryBarriers = &clear_barrier
-    };
-
-    vkCmdPipelineBarrier2(frame->cmd_buf, &clear_dep);
-  }
-  {
-    // clear/reset tile buffer per frame 
-    vkCmdFillBuffer(
-      frame->cmd_buf,
-      pipeline->parity_in_buf.buf,
-      0,
-      VK_WHOLE_SIZE,
-      0
-    );
-
-    // prevent read/write hazard - barrier from TRANSFER/WRITE -> COMPUTE/READWRITE
-    VkBufferMemoryBarrier2 clear_barrier = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-      .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-      .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
-      .buffer = pipeline->parity_in_buf.buf,
-      .size = VK_WHOLE_SIZE,
-      .offset        = 0,
-    };
-
-    VkDependencyInfo clear_dep = {
-      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-      .bufferMemoryBarrierCount = 1,
-      .pBufferMemoryBarriers = &clear_barrier
-    };
-
-    vkCmdPipelineBarrier2(frame->cmd_buf, &clear_dep);
-  }
-
-  {
-    // clear/reset tile buffer per frame 
-    vkCmdFillBuffer(
-      frame->cmd_buf,
-      pipeline->segment_indices_buf.buf,
-      0,
-      VK_WHOLE_SIZE,
-      0
-    );
-
-    // prevent read/write hazard - barrier from TRANSFER/WRITE -> COMPUTE/READWRITE
-    VkBufferMemoryBarrier2 clear_barrier = {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-      .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-      .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
-      .buffer = pipeline->segment_indices_buf.buf,
-      .size = VK_WHOLE_SIZE,
-      .offset        = 0,
-    };
-
-    VkDependencyInfo clear_dep = {
-      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-      .bufferMemoryBarrierCount = 1,
-      .pBufferMemoryBarriers = &clear_barrier
-    };
-
-    vkCmdPipelineBarrier2(frame->cmd_buf, &clear_dep);
-  }
-  VkImageMemoryBarrier2 to_clear = {
+static void _vk_clear_storage_image(const struct cr_frame_t* frame, const struct cr_storage_image_t* img, const float clear_col[4]) {
+ VkImageMemoryBarrier2 to_clear = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
     .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
     .srcAccessMask = 0,
@@ -647,7 +536,7 @@ cr_compute_pipeline_dispatch(
     .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
     .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    .image = pipeline->storage_img.image,
+    .image = img->image,
     .subresourceRange = {
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
       .levelCount = 1,
@@ -663,11 +552,12 @@ cr_compute_pipeline_dispatch(
 
   vkCmdPipelineBarrier2(frame->cmd_buf, &dep);
 
-  VkClearColorValue clear = { .float32 = { 0.1f, 0.1f, 0.1f, 1.0f } };
+  VkClearColorValue clear;
+  memcpy(clear.float32, clear_col, sizeof(clear.float32));
 
   vkCmdClearColorImage(
     frame->cmd_buf,
-    pipeline->storage_img.image,
+    img->image,
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     &clear,
     1,
@@ -677,43 +567,50 @@ cr_compute_pipeline_dispatch(
       .layerCount = 1
     }
   );
+}
 
+struct _vk_access_masks {
+  VkAccessFlags2 src_access; 
+  VkAccessFlags2 dst_access;
+};
 
-
-
+static void _vk_dispatch_compute(
+  struct cr_frame_t* frame, VkPipeline pipeline, 
+  uint32_t swap_idx, struct cr_compute_pipeline_push_constant_t* pc,
+  uint32_t gc_x, uint32_t gc_y, uint32_t gc_z, const struct cr_gpu_buffer_t barrier_buffers[], const struct _vk_access_masks access_mask[], uint32_t n_barrier_buffers) {
   // making sure the storage image is in GENERAL layout before any
   // shader writes happen as the image is initially in UNDEFINED, 
   // which would cause UB.
-  VkImageMemoryBarrier2 to_compute = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT |
-    VK_ACCESS_2_SHADER_READ_BIT,
-    .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    .newLayout = VK_IMAGE_LAYOUT_GENERAL,
-    .image = pipeline->storage_img.image,
-    .subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .levelCount = 1,
-      .layerCount = 1
+
+  if(n_barrier_buffers) {
+    VkBufferMemoryBarrier2 shader_barriers[n_barrier_buffers];
+
+    for(uint32_t i = 0; i < n_barrier_buffers; i++) {
+      shader_barriers[i] = (VkBufferMemoryBarrier2){
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+        .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .srcAccessMask = access_mask[i].src_access,
+        .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .dstAccessMask = access_mask[i].dst_access,
+        .buffer        = barrier_buffers[i].buf,
+        .offset        = 0,
+        .size          = VK_WHOLE_SIZE
+      };
     }
-  };
 
-  VkDependencyInfo dep_compute = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .imageMemoryBarrierCount = 1,
-    .pImageMemoryBarriers = &to_compute
-  };
+    VkDependencyInfo dep_shader = {
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .bufferMemoryBarrierCount = n_barrier_buffers,
+      .pBufferMemoryBarriers    = shader_barriers
+    };
 
-  vkCmdPipelineBarrier2(frame->cmd_buf, &dep_compute);
-
+    vkCmdPipelineBarrier2(frame->cmd_buf, &dep_shader);
+  }
 
   vkCmdBindPipeline(
     frame->cmd_buf,
     VK_PIPELINE_BIND_POINT_COMPUTE,
-    pipeline->pipeline_bin
+    pipeline
   );
 
   vkCmdBindDescriptorSets(
@@ -722,7 +619,7 @@ cr_compute_pipeline_dispatch(
     _compute_pipeline_layout,
     0,
     1,
-    &_global_sets[swapchain_image_idx],
+    &_global_sets[swap_idx],
     0,
     NULL
   );
@@ -732,135 +629,15 @@ cr_compute_pipeline_dispatch(
     _compute_pipeline_layout,
     VK_SHADER_STAGE_COMPUTE_BIT,
     0,
-    sizeof(pc),
-    &pc
+    sizeof(*pc),
+    pc
   );
+  vkCmdDispatch(frame->cmd_buf, gc_x, gc_y, gc_z);
 
-  const uint32_t LOCAL_SIZE = 32;
-  uint32_t bin_groups =
-    (n_segments + LOCAL_SIZE - 1) / LOCAL_SIZE;
+}
 
-  vkCmdDispatch(frame->cmd_buf, bin_groups, 1, 1);
-
-  VkBufferMemoryBarrier2 shader_barriers[3] = {
-    {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-      .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-      .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-      .buffer        = pipeline->tile_buf.buf,
-      .offset        = 0,
-      .size          = VK_WHOLE_SIZE
-    },
-    {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-      .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-      .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-      .buffer        = pipeline->segment_indices_buf.buf,
-      .offset        = 0,
-      .size          = VK_WHOLE_SIZE
-    },
-    {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-      .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-      .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-      .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-      .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-      .buffer = pipeline->dynamic[swapchain_image_idx].segment_buf.buf,
-      .offset = 0,
-      .size = VK_WHOLE_SIZE
-    }
-  };
-
-  VkDependencyInfo dep_shader = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .bufferMemoryBarrierCount = 3,
-    .pBufferMemoryBarriers    = shader_barriers
-  };
-
-  vkCmdPipelineBarrier2(frame->cmd_buf, &dep_shader);
-
-  vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                    pipeline->pipeline_prefix);
-
-  vkCmdBindDescriptorSets(frame->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                         _compute_pipeline_layout , 0, 1,
-                          &_global_sets[swapchain_image_idx], 0, NULL);
-
-  vkCmdPushConstants(frame->cmd_buf, _compute_pipeline_layout,
-                     VK_SHADER_STAGE_COMPUTE_BIT,
-                     0, sizeof(pc), &pc);
-
-  vkCmdDispatch(frame->cmd_buf, 1, tiles_y * tile_size, 1);
-
-  VkBufferMemoryBarrier2 prefix_barrier = {
-  .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-  .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-  .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-  .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-  .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-  .buffer = pipeline->tile_parity_buf.buf,
-  .offset = 0,
-  .size = VK_WHOLE_SIZE
-  };
-  VkDependencyInfo dep_prefix = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .bufferMemoryBarrierCount = 1,
-    .pBufferMemoryBarriers    = &prefix_barrier 
-  };
-
-  vkCmdPipelineBarrier2(frame->cmd_buf, &dep_prefix);
-
-  vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                    pipeline->pipeline_parity);
-
-  vkCmdBindDescriptorSets(frame->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                         _compute_pipeline_layout , 0, 1,
-                          &_global_sets[swapchain_image_idx], 0, NULL);
-
-  vkCmdPushConstants(frame->cmd_buf, _compute_pipeline_layout,
-                     VK_SHADER_STAGE_COMPUTE_BIT,
-                     0, sizeof(pc), &pc);
-
-  vkCmdDispatch(frame->cmd_buf, tiles_y, tile_size, 1);
-
-  VkBufferMemoryBarrier2 parity_barrier = {
-    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-    .buffer = pipeline->parity_in_buf.buf,
-    .offset = 0,
-    .size = VK_WHOLE_SIZE
-  };
-
-  VkDependencyInfo parity_dep = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .bufferMemoryBarrierCount = 1,
-    .pBufferMemoryBarriers    = &parity_barrier
-  };
-
-
-  vkCmdPipelineBarrier2(frame->cmd_buf, &parity_dep); 
-
-  vkCmdBindPipeline(frame->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                    pipeline->pipeline_fill);
-
-  vkCmdBindDescriptorSets(frame->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                         _compute_pipeline_layout , 0, 1,
-                          &_global_sets[swapchain_image_idx], 0, NULL);
-
-  vkCmdPushConstants(frame->cmd_buf, _compute_pipeline_layout,
-                     VK_SHADER_STAGE_COMPUTE_BIT,
-                     0, sizeof(pc), &pc);
-
-  vkCmdDispatch(frame->cmd_buf, tiles_x, tiles_y, 1);
-
-
+static void _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
+                                uint32_t screen_w, uint32_t screen_h) {
   // Barrier to prevent hazard of COMPUTE/WRITE -> TRANSFER/READ in the storage image.
   // Because the image storage data needs to  be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL 
   // for vkCmdBlitImage(), we need to also prevent the layout hazard from 
@@ -959,38 +736,186 @@ cr_compute_pipeline_dispatch(
     .imageMemoryBarrierCount = 1,
     .pImageMemoryBarriers = &present_barrier
   };
-
   vkCmdPipelineBarrier2(frame->cmd_buf, &present_dep);
+}
+
+bool
+cr_compute_pipeline_dispatch(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  uint32_t frame_idx,
+  uint32_t swapchain_image_idx
+) {
+  struct cr_frame_t* frame = &ctx->frameloop.frames[frame_idx];
+
+  if(pipeline->dynamic[swapchain_image_idx].n_segments > 0) 
+    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].segment_data,
+                                               pipeline->dynamic[swapchain_image_idx].n_segments * 
+                                               sizeof(struct cr_segment_t),
+                                               &pipeline->dynamic[swapchain_image_idx].segment_buf);
+
+
+  uint32_t screen_w = ctx->swapchain.dimensions.width;
+  uint32_t screen_h = ctx->swapchain.dimensions.height;
+  uint32_t tile_size = pipeline->info.tile_size;
+
+  uint32_t tiles_x = (screen_w + tile_size - 1) / tile_size;
+  uint32_t tiles_y = (screen_h + tile_size - 1) / tile_size;
+
+  uint32_t n_segments = pipeline->dynamic[swapchain_image_idx].n_segments;
+
+  struct cr_compute_pipeline_push_constant_t pc = {
+    .tile_size = tile_size,
+    .n_tiles_x = tiles_x,
+    .n_tiles_y = tiles_y,
+    .n_segments = n_segments,
+    .fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD,
+    .screen_w = screen_w,
+    .screen_h = screen_h,
+    .n_paths = pipeline->dynamic[swapchain_image_idx].n_paths
+  };
+
+  // Clear temporary buffers
+  _vk_clear_compute_buffer(frame, &pipeline->tile_buf);
+  _vk_clear_compute_buffer(frame, &pipeline->base_parity_buf);
+  _vk_clear_compute_buffer(frame, &pipeline->prefix_parity_buf);
+  _vk_clear_compute_buffer(frame, &pipeline->segment_indices_buf);
+
+
+  // Clear the storage image pixels 
+  _vk_clear_storage_image(frame, &pipeline->storage_img, (float[4]){0.1f, 0.1f, 0.1f, 1.0f});
+
+  VkImageMemoryBarrier2 to_compute = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+    .dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT |
+    VK_ACCESS_2_SHADER_READ_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+    .image = pipeline->storage_img.image, 
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .levelCount = 1,
+      .layerCount = 1
+    }
+  };
+
+  VkDependencyInfo dep_compute = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .imageMemoryBarrierCount = 1,
+    .pImageMemoryBarriers = &to_compute
+  };
+
+  vkCmdPipelineBarrier2(frame->cmd_buf, &dep_compute);
+
+  // Dispatch binning pipeline 
+  uint32_t gx = (n_segments + tile_size - 1) / tile_size; 
+
+  _vk_dispatch_compute(frame, pipeline->pipeline_bin, 
+                       swapchain_image_idx, &pc, gx, 1, 1,
+                       (struct cr_gpu_buffer_t[]){pipeline->segment_indices_buf, pipeline->tile_buf},
+                       (struct _vk_access_masks[]){
+                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT}},
+                       2); 
+
+  _vk_dispatch_compute(frame, pipeline->pipeline_base_parity, 
+                       swapchain_image_idx, &pc, pc.n_tiles_x, pc.n_tiles_y, 1, 
+                       (struct cr_gpu_buffer_t[]){pipeline->segment_indices_buf, pipeline->tile_buf, pipeline->prefix_parity_buf, pipeline->base_parity_buf},
+                       (struct _vk_access_masks[]) {
+                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+                       },
+                       4
+                       );
+
+_vk_dispatch_compute(
+  frame,
+  pipeline->pipeline_prefix_parity,
+  swapchain_image_idx,
+  &pc,
+  pc.n_tiles_y * pc.tile_size,
+  1,
+  1,
+  (struct cr_gpu_buffer_t[]){
+      pipeline->base_parity_buf,   // binding = 3 → num_crossings
+      pipeline->prefix_parity_buf  // binding = 4 → prefix
+  },
+  (struct _vk_access_masks[]){
+      { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
+        .dst_access = VK_ACCESS_2_SHADER_READ_BIT },
+      { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
+        .dst_access = VK_ACCESS_2_SHADER_READ_BIT }
+  },
+  2
+);
+
+  _vk_dispatch_compute(
+  frame,
+  pipeline->pipeline_fill,
+  swapchain_image_idx,
+  &pc,
+  pc.n_tiles_x,
+  pc.n_tiles_y,
+  1,
+    (struct cr_gpu_buffer_t[]){pipeline->segment_indices_buf, pipeline->tile_buf, pipeline->prefix_parity_buf},
+  (struct _vk_access_masks[]) {
+      {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+      {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+      {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
+    },
+  3
+);
+
+
+
+  _vk_compute_present(ctx, frame, pipeline, swapchain_image_idx, screen_w, screen_h);
 
   pipeline->dynamic[swapchain_image_idx].n_segments = 0;
   return true;
 }
 
-bool 
-cr_compute_pipeline_get_internal_shader_paths(const char* subpath, char** o_bin_path, char** o_fill_path, char** o_prefix_xor_path, char** o_tile_parity_path) {
+bool cr_compute_pipeline_get_internal_shader_paths(struct cr_context_t* ctx, const char* subpath, char*** o_paths, uint32_t* o_n_paths) { 
   const char* state_dir = cr_util_get_state_folder();
   char shader_dir[PATH_MAX];
-  snprintf(shader_dir, sizeof(shader_dir), "%s/%s/shaders/%s", state_dir, _CR_BRAND_NAME, subpath);
 
-  char* bin_src = malloc(PATH_MAX);
-  if(!bin_src) return false;
-  snprintf(bin_src, PATH_MAX, "%s/bin_compute.spv", shader_dir);
-  char* fill_src = malloc(PATH_MAX);
-  if(!fill_src) return false;
-  snprintf(fill_src, PATH_MAX, "%s/fill_compute.spv", shader_dir);
-  char* prefix_xor_src = malloc(PATH_MAX);
-  if(!prefix_xor_src) return false;
-  snprintf(prefix_xor_src, PATH_MAX, "%s/prefix_xor_compute.spv", shader_dir);
-  char* tile_parity_src = malloc(PATH_MAX);
-  if(!tile_parity_src) return false;
-  snprintf(tile_parity_src, PATH_MAX, "%s/tile_parity_compute.spv", shader_dir);
+  snprintf(shader_dir, sizeof(shader_dir),
+           "%s/%s/shaders/%s", state_dir, "corender", subpath);
 
-  *o_bin_path = bin_src;
-  *o_fill_path = fill_src;
-  *o_prefix_xor_path = prefix_xor_src;
-  *o_tile_parity_path = tile_parity_src;
+  struct dirent **namelist;
+  int n = scandir(shader_dir, &namelist, NULL, alphasort);
 
+  if (n < 0) {
+    CR_ERROR(ctx->log, "Failed to scan directory %s: %s", shader_dir, strerror(errno)); 
+    *o_paths = NULL;
+    *o_n_paths = 0;
+    return false;
+  }
+
+  *o_paths = malloc(n * sizeof(char*));
+
+  int i = 0;
+  uint32_t final_n = n;
+  for (int j = 0; j < n; j++) {
+    if(strcmp(namelist[j]->d_name, ".") == 0) {final_n--; continue;}
+    if(strcmp(namelist[j]->d_name, "..") == 0) {final_n--; continue;}
+    char fullpath[PATH_MAX];
+    snprintf(fullpath, sizeof(fullpath),
+             "%s/%s", shader_dir, namelist[j]->d_name);
+    (*o_paths)[i++] = strdup(fullpath);
+
+    free(namelist[j]);
+  }
+
+  *o_n_paths = final_n;
+
+  free(namelist);
   return true;
+
 }
 
 bool 

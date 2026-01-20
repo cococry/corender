@@ -63,20 +63,20 @@ add_custom_target(shaders ALL
         -o ${CMAKE_BINARY_DIR}/bin/shaders/default/basic_frag.spv
 
     COMMAND glslc -fshader-stage=compute
-        ${CMAKE_SOURCE_DIR}/shaders/compute/bin_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/bin_compute.spv
+        ${CMAKE_SOURCE_DIR}/shaders/compute/1_bin_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/1_bin_compute.spv
 
     COMMAND glslc -fshader-stage=compute
-        ${CMAKE_SOURCE_DIR}/shaders/compute/fill_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/fill_compute.spv
+        ${CMAKE_SOURCE_DIR}/shaders/compute/2_base_parity_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/2_base_parity_compute.spv
+
+    COMMAND glslc -fshader-stage=compute --target-env=vulkan1.1 
+        ${CMAKE_SOURCE_DIR}/shaders/compute/3_prefix_parity_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/3_prefix_parity_compute.spv
 
     COMMAND glslc -fshader-stage=compute
-        ${CMAKE_SOURCE_DIR}/shaders/compute/prefix_xor_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/prefix_xor_compute.spv
-
-    COMMAND glslc -fshader-stage=compute
-        ${CMAKE_SOURCE_DIR}/shaders/compute/tile_parity_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/tile_parity_compute.spv
+        ${CMAKE_SOURCE_DIR}/shaders/compute/4_fill_compute.glsl
+        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/4_fill_compute.spv
 
     COMMAND ${CMAKE_COMMAND} -E make_directory $ENV{HOME}/.local/state/corender
     COMMAND ${CMAKE_COMMAND} -E copy_directory

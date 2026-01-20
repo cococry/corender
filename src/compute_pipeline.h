@@ -34,7 +34,8 @@ struct cr_compute_pipeline_init_info_t {
 
   enum cr_compute_pipeline_fill_rule_t fill_rule;
 
-  const char* shader_path_bin, *shader_path_fill, *shader_path_prefix, *shader_path_parity;
+  char** shader_paths;
+  uint32_t n_shaders;
 };
 
 
@@ -55,11 +56,11 @@ struct cr_compute_pipeline_dynamic_state_t {
 };
 
 struct cr_compute_pipeline_t {
-  VkPipeline pipeline_bin, pipeline_fill, pipeline_prefix, pipeline_parity;
+  VkPipeline pipeline_bin, pipeline_fill, pipeline_base_parity, pipeline_prefix_parity;
 
   struct cr_compute_pipeline_init_info_t info;
 
-  struct cr_gpu_buffer_t tile_buf, segment_indices_buf, tile_parity_buf, parity_in_buf;
+  struct cr_gpu_buffer_t tile_buf, segment_indices_buf, base_parity_buf, prefix_parity_buf;
 
   struct cr_compute_pipeline_dynamic_state_t* dynamic;
 
@@ -73,7 +74,7 @@ bool cr_compute_pipeline_resize(struct cr_context_t* ctx, struct cr_compute_pipe
 bool cr_compute_pipeline_dispatch(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t frame_idx,
     uint32_t swapchain_image_idx);
 
-bool cr_compute_pipeline_get_internal_shader_paths(const char* subpath, char** o_bin_path, char** o_fill_path, char** o_prefix_xor_path, char** o_tile_parity_path);
+bool cr_compute_pipeline_get_internal_shader_paths(struct cr_context_t* ctx, const char* subpath, char*** o_paths, uint32_t* o_n_paths); 
 
 bool cr_compute_pipeline_insert_segment(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
     struct cr_segment_t segment, uint32_t swapchain_idx);

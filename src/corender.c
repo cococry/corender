@@ -752,18 +752,19 @@ err:
 static 
 bool 
 _create_render_compute_pipeline(struct cr_context_t* ctx) {
-  char* bin_path, *fill_path, *prefix_xor_path, *tile_parity_path;
+  char** shader_stage_paths; 
+  uint32_t n_shaders;
 
-  cr_compute_pipeline_get_internal_shader_paths("compute", &bin_path, &fill_path, &prefix_xor_path, &tile_parity_path);
+  if(!cr_compute_pipeline_get_internal_shader_paths(ctx, "compute", &shader_stage_paths, &n_shaders)) {
+    return false;
+  }
 
   struct cr_compute_pipeline_init_info_t info = {0};
   info.screen_w = ctx->swapchain.dimensions.width;
   info.screen_h = ctx->swapchain.dimensions.height;
   info.tile_size = 32;
-  info.shader_path_fill = fill_path; 
-  info.shader_path_bin  = bin_path; 
-  info.shader_path_parity = tile_parity_path; 
-  info.shader_path_prefix = prefix_xor_path; 
+  info.shader_paths = shader_stage_paths;
+  info.n_shaders = n_shaders;
 
   info.fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD;
 
@@ -967,6 +968,27 @@ bool _pick_physical_device(struct cr_context_t* ctx) {
         CR_WARN(
           ctx->log, 
           "Physical device does not support the Multi-Draw-Indirect feature. The renderer will fallback to direct drawcall submissions.");
+      }
+      {
+        VkPhysicalDeviceSubgroupProperties subgroup = {
+          .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES
+        };
+
+        VkPhysicalDeviceProperties2 props2 = {
+          .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+          .pNext = &subgroup
+        };
+
+        vkGetPhysicalDeviceProperties2(dev, &props2);
+
+        bool have_subgroups =
+          ((subgroup.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) &&
+          (subgroup.supportedOperations & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT)) && subgroup.subgroupSize == 32;
+        if(!have_subgroups) {
+        CR_WARN(
+          ctx->log, 
+          "Supgroups ops are not supported, will fallback to shared memory prefix sum in tile based vector rendering.");
+        }
       }
 
       return true;

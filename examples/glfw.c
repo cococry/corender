@@ -91,15 +91,19 @@ int main() {
     uint32_t rng = 0x12345678;
 
 
+  float size = 10.0f;
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {  0,  0}, .p1 = {64,  0} });
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {64,  0}, .p1 = {32, 64} });
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {32, 64}, .p1 = {  0,  0} });
+
+    cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {0,     0},    .p1 = {size,  0} });
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {size,  0},    .p1 = {size / 2.0f,     size} });
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {size /2.0f,     size}, .p1 = {0,     0} });
+
 
     if(ia_key_is_released(GLFW_KEY_DOWN)) {
       printf("DOwn!\n");
+      size += 2;
     }
 
     cr_draw_end(&ctx);
