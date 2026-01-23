@@ -40,47 +40,62 @@ else()
     target_link_options(corender PRIVATE -flto)
 endif()
 
+set(SHADER_SRC_DIR ${CMAKE_SOURCE_DIR}/shaders)
+set(SHADER_BIN_DIR ${CMAKE_BINARY_DIR}/bin/shaders)
+
+file(GLOB_RECURSE GLSL_SHADERS
+    CONFIGURE_DEPENDS
+    ${SHADER_SRC_DIR}/*.glsl
+)
+
+function(get_shader_stage INPUT OUTPUT)
+    if (${INPUT} MATCHES "_vert\\.glsl$")
+        set(${OUTPUT} vertex PARENT_SCOPE)
+    elseif (${INPUT} MATCHES "_frag\\.glsl$")
+        set(${OUTPUT} fragment PARENT_SCOPE)
+    elseif (${INPUT} MATCHES "_comp(ute)?\\.glsl$")
+        set(${OUTPUT} compute PARENT_SCOPE)
+    elseif (${INPUT} MATCHES "/compute/")
+        set(${OUTPUT} compute PARENT_SCOPE)
+    else()
+        message(FATAL_ERROR "Cannot infer shader stage for ${INPUT}")
+    endif()
+endfunction()
+
+set(SPIRV_SHADERS)
+
+foreach(GLSL ${GLSL_SHADERS})
+    get_shader_stage(${GLSL} SHADER_STAGE)
+
+    file(RELATIVE_PATH REL_PATH ${SHADER_SRC_DIR} ${GLSL})
+    get_filename_component(FILE_NAME_WE ${REL_PATH} NAME_WE)
+    get_filename_component(DIR_NAME     ${REL_PATH} DIRECTORY)
+
+    set(OUT_DIR ${SHADER_BIN_DIR}/${DIR_NAME})
+    set(SPIRV   ${OUT_DIR}/${FILE_NAME_WE}.spv)
+
+    add_custom_command(
+        OUTPUT ${SPIRV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${OUT_DIR}
+        COMMAND glslc
+            -fshader-stage=${SHADER_STAGE}
+            --target-env=vulkan1.1
+            ${GLSL}
+            -o ${SPIRV}
+        DEPENDS ${GLSL}
+        COMMENT "Compiling shader ${REL_PATH}"
+        VERBATIM
+    )
+
+    list(APPEND SPIRV_SHADERS ${SPIRV})
+endforeach()
+
 add_custom_target(shaders ALL
+    DEPENDS ${SPIRV_SHADERS}
     COMMAND ${CMAKE_COMMAND} -E rm -rf $ENV{HOME}/.local/state/corender/shaders
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin/shaders/default
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin/shaders/instanced
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/bin/shaders/compute
-
-    COMMAND glslc -fshader-stage=vertex
-        ${CMAKE_SOURCE_DIR}/shaders/instanced/basic_vert.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/instanced/basic_vert.spv
-
-    COMMAND glslc -fshader-stage=fragment
-        ${CMAKE_SOURCE_DIR}/shaders/instanced/basic_frag.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/instanced/basic_frag.spv
-
-    COMMAND glslc -fshader-stage=vertex
-        ${CMAKE_SOURCE_DIR}/shaders/default/basic_vert.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/default/basic_vert.spv
-
-    COMMAND glslc -fshader-stage=fragment
-        ${CMAKE_SOURCE_DIR}/shaders/default/basic_frag.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/default/basic_frag.spv
-
-    COMMAND glslc -fshader-stage=compute
-        ${CMAKE_SOURCE_DIR}/shaders/compute/1_bin_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/1_bin_compute.spv
-
-    COMMAND glslc -fshader-stage=compute
-        ${CMAKE_SOURCE_DIR}/shaders/compute/2_base_parity_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/2_base_parity_compute.spv
-
-    COMMAND glslc -fshader-stage=compute --target-env=vulkan1.1 
-        ${CMAKE_SOURCE_DIR}/shaders/compute/3_prefix_parity_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/3_prefix_parity_compute.spv
-
-    COMMAND glslc -fshader-stage=compute
-        ${CMAKE_SOURCE_DIR}/shaders/compute/4_fill_compute.glsl
-        -o ${CMAKE_BINARY_DIR}/bin/shaders/compute/4_fill_compute.spv
-
     COMMAND ${CMAKE_COMMAND} -E make_directory $ENV{HOME}/.local/state/corender
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_BINARY_DIR}/bin/shaders
+        ${SHADER_BIN_DIR}
         $ENV{HOME}/.local/state/corender/shaders
 )
 
@@ -119,4 +134,3 @@ endforeach()
 
 install(TARGETS corender ARCHIVE DESTINATION lib)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/corender DESTINATION include)
-

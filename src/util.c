@@ -110,7 +110,8 @@ unsigned char*
 cr_util_read_file(const char* filepath, size_t* o_filesize) {
   FILE* f = fopen(filepath, "rb");
   if(!f) {
-    perror("failed to open file");
+    fprintf(stderr, "corender: failed to open file: '%s'", filepath);
+    return NULL;
   }
 
   fseek(f, 0, SEEK_END);

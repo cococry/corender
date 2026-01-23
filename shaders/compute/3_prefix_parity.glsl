@@ -10,7 +10,7 @@ layout(set = 0, binding = 3, std430) buffer BaseParity {
 };
 
 layout(set = 0, binding = 4, std430) buffer PrefixParity {
-    uint prefix[];
+    uint subgroup_prefix_parity[];
 };
 
 layout(push_constant) uniform push_constant {
@@ -25,21 +25,20 @@ layout(push_constant) uniform push_constant {
 } pc;
 
 void main() {
-    uint row     = gl_WorkGroupID.x;
-    uint lane    = gl_SubgroupInvocationID;
+  uint row     = gl_WorkGroupID.x;
+  uint group_x = gl_WorkGroupID.y;
+  uint lane    = gl_SubgroupInvocationID;
 
-    if (row >= pc.n_tiles_y * pc.tile_size)
-        return;
+  uint tile_x = group_x * gl_SubgroupSize + lane;
+  if (row >= pc.n_tiles_y * pc.tile_size ||
+      tile_x >= pc.n_tiles_x)
+    return;
 
-    uint idx = row * pc.n_tiles_x + lane;
+  uint idx = row * pc.n_tiles_x + tile_x;
+  uint val = base_parity[idx] & 1u;
 
-    uint val = 0;
-    if (lane < pc.n_tiles_x)
-        val = uint(base_parity[idx]) & 1; 
+  uint excl = subgroupExclusiveXor(val);
 
-    uint excl = subgroupExclusiveXor(val);
-
-    if (lane < pc.n_tiles_x)
-        prefix[idx] = excl; 
+  subgroup_prefix_parity[idx] = excl;
 }
 

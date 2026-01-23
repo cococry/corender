@@ -107,7 +107,7 @@ cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {size /2.0f,     size}, .p1 =
     else 
       size -= add;
 
-    if(size >= 300.0f && up) up = false;
+    if(size >= 500.0f && up) up = false;
 
     if(size <= 10 && !up) up = true;
 

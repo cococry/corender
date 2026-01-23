@@ -1,6 +1,6 @@
 #version 450
 
-layout(local_size_x = 1, local_size_y = 32) in;
+layout(local_size_x = 1, local_size_y = 8) in;
 
 struct Segment {
     vec2 p0;

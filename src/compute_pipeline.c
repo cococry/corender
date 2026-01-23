@@ -19,6 +19,33 @@ static bool _create_shader_module(struct  cr_context_t* ctx, const char* filepat
 static bool _vk_create_compute_pipeline(struct cr_context_t* ctx, const char* compute_path, VkPipeline* o_pipeline);
 static bool _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline);
 
+#define _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(buf, binding, swapchain_idx, name, writes)   \
+VkDescriptorBufferInfo (name) = {                                     \
+  .buffer = (buf),                                                    \
+  .offset = 0,                                                        \
+  .range  = VK_WHOLE_SIZE                                             \
+};                                                                    \
+(writes)[(binding)] = (VkWriteDescriptorSet){                         \
+  .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,                    \
+  .dstSet = _global_sets[(swapchain_idx)],                            \
+  .dstBinding = (binding),                                            \
+  .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,                \
+  .descriptorCount = 1,                                               \
+  .pBufferInfo = &(name)};                                            
+
+#define _VK_DESCRIPTOR_LAYOUT_BINDING_IMG(img, binding, swapchain_idx, name, writes) \
+VkDescriptorImageInfo (name) = {                                      \
+  .imageView= (img),                                                  \
+  .imageLayout = VK_IMAGE_LAYOUT_GENERAL                                \
+};                                                                    \
+(writes)[(binding)] = (VkWriteDescriptorSet){                         \
+  .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,                    \
+  .dstSet = _global_sets[i],                                          \
+  .dstBinding = (binding),                                            \
+  .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,                 \
+  .descriptorCount = 1,                                               \
+  .pImageInfo = &(name)};                                            
+
 bool 
 _create_shader_module(struct 
                       cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
@@ -173,6 +200,16 @@ bool _vk_destroy_storage_image(struct cr_context_t* ctx, struct cr_storage_image
   return true;
 }
 
+void 
+_vk_descriptor_layout_binding(VkShaderStageFlagBits stage, VkDescriptorType type, uint32_t binding, VkDescriptorSetLayoutBinding* bindings) {
+  bindings[binding] = (VkDescriptorSetLayoutBinding){
+    .binding = binding,
+    .descriptorType = type,
+    .descriptorCount = 1,
+    .stageFlags =  stage
+  };
+}
+
 bool 
 _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline) {
   VkPushConstantRange pc_range = {
@@ -181,48 +218,17 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
     .size = sizeof(struct cr_compute_pipeline_push_constant_t)
   };
 
-  VkDescriptorSetLayoutBinding bindings[6] = {};
-
-  bindings[0] = (VkDescriptorSetLayoutBinding){
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
-  };
-  bindings[1] =  (VkDescriptorSetLayoutBinding){
-    .binding = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
-  };
-  bindings[2] =  (VkDescriptorSetLayoutBinding){
-    .binding = 2,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
-  };
-  bindings[3] = (VkDescriptorSetLayoutBinding){
-    .binding = 3,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
-  };
-  bindings[4] =  (VkDescriptorSetLayoutBinding){
-    .binding = 4,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
-  };
-  bindings[5] =  (VkDescriptorSetLayoutBinding){
-    .binding = 5,
-    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
-  };
-
+  VkDescriptorSetLayoutBinding bindings[7] = {};
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 0, bindings);
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, bindings);
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2, bindings);
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, bindings);
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4, bindings);
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5, bindings);
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 6, bindings);
   VkDescriptorSetLayoutCreateInfo desc_layout_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 6,
+    .bindingCount = sizeof(bindings) / sizeof(bindings[0]),
     .pBindings = bindings
   };
 
@@ -231,7 +237,7 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
   VkDescriptorPoolSize pool_sizes[2] = {
     {
       .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .descriptorCount = 5 * ctx->swapchain.n_imgs 
+      .descriptorCount = 6 * ctx->swapchain.n_imgs 
     },
     {
       .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -294,8 +300,15 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
     ctx, 
     sizeof(uint32_t) * tiles_x * tiles_y * i.tile_size, 
     CR_GPU_BUFFER_SSBO, 
-    CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->prefix_parity_buf);
-
+    CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->subgroup_prefix_parity_buf);
+  
+  const uint32_t max_subgroups = 32;
+  uint32_t n_tiles_y = (i.screen_h + i.tile_size - 1) / i.tile_size;
+  cr_mem_create_gpu_buffer(
+    ctx, 
+    sizeof(uint32_t) * max_subgroups * tiles_y * i.tile_size, 
+    CR_GPU_BUFFER_SSBO, 
+    CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->row_prefix_parity);
 
   cr_compute_pipeline_resize(ctx, pipeline, ctx->swapchain.dimensions.width, ctx->swapchain.dimensions.height);
 
@@ -309,93 +322,17 @@ _vk_pipeline_layout_init(struct cr_context_t* ctx, struct cr_compute_pipeline_t*
                              CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->dynamic[i].segment_buf);
 
 
-    VkDescriptorBufferInfo segment_info = {
-      .buffer = pipeline->dynamic[i].segment_buf.buf, 
-      .offset = 0,
-      .range  = VK_WHOLE_SIZE
-    };
+    VkWriteDescriptorSet writes[7] = {0};
 
-    VkDescriptorBufferInfo tile_info = {
-      .buffer = pipeline->tile_buf.buf,
-      .offset = 0,
-      .range  = VK_WHOLE_SIZE
-    };
+    _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(pipeline->dynamic[i].segment_buf.buf,       0, i, seg_info, writes);
+    _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(pipeline->tile_buf.buf,                     1, i, tile_info, writes);
+    _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(pipeline->segment_indices_buf.buf,          2, i, seg_ind_info, writes);
+    _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(pipeline->base_parity_buf.buf,              3, i, base_parity_info, writes);
+    _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(pipeline->subgroup_prefix_parity_buf.buf,   4, i, sg_prefix_info, writes);
+    _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(pipeline->row_prefix_parity.buf,   5, i, row_prefix_info, writes);
+    _VK_DESCRIPTOR_LAYOUT_BINDING_IMG(pipeline->storage_img.view,                 6, i, img_info, writes);
 
-    VkDescriptorBufferInfo segment_indices_info = {
-      .buffer = pipeline->segment_indices_buf.buf,
-      .offset = 0,
-      .range  = VK_WHOLE_SIZE
-    };
-    
-    VkDescriptorBufferInfo base_parity_info = {
-      .buffer = pipeline->base_parity_buf.buf,
-      .offset = 0,
-      .range  = VK_WHOLE_SIZE
-    };
-    VkDescriptorBufferInfo prefix_parity_info = {
-      .buffer = pipeline->prefix_parity_buf.buf,
-      .offset = 0,
-      .range  = VK_WHOLE_SIZE
-    };
-    VkDescriptorImageInfo image_info = {
-      .imageView = pipeline->storage_img.view, 
-      .imageLayout = VK_IMAGE_LAYOUT_GENERAL
-    };
-
-    VkWriteDescriptorSet writes[6] = {0};
-    writes[0] = (VkWriteDescriptorSet){
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = _global_sets[i],
-      .dstBinding = 0,
-      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .descriptorCount = 1,
-      .pBufferInfo = &segment_info
-    };
-    writes[1] = (VkWriteDescriptorSet){
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = _global_sets[i],
-      .dstBinding = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .descriptorCount = 1,
-      .pBufferInfo = &tile_info};
-    writes[2] = (VkWriteDescriptorSet)
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = _global_sets[i],
-        .dstBinding = 2,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .descriptorCount = 1,
-        .pBufferInfo = &segment_indices_info
-      };
-    writes[3] = (VkWriteDescriptorSet)
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = _global_sets[i],
-        .dstBinding = 3,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .descriptorCount = 1,
-        .pBufferInfo = &base_parity_info
-      };
-    writes[4] = (VkWriteDescriptorSet)
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = _global_sets[i],
-        .dstBinding = 4,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .descriptorCount = 1,
-        .pBufferInfo = &prefix_parity_info
-      };
-    writes[5] = (VkWriteDescriptorSet)
-      {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = _global_sets[i],
-        .dstBinding = 5,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-        .descriptorCount = 1,
-        .pImageInfo = &image_info
-      };
-
-    vkUpdateDescriptorSets(ctx->logical_dev, 6, writes, 0, NULL);
+    vkUpdateDescriptorSets(ctx->logical_dev, sizeof(writes) / sizeof(writes[0]), writes, 0, NULL);
   }
 
   VkPipelineLayoutCreateInfo layout_info = {
@@ -441,6 +378,8 @@ cr_compute_pipeline_init(
       vk_pipe = &pipeline->pipeline_base_parity;
     else if (strstr(path, "prefix_parity") != NULL)
       vk_pipe = &pipeline->pipeline_prefix_parity;
+    else if (strstr(path, "row_parity") != NULL)
+      vk_pipe = &pipeline->pipeline_row_prefix_parity;
     else if (strstr(path, "fill") != NULL)
       vk_pipe = &pipeline->pipeline_fill;
     else {
@@ -480,7 +419,7 @@ cr_compute_pipeline_resize(struct cr_context_t* ctx, struct cr_compute_pipeline_
     VkWriteDescriptorSet write = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = _global_sets[i],
-      .dstBinding = 5,
+      .dstBinding = 6,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -778,8 +717,9 @@ cr_compute_pipeline_dispatch(
   // Clear temporary buffers
   _vk_clear_compute_buffer(frame, &pipeline->tile_buf);
   _vk_clear_compute_buffer(frame, &pipeline->base_parity_buf);
-  _vk_clear_compute_buffer(frame, &pipeline->prefix_parity_buf);
+  _vk_clear_compute_buffer(frame, &pipeline->subgroup_prefix_parity_buf);
   _vk_clear_compute_buffer(frame, &pipeline->segment_indices_buf);
+  _vk_clear_compute_buffer(frame, &pipeline->row_prefix_parity);
 
 
   // Clear the storage image pixels 
@@ -823,7 +763,7 @@ cr_compute_pipeline_dispatch(
 
   _vk_dispatch_compute(frame, pipeline->pipeline_base_parity, 
                        swapchain_image_idx, &pc, pc.n_tiles_x, pc.n_tiles_y, 1, 
-                       (struct cr_gpu_buffer_t[]){pipeline->segment_indices_buf, pipeline->tile_buf, pipeline->prefix_parity_buf, pipeline->base_parity_buf},
+                       (struct cr_gpu_buffer_t[]){pipeline->segment_indices_buf, pipeline->tile_buf, pipeline->subgroup_prefix_parity_buf, pipeline->base_parity_buf},
                        (struct _vk_access_masks[]) {
                        {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
                        {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
@@ -833,17 +773,17 @@ cr_compute_pipeline_dispatch(
                        4
                        );
 
-_vk_dispatch_compute(
-  frame,
-  pipeline->pipeline_prefix_parity,
-  swapchain_image_idx,
-  &pc,
-  pc.n_tiles_y * pc.tile_size,
-  1,
+  _vk_dispatch_compute(
+    frame,
+    pipeline->pipeline_prefix_parity,
+    swapchain_image_idx,
+    &pc,
+    pc.n_tiles_y * pc.tile_size,
+    ceil(pc.n_tiles_x / 32.0f),
   1,
   (struct cr_gpu_buffer_t[]){
-      pipeline->base_parity_buf,   // binding = 3 → num_crossings
-      pipeline->prefix_parity_buf  // binding = 4 → prefix
+      pipeline->base_parity_buf,
+      pipeline->subgroup_prefix_parity_buf 
   },
   (struct _vk_access_masks[]){
       { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
@@ -855,6 +795,24 @@ _vk_dispatch_compute(
 );
 
   _vk_dispatch_compute(
+    frame,
+    pipeline->pipeline_row_prefix_parity,
+    swapchain_image_idx,
+    &pc,
+    pc.n_tiles_y * pc.tile_size,  
+    1,
+    1,
+    (struct cr_gpu_buffer_t[]){
+      pipeline->subgroup_prefix_parity_buf
+    },
+    (struct _vk_access_masks[]){
+      { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
+        .dst_access = VK_ACCESS_2_SHADER_READ_BIT }
+    },
+    1
+  );
+
+  _vk_dispatch_compute(
   frame,
   pipeline->pipeline_fill,
   swapchain_image_idx,
@@ -862,7 +820,11 @@ _vk_dispatch_compute(
   pc.n_tiles_x,
   pc.n_tiles_y,
   1,
-    (struct cr_gpu_buffer_t[]){pipeline->segment_indices_buf, pipeline->tile_buf, pipeline->prefix_parity_buf},
+    (struct cr_gpu_buffer_t[]){
+      pipeline->base_parity_buf,   
+      pipeline->subgroup_prefix_parity_buf, 
+      pipeline->row_prefix_parity
+    },
   (struct _vk_access_masks[]) {
       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},

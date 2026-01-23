@@ -56,11 +56,11 @@ struct cr_compute_pipeline_dynamic_state_t {
 };
 
 struct cr_compute_pipeline_t {
-  VkPipeline pipeline_bin, pipeline_fill, pipeline_base_parity, pipeline_prefix_parity;
+  VkPipeline pipeline_bin, pipeline_fill, pipeline_base_parity, pipeline_prefix_parity, pipeline_row_prefix_parity;
 
   struct cr_compute_pipeline_init_info_t info;
 
-  struct cr_gpu_buffer_t tile_buf, segment_indices_buf, base_parity_buf, prefix_parity_buf;
+  struct cr_gpu_buffer_t tile_buf, segment_indices_buf, base_parity_buf, subgroup_prefix_parity_buf, row_prefix_parity;
 
   struct cr_compute_pipeline_dynamic_state_t* dynamic;
 

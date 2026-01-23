@@ -762,7 +762,7 @@ _create_render_compute_pipeline(struct cr_context_t* ctx) {
   struct cr_compute_pipeline_init_info_t info = {0};
   info.screen_w = ctx->swapchain.dimensions.width;
   info.screen_h = ctx->swapchain.dimensions.height;
-  info.tile_size = 32;
+  info.tile_size = 8;
   info.shader_paths = shader_stage_paths;
   info.n_shaders = n_shaders;
 
