@@ -44,6 +44,11 @@ static bool _glfw_surface_create(
 
   return true;
 }
+
+struct cr_point_t {
+  float x, y;
+};
+
 int main() {
   GLFWwindow* window;
 
@@ -54,7 +59,7 @@ int main() {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
   /* Create a windowed mode window and its OpenGL context */
-  window = glfwCreateWindow(640, 480, "corender - GLFW example", NULL, NULL);
+  window = glfwCreateWindow(1280, 720, "corender - GLFW example", NULL, NULL);
   if (!window) {
     glfwTerminate();
     return -1;
@@ -73,7 +78,7 @@ int main() {
     .enable_validation = true,
     .n_exts = n_exts,
     .exts = exts,
-    .enable_time_measuring = true,
+    .enable_time_measuring = false,
 
     .layers = validation_layers,
     .n_layers = 1,
@@ -97,17 +102,40 @@ int main() {
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
 
-    cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {0,     0},    .p1 = {size,  0} });
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {size,  0},    .p1 = {size / 2.0f,     size} });
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = {size /2.0f,     size}, .p1 = {0,     0} });
+    {
+    float cx = size * 0.5f;
+    float cy = size * 0.5f;
 
-    float add = 0.01f; 
+    float r_outer = size * 0.5f;
+    float r_inner = size * 0.2f;
+
+    struct cr_point_t pts[10];
+
+    for (int i = 0; i < 10; i++) {
+      float angle = -M_PI / 2.0f + i * (M_PI / 5.0f); // start at top
+      float r = (i % 2 == 0) ? r_outer : r_inner;
+
+      pts[i].x = cx + cosf(angle) * r;
+      pts[i].y = cy + sinf(angle) * r;
+    }
+
+    // Draw star outline
+    for (int i = 0; i < 10; i++) {
+      struct cr_point_t p0 = pts[i];
+      struct cr_point_t p1 = pts[(i + 1) % 10];
+
+      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { p0.x, p0.y}, .p1 = {p1.x, p1.y} });
+    }
+  }
+
+
+    float add = 1.0f; 
     if(up)
       size += add;
     else 
       size -= add;
 
-    if(size >= 500.0f && up) up = false;
+    if(size >= 1280.0f && up) up = false;
 
     if(size <= 10 && !up) up = true;
 
