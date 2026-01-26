@@ -1,26 +1,30 @@
 #version 450
 
-layout(local_size_x = 32) in;
+layout(local_size_x = 256) in;
 
 struct Segment {
     vec2 p0;
     vec2 p1;
 };
 
-struct TileHeader {
-    uint n_segments;
-};
-
 layout(set = 0, binding = 0, std430) readonly buffer Segments {
     Segment segments[];
 };
 
-layout(set = 0, binding = 1, std430) buffer TileHeaders {
-    TileHeader tile_headers[];
+layout(set = 0, binding = 1, std430) buffer TileNSegments {
+    uint tile_n_segments[];
 };
 
-layout(set = 0, binding = 2, std430) buffer TileSegmentIndices {
-    uint tile_segment_indices[];
+layout(set = 0, binding = 2, std430) buffer TileOffsets {
+    uint tile_offsets[];
+};
+
+layout(set = 0, binding = 4, std430) buffer TileSegments {
+    uint tile_segments[];
+};
+
+layout(set = 0, binding = 5, std430) buffer TileCursor {
+    uint tile_cursor[];
 };
 
 layout(push_constant) uniform push_constant {
@@ -34,7 +38,6 @@ layout(push_constant) uniform push_constant {
   uint fill_rule;
 } pc;
 
-const uint MAX_SEGMENTS_PER_TILE = 32;
 
 void main() {
   uint segment_id = gl_GlobalInvocationID.x;
@@ -54,16 +57,13 @@ void main() {
 
   for (int ty = tile_min.y; ty <= tile_max.y; ty++) {
     for (int tx = tile_min.x; tx <= tile_max.x; tx++) {
-
       uint tile_idx = uint(ty) * pc.n_tiles_x + uint(tx);
 
-      uint write_idx = atomicAdd(tile_headers[tile_idx].n_segments, 1);
+      uint local = atomicAdd(tile_cursor[tile_idx], 1);
+      if (local >= tile_n_segments[tile_idx]) continue;
+      uint out_idx = tile_offsets[tile_idx] + local;
 
-      if (write_idx < MAX_SEGMENTS_PER_TILE) {
-        tile_segment_indices[
-          tile_idx * MAX_SEGMENTS_PER_TILE + write_idx
-        ] = segment_id;
-      } 
+      tile_segments[out_idx]  = segment_id; 
     }
   }
 }

@@ -5,11 +5,11 @@
 
 layout(local_size_x = 32 * 32) in;
 
-layout(set = 0, binding = 3, std430) buffer PrefixParity {
+layout(set = 0, binding = 6, std430) buffer PrefixParity {
     uint prefix_parity[];
 };
 
-layout(set = 0, binding = 4, std430) buffer SubgroupTmp {
+layout(set = 0, binding = 7, std430) buffer SubgroupTmp {
     uint subgroup_tmp[];
 };
 

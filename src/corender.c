@@ -254,11 +254,18 @@ _create_logical_device(struct cr_context_t* ctx) {
 
   VkPhysicalDeviceFeatures enabledFeatures = {};
   enabledFeatures.multiDrawIndirect = ctx->_have_multi_draw_indirect;
-
   VkPhysicalDeviceSynchronization2Features sync2 = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
     .synchronization2 = VK_TRUE
   };
+
+  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroupControl = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT,
+    .pNext = NULL,
+    .subgroupSizeControl = VK_TRUE,
+    .computeFullSubgroups = VK_TRUE
+  };
+  subgroupControl.pNext = &sync2;
 
   VkDeviceCreateInfo device_info = {
     .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -267,7 +274,7 @@ _create_logical_device(struct cr_context_t* ctx) {
     .enabledExtensionCount = ctx->surf.surf ? 1 : 0, 
     .ppEnabledExtensionNames = ctx->surf.surf ? device_exts : NULL,
     .pEnabledFeatures = &enabledFeatures,
-    .pNext = &sync2,
+    .pNext = &subgroupControl,
   };
 
 

@@ -6,11 +6,22 @@ layout(local_size_x = 1, local_size_y = 32) in;
 struct Segment { vec2 p0; vec2 p1; };
 struct TileHeader { uint n_segments; };
 
-layout(set = 0, binding = 0, std430) readonly buffer Segments { Segment segments[]; };
-layout(set = 0, binding = 1, std430) readonly buffer TileHeaders { TileHeader tile_headers[]; };
-layout(set = 0, binding = 2, std430) readonly buffer TileSegmentIndices { uint tile_segment_indices[]; };
 
-layout(set = 0, binding = 3, std430) buffer PrefixParity { uint prefix_parity[]; };
+layout(set = 0, binding = 0, std430) readonly buffer Segments {
+  Segment segments[];
+};
+layout(set = 0, binding = 1, std430) buffer TileNSegments {
+    uint tile_n_segments[];
+};
+layout(set = 0, binding = 2, std430) buffer TileOffsets {
+    uint tile_offsets[];
+};
+
+layout(set = 0, binding = 4, std430) buffer TileSegments {
+    uint tile_segments[];
+};
+
+layout(set = 0, binding = 6, std430) buffer PrefixParity { uint prefix_parity[]; };
 
 layout(push_constant) uniform PC {
   uint screen_w, screen_h;
@@ -30,7 +41,7 @@ void main() {
   uint scan  = gl_LocalInvocationID.y;
 
   uint tile_id = tile.y * pc.n_tiles_x + tile.x;
-  uint count   = min(tile_headers[tile_id].n_segments, MAX_SEGMENTS_PER_TILE);
+  uint count   = tile_n_segments[tile_id];
 
   int y = int(tile.y * pc.tile_size + scan);
 
@@ -38,13 +49,13 @@ void main() {
 
   if (y >= 0 && y < int(pc.screen_h) && count > 0) {
     int x0 = int(tile.x * pc.tile_size);
-    uint base = tile_id * MAX_SEGMENTS_PER_TILE;
+    uint base = tile_offsets[tile_id]; 
 
     int parity = 0;
     float scan_y = float(y) + 0.5;
 
     for (uint i = 0; i < count; i++) {
-      uint seg_id = tile_segment_indices[base + i];
+      uint seg_id = tile_segments[base + i];
       Segment s = segments[seg_id];
 
       float y0 = s.p0.y;

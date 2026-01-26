@@ -96,40 +96,16 @@ int main() {
     uint32_t rng = 0x12345678;
 
 
-  float size = 10.0f;
+  float size = 20.0f;
   bool up = true;
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { 0, size}, .p1 = {size,size} });
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size, size}, .p1 = {size/2.0f, 0} });
+cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size/2.0f, 0}, .p1 = {0, size} });
 
-    {
-    float cx = size * 0.5f;
-    float cy = size * 0.5f;
-
-    float r_outer = size * 0.5f;
-    float r_inner = size * 0.2f;
-
-    struct cr_point_t pts[10];
-
-    for (int i = 0; i < 10; i++) {
-      float angle = -M_PI / 2.0f + i * (M_PI / 5.0f); // start at top
-      float r = (i % 2 == 0) ? r_outer : r_inner;
-
-      pts[i].x = cx + cosf(angle) * r;
-      pts[i].y = cy + sinf(angle) * r;
-    }
-
-    // Draw star outline
-    for (int i = 0; i < 10; i++) {
-      struct cr_point_t p0 = pts[i];
-      struct cr_point_t p1 = pts[(i + 1) % 10];
-
-      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { p0.x, p0.y}, .p1 = {p1.x, p1.y} });
-    }
-  }
-
-
-    float add = 1.0f; 
+    float add = 0.05f; 
     if(up)
       size += add;
     else 

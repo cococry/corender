@@ -1,32 +1,34 @@
 #version 450
 layout(local_size_x = 32, local_size_y = 32) in;
 
+#extension GL_KHR_shader_subgroup_basic      : enable
 struct Segment {
   vec2 p0;
   vec2 p1;
 };
 
-struct TileHeader {
-  uint n_segments;
-};
 
 layout(set = 0, binding = 0, std430) readonly buffer Segments {
   Segment segments[];
 };
 
-layout(set = 0, binding = 1, std430) readonly buffer TileHeaders {
-  TileHeader tile_headers[];
+layout(set = 0, binding = 1, std430) buffer TilenSegments {
+    uint tile_n_segments[];
 };
 
-layout(set = 0, binding = 2, std430) readonly buffer TileSegmentIndices {
-  uint tile_segment_indices[];
+layout(set = 0, binding = 2, std430) buffer TileOffsets {
+    uint tile_offsets[];
 };
 
-layout(set = 0, binding = 3, std430) readonly buffer PrefixParity {
+layout(set = 0, binding = 4, std430) buffer TileSegments {
+    uint tile_segments[];
+};
+
+layout(set = 0, binding = 6, std430) readonly buffer PrefixParity {
   uint prefix_parity[]; 
 };
 
-layout(set = 0, binding = 5, rgba8) uniform image2D outImage;
+layout(set = 0, binding = 8, rgba8) uniform image2D outImage;
 
 layout(push_constant) uniform PC {
   uint screen_w, screen_h;
@@ -48,22 +50,37 @@ void main() {
 
   uint tile_id = tile.y * pc.n_tiles_x + tile.x;
 
-  uint count = min(
-      tile_headers[tile_id].n_segments,
-      MAX_SEGMENTS_PER_TILE
-      );
+  uint count = tile_n_segments[tile_id]; 
 
   int x0 = int(tile.x * pc.tile_size);
+
+  for (int dx = 0; dx < pc.tile_size; dx++) {
+    if(count != 0) {
+      bool on_corner = (scan == 0 || scan == pc.tile_size - 1 ||  dx == 0 || dx == pc.tile_size - 1);
+    imageStore(
+        outImage,
+        ivec2(x0 + dx, y),
+        vec4(1.0, on_corner ? 1.0f : 0.0, 0.0, 1.0)
+        );
+    } else {
+      bool on_corner = (scan == 0 || scan == pc.tile_size - 1 ||  dx == 0 || dx == pc.tile_size - 1);
+    imageStore(
+        outImage,
+        ivec2(x0 + dx, y),
+        vec4(0.0, on_corner ? 1.0f : 0.0, 1.0, 1.0)
+        );
+    }
+  }
 
   int coverage[32];
   for (int i = 0; i < pc.tile_size; i++)
     coverage[i] = 0;
 
   if (count > 0) {
-    uint base = tile_id * MAX_SEGMENTS_PER_TILE;
+    uint base = tile_offsets[tile_id]; 
 
     for (uint i = 0; i < count; i++) {
-      uint seg_id = tile_segment_indices[base + i];
+      uint seg_id = tile_segments[base + i];
       Segment s = segments[seg_id];
 
       float y0 = s.p0.y;
@@ -105,7 +122,7 @@ void main() {
       imageStore(
           outImage,
           ivec2(x0 + dx, y),
-          vec4(float(float(x0 + dx) / float(pc.tile_size * pc.n_tiles_y)) , float(y / float(pc.tile_size * pc.n_tiles_y)), 1.0, 1.0)
+          vec4(0.0, 1.0, 0.0, 1.0)
           );
     }
   }
