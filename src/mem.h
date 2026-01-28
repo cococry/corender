@@ -89,6 +89,9 @@ cr_mem_transfer_to_device_local_gpu_buffer(
     );
 
 bool 
+cr_mem_clear_gpu_buffer(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_gpu_buffer_t* buf);
+
+bool 
 cr_mem_upadate_lazy_destroys(struct cr_context_t* ctx);
 
 bool 
@@ -110,3 +113,5 @@ bool cr_mem_create_storage_image(
 );
 
 bool cr_mem_destroy_storage_image(struct cr_context_t* ctx, struct cr_storage_image_t* img);
+
+bool cr_mem_clear_storage_image_color(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_storage_image_t* img, const float storage_color[4]);

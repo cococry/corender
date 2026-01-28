@@ -28,32 +28,13 @@ static bool _extract_kernel_name(
 static VkPipeline               _kernel_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, const char* kernel_name);
 static struct cr_gpu_buffer_t*  _buffer_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, const char* buffer_name);
 
-#define _VK_DESCRIPTOR_LAYOUT_BINDING_BUF(buf, binding, swapchain_idx, name, writes)   \
-VkDescriptorBufferInfo (name) = {                                     \
-  .buffer = (buf),                                                    \
-  .offset = 0,                                                        \
-  .range  = VK_WHOLE_SIZE                                             \
-};                                                                    \
-(writes)[(binding)] = (VkWriteDescriptorSet){                         \
-  .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,                    \
-  .dstSet = _global_sets[(swapchain_idx)],                            \
-  .dstBinding = (binding),                                            \
-  .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,                \
-  .descriptorCount = 1,                                               \
-  .pBufferInfo = &(name)};                                            
+static void _vk_dispatch_compute(
+  struct cr_frame_t* frame, VkPipeline pipeline, 
+  uint32_t swap_idx, struct cr_compute_pipeline_push_constant_t* pc,
+  uint32_t gc_x, uint32_t gc_y, uint32_t gc_z, const struct cr_gpu_buffer_t barrier_buffers[], uint32_t n_barrier_buffers);
 
-#define _VK_DESCRIPTOR_LAYOUT_BINDING_IMG(img, binding, swapchain_idx, name, writes) \
-VkDescriptorImageInfo (name) = {                                      \
-  .imageView= (img),                                                  \
-  .imageLayout = VK_IMAGE_LAYOUT_GENERAL                                \
-};                                                                    \
-(writes)[(binding)] = (VkWriteDescriptorSet){                         \
-  .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,                    \
-  .dstSet = _global_sets[i],                                          \
-  .dstBinding = (binding),                                            \
-  .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,                 \
-  .descriptorCount = 1,                                               \
-  .pImageInfo = &(name)};                                            
+static void _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
+                                uint32_t screen_w, uint32_t screen_h);
 
 bool 
 _create_shader_module(struct 
@@ -157,7 +138,7 @@ fail:
   return false;
 };
 
-static 
+
 VkPipeline _kernel_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, const char* kernel_name) {
   uint32_t name_hash = cr_util_djb2_hash((char*)kernel_name);
   for(uint32_t i = 0; i < pipeline->info.n_shaders; i++) {
@@ -176,6 +157,169 @@ _buffer_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline
   CR_ERROR(ctx->log, "Buffer name '%s' did not match any bindings.", buffer_name);
   return NULL; 
 }
+
+void 
+_vk_dispatch_compute(
+  struct cr_frame_t* frame, VkPipeline pipeline, 
+  uint32_t swap_idx, struct cr_compute_pipeline_push_constant_t* pc,
+  uint32_t gc_x, uint32_t gc_y, uint32_t gc_z, const struct cr_gpu_buffer_t barrier_buffers[], uint32_t n_barrier_buffers) {
+
+  vkCmdBindPipeline(
+    frame->cmd_buf,
+    VK_PIPELINE_BIND_POINT_COMPUTE,
+    pipeline
+  );
+
+  vkCmdBindDescriptorSets(
+    frame->cmd_buf,
+    VK_PIPELINE_BIND_POINT_COMPUTE,
+    _compute_pipeline_layout,
+    0,
+    1,
+    &_global_sets[swap_idx],
+    0,
+    NULL
+  );
+
+  vkCmdPushConstants(
+    frame->cmd_buf,
+    _compute_pipeline_layout,
+    VK_SHADER_STAGE_COMPUTE_BIT,
+    0,
+    sizeof(*pc),
+    pc
+  );
+  vkCmdDispatch(frame->cmd_buf, gc_x, gc_y, gc_z);
+
+  if(n_barrier_buffers) {
+    VkBufferMemoryBarrier2 shader_barriers[n_barrier_buffers];
+    for(uint32_t i = 0; i < n_barrier_buffers; i++) {
+      shader_barriers[i] = (VkBufferMemoryBarrier2){
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+        .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT, 
+        .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT, 
+        .buffer        = barrier_buffers[i].buf,
+        .offset        = 0,
+        .size          = VK_WHOLE_SIZE
+      };
+    }
+
+    VkDependencyInfo dep_shader = {
+      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+      .bufferMemoryBarrierCount = n_barrier_buffers,
+      .pBufferMemoryBarriers    = shader_barriers
+    };
+
+    vkCmdPipelineBarrier2(frame->cmd_buf, &dep_shader);
+  }
+}
+
+void 
+_vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
+                                uint32_t screen_w, uint32_t screen_h) {
+  // Barrier to prevent hazard of COMPUTE/WRITE -> TRANSFER/READ in the storage image.
+  // Because the image storage data needs to  be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL 
+  // for vkCmdBlitImage(), we need to also prevent the layout hazard from 
+  // VK_IMAGE_LAYOUT_GENERAL/WRITE ->  VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL/READ.
+  VkImageMemoryBarrier2 storage_to_src = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+    .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    .image = pipeline->storage_img.image,
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .levelCount = 1,
+      .layerCount = 1
+    }
+  };
+
+  VkImageMemoryBarrier2 swapchain_to_dst = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+    .srcAccessMask = 0,
+    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    .image = ctx->swapchain.imgs[swapchain_image_idx],
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .levelCount = 1,
+      .layerCount = 1
+    }
+  };
+
+  VkImageMemoryBarrier2 barriers[] = {
+    storage_to_src,
+    swapchain_to_dst
+  };
+
+  VkDependencyInfo swapchain_deps = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .imageMemoryBarrierCount = 2,
+    .pImageMemoryBarriers = barriers
+  };
+
+  vkCmdPipelineBarrier2(frame->cmd_buf, &swapchain_deps);
+
+  VkImageBlit blit = {
+    .srcSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .layerCount = 1
+    },
+    .dstSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .layerCount = 1
+    },
+    .srcOffsets = {
+      { 0, 0, 0 },
+      { (int32_t)screen_w, (int32_t)screen_h, 1 }
+    },
+    .dstOffsets = {
+      { 0, 0, 0 },
+      { (int32_t)screen_w, (int32_t)screen_h, 1 }
+    }
+  };
+
+  vkCmdBlitImage(
+    frame->cmd_buf,
+    pipeline->storage_img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    ctx->swapchain.imgs[swapchain_image_idx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    1,
+    &blit,
+    VK_FILTER_NEAREST
+  );
+
+  VkImageMemoryBarrier2 present_barrier = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+    .dstAccessMask = 0,
+    .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    .image = ctx->swapchain.imgs[swapchain_image_idx],
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .levelCount = 1,
+      .layerCount = 1
+    }
+  };
+
+  VkDependencyInfo present_dep = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .imageMemoryBarrierCount = 1,
+    .pImageMemoryBarriers = &present_barrier
+  };
+  vkCmdPipelineBarrier2(frame->cmd_buf, &present_dep);
+}
+
 
 void 
 _vk_descriptor_layout_binding(VkShaderStageFlagBits stage, VkDescriptorType type, uint32_t binding, VkDescriptorSetLayoutBinding* bindings) {
@@ -452,249 +596,10 @@ cr_compute_pipeline_resize(struct cr_context_t* ctx, struct cr_compute_pipeline_
   return true;
 }
 
-static void _vk_clear_compute_buffer(struct cr_frame_t* frame, struct cr_gpu_buffer_t* buf) {
-  // clear/reset tile buffer per frame 
-  vkCmdFillBuffer(
-    frame->cmd_buf,
-    buf->buf,
-    0,
-    VK_WHOLE_SIZE,
-    0
-  );
-
-  // prevent read/write hazard - barrier from TRANSFER/WRITE -> COMPUTE/READWRITE
-  VkBufferMemoryBarrier2 clear_barrier = {
-    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
-    .buffer = buf->buf, 
-    .size = VK_WHOLE_SIZE,
-    .offset        = 0,
-  };
-
-  VkDependencyInfo clear_dep = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .bufferMemoryBarrierCount = 1,
-    .pBufferMemoryBarriers = &clear_barrier
-  };
-
-  vkCmdPipelineBarrier2(frame->cmd_buf, &clear_dep);
-}
-
-static void _vk_clear_storage_image(const struct cr_frame_t* frame, const struct cr_storage_image_t* img, const float clear_col[4]) {
-  VkImageMemoryBarrier2 to_clear = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-    .srcAccessMask = 0,
-    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-    .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    .image = img->image,
-    .subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .levelCount = 1,
-      .layerCount = 1
-    }
-  };
-
-  VkDependencyInfo dep = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .imageMemoryBarrierCount = 1,
-    .pImageMemoryBarriers = &to_clear
-  };
-
-  vkCmdPipelineBarrier2(frame->cmd_buf, &dep);
-
-  VkClearColorValue clear;
-  memcpy(clear.float32, clear_col, sizeof(clear.float32));
-
-  vkCmdClearColorImage(
-    frame->cmd_buf,
-    img->image,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    &clear,
-    1,
-    &(VkImageSubresourceRange){
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .levelCount = 1,
-      .layerCount = 1
-    }
-  );
-}
-
 struct _vk_access_masks {
   VkAccessFlags2 src_access; 
   VkAccessFlags2 dst_access;
 };
-
-static void _vk_dispatch_compute(
-  struct cr_frame_t* frame, VkPipeline pipeline, 
-  uint32_t swap_idx, struct cr_compute_pipeline_push_constant_t* pc,
-  uint32_t gc_x, uint32_t gc_y, uint32_t gc_z, const struct cr_gpu_buffer_t barrier_buffers[], const struct _vk_access_masks access_mask[], uint32_t n_barrier_buffers) {
-  // making sure the storage image is in GENERAL layout before any
-  // shader writes happen as the image is initially in UNDEFINED, 
-  // which would cause UB.
-
-  vkCmdBindPipeline(
-    frame->cmd_buf,
-    VK_PIPELINE_BIND_POINT_COMPUTE,
-    pipeline
-  );
-
-  vkCmdBindDescriptorSets(
-    frame->cmd_buf,
-    VK_PIPELINE_BIND_POINT_COMPUTE,
-    _compute_pipeline_layout,
-    0,
-    1,
-    &_global_sets[swap_idx],
-    0,
-    NULL
-  );
-
-  vkCmdPushConstants(
-    frame->cmd_buf,
-    _compute_pipeline_layout,
-    VK_SHADER_STAGE_COMPUTE_BIT,
-    0,
-    sizeof(*pc),
-    pc
-  );
-  vkCmdDispatch(frame->cmd_buf, gc_x, gc_y, gc_z);
-
-  if(n_barrier_buffers) {
-    VkBufferMemoryBarrier2 shader_barriers[n_barrier_buffers];
-
-    for(uint32_t i = 0; i < n_barrier_buffers; i++) {
-      shader_barriers[i] = (VkBufferMemoryBarrier2){
-        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-        .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-        .srcAccessMask = access_mask[i].src_access,
-        .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-        .dstAccessMask = access_mask[i].dst_access,
-        .buffer        = barrier_buffers[i].buf,
-        .offset        = 0,
-        .size          = VK_WHOLE_SIZE
-      };
-    }
-
-    VkDependencyInfo dep_shader = {
-      .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-      .bufferMemoryBarrierCount = n_barrier_buffers,
-      .pBufferMemoryBarriers    = shader_barriers
-    };
-
-    vkCmdPipelineBarrier2(frame->cmd_buf, &dep_shader);
-  }
-
-
-}
-
-static void _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
-                                uint32_t screen_w, uint32_t screen_h) {
-  // Barrier to prevent hazard of COMPUTE/WRITE -> TRANSFER/READ in the storage image.
-  // Because the image storage data needs to  be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL 
-  // for vkCmdBlitImage(), we need to also prevent the layout hazard from 
-  // VK_IMAGE_LAYOUT_GENERAL/WRITE ->  VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL/READ.
-  VkImageMemoryBarrier2 storage_to_src = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-    .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-    .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
-    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    .image = pipeline->storage_img.image,
-    .subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .levelCount = 1,
-      .layerCount = 1
-    }
-  };
-
-  VkImageMemoryBarrier2 swapchain_to_dst = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-    .srcAccessMask = 0,
-    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-    .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    .image = ctx->swapchain.imgs[swapchain_image_idx],
-    .subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .levelCount = 1,
-      .layerCount = 1
-    }
-  };
-
-  VkImageMemoryBarrier2 barriers[] = {
-    storage_to_src,
-    swapchain_to_dst
-  };
-
-  VkDependencyInfo swapchain_deps = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .imageMemoryBarrierCount = 2,
-    .pImageMemoryBarriers = barriers
-  };
-
-  vkCmdPipelineBarrier2(frame->cmd_buf, &swapchain_deps);
-
-  VkImageBlit blit = {
-    .srcSubresource = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .layerCount = 1
-    },
-    .dstSubresource = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .layerCount = 1
-    },
-    .srcOffsets = {
-      { 0, 0, 0 },
-      { (int32_t)screen_w, (int32_t)screen_h, 1 }
-    },
-    .dstOffsets = {
-      { 0, 0, 0 },
-      { (int32_t)screen_w, (int32_t)screen_h, 1 }
-    }
-  };
-
-  vkCmdBlitImage(
-    frame->cmd_buf,
-    pipeline->storage_img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    ctx->swapchain.imgs[swapchain_image_idx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    1,
-    &blit,
-    VK_FILTER_NEAREST
-  );
-
-  VkImageMemoryBarrier2 present_barrier = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-    .dstAccessMask = 0,
-    .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    .image = ctx->swapchain.imgs[swapchain_image_idx],
-    .subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .levelCount = 1,
-      .layerCount = 1
-    }
-  };
-
-  VkDependencyInfo present_dep = {
-    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-    .imageMemoryBarrierCount = 1,
-    .pImageMemoryBarriers = &present_barrier
-  };
-  vkCmdPipelineBarrier2(frame->cmd_buf, &present_dep);
-}
 
 bool
 cr_compute_pipeline_dispatch(
@@ -735,11 +640,11 @@ cr_compute_pipeline_dispatch(
 
   // Clear temporary buffers
   for(uint32_t i = 0; i < pipeline->n_buffers; i++) {
-    _vk_clear_compute_buffer(frame, &pipeline->buffers[i].buf);
+    cr_mem_clear_gpu_buffer(ctx, frame, &pipeline->buffers[i].buf);
   }
 
   // Clear the storage image pixels 
-  _vk_clear_storage_image(frame, &pipeline->storage_img, (float[4]){0.1f, 0.1f, 0.1f, 1.0f});
+  cr_mem_clear_storage_image_color(ctx, frame, &pipeline->storage_img, (float[4]){0.1f, 0.1f, 0.1f, 1.0f});
 
   VkImageMemoryBarrier2 to_compute = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -777,8 +682,6 @@ cr_compute_pipeline_dispatch(
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_count"), 
                        swapchain_image_idx, &pc, gx_bin_count, 1, 1,
                        (struct cr_gpu_buffer_t[]){*_buffer_by_name(ctx, pipeline, "tile_n_segments")},
-                       (struct _vk_access_masks[]){
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT}},
                        1); 
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_prefix_per_sub"), 
@@ -787,19 +690,12 @@ cr_compute_pipeline_dispatch(
                        *_buffer_by_name(ctx, pipeline, "subgroup_tmp_binning"),
                        *_buffer_by_name(ctx, pipeline, "tile_offsets")
                        },
-                       (struct _vk_access_masks[]){
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT}},
                        2); 
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_prefix_all_subs"), 
                        swapchain_image_idx, &pc, gx_bin_all, 1, 1,
                        (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "subgroup_tmp_binning"),
-                       },
-                       (struct _vk_access_masks[]){
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT}},
-                       1); 
+                       *_buffer_by_name(ctx, pipeline, "subgroup_tmp_binning")}, 1); 
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_prefix_final") ,
                        swapchain_image_idx, &pc, gx_bin_per, 1, 1,
@@ -807,9 +703,6 @@ cr_compute_pipeline_dispatch(
                        *_buffer_by_name(ctx, pipeline, "subgroup_tmp_binning"),
                        *_buffer_by_name(ctx, pipeline, "tile_offsets")
                        },
-                       (struct _vk_access_masks[]){
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT}},
                        2); 
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_scatter"),
@@ -817,19 +710,12 @@ cr_compute_pipeline_dispatch(
                        (struct cr_gpu_buffer_t[]){
                        *_buffer_by_name(ctx, pipeline, "tile_segments"),
                        *_buffer_by_name(ctx, pipeline, "tile_cursor")
-                       },
-                       (struct _vk_access_masks[]){
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT}},
-                       2); 
+                       }, 2);
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "base_parity"), 
                        swapchain_image_idx, &pc, pc.n_tiles_x, pc.n_tiles_y, 1, 
                        (struct cr_gpu_buffer_t[]){ 
                        *_buffer_by_name(ctx, pipeline, "prefix_parity"),
-                       },
-                       (struct _vk_access_masks[]) {
-                       {.src_access = VK_ACCESS_2_SHADER_WRITE_BIT, .dst_access = VK_ACCESS_2_SHADER_READ_BIT},
                        },
                        1
                        );
@@ -845,12 +731,6 @@ cr_compute_pipeline_dispatch(
     (struct cr_gpu_buffer_t[]){
       *_buffer_by_name(ctx, pipeline, "prefix_parity"),
       *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
-    },
-    (struct _vk_access_masks[]){
-      { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
-        .dst_access = VK_ACCESS_2_SHADER_READ_BIT },
-      { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
-        .dst_access = VK_ACCESS_2_SHADER_READ_BIT },
     },
     2
   );
@@ -869,10 +749,6 @@ cr_compute_pipeline_dispatch(
       (struct cr_gpu_buffer_t[]){
         *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
       },
-      (struct _vk_access_masks[]){
-        { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
-          .dst_access = VK_ACCESS_2_SHADER_READ_BIT },
-      },
       1
     );
     _vk_dispatch_compute(
@@ -887,12 +763,6 @@ cr_compute_pipeline_dispatch(
         *_buffer_by_name(ctx, pipeline, "prefix_parity"),
         *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
       },
-      (struct _vk_access_masks[]){
-        { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
-          .dst_access = VK_ACCESS_2_SHADER_READ_BIT },
-        { .src_access = VK_ACCESS_2_SHADER_WRITE_BIT,
-          .dst_access = VK_ACCESS_2_SHADER_READ_BIT }
-      },
       2
     );
   }
@@ -905,7 +775,7 @@ cr_compute_pipeline_dispatch(
     pc.n_tiles_x,
     pc.n_tiles_y,
     1,
-    NULL, NULL, 0
+    NULL, 0 
   );
 
   _vk_compute_present(ctx, frame, pipeline, swapchain_image_idx, screen_w, screen_h);

@@ -430,6 +430,85 @@ cr_mem_transfer_to_device_local_gpu_buffer(
   return true;
 }
 
+bool
+cr_mem_clear_gpu_buffer(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_gpu_buffer_t* buf) {
+  // clear/reset tile buffer per frame 
+  vkCmdFillBuffer(
+    frame->cmd_buf,
+    buf->buf,
+    0,
+    VK_WHOLE_SIZE,
+    0
+  );
+
+  // prevent read/write hazard - barrier from TRANSFER/WRITE -> COMPUTE/READWRITE
+  VkBufferMemoryBarrier2 clear_barrier = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+    .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
+    .buffer = buf->buf, 
+    .size = VK_WHOLE_SIZE,
+    .offset        = 0,
+  };
+
+  VkDependencyInfo clear_dep = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .bufferMemoryBarrierCount = 1,
+    .pBufferMemoryBarriers = &clear_barrier
+  };
+
+  vkCmdPipelineBarrier2(frame->cmd_buf, &clear_dep);
+
+
+  return true;
+}
+
+bool cr_mem_clear_storage_image_color(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_storage_image_t* img, const float storage_color[4]) {
+  VkImageMemoryBarrier2 to_clear = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+    .srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+    .srcAccessMask = 0,
+    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    .image = img->image,
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .levelCount = 1,
+      .layerCount = 1
+    }
+  };
+
+  VkDependencyInfo dep = {
+    .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+    .imageMemoryBarrierCount = 1,
+    .pImageMemoryBarriers = &to_clear
+  };
+
+  vkCmdPipelineBarrier2(frame->cmd_buf, &dep);
+
+  VkClearColorValue clear;
+  memcpy(clear.float32, storage_color, sizeof(clear.float32));
+
+  vkCmdClearColorImage(
+    frame->cmd_buf,
+    img->image,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    &clear,
+    1,
+    &(VkImageSubresourceRange){
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .levelCount = 1,
+      .layerCount = 1
+    }
+  );
+
+  return true;
+}
+
 bool 
 cr_mem_upadate_lazy_destroys(struct cr_context_t* ctx) {
   for(uint32_t i = 0; i < _n_deferred_buffer_destroys; i++) {
