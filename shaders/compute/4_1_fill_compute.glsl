@@ -51,26 +51,9 @@ void main() {
   uint tile_id = tile.y * pc.n_tiles_x + tile.x;
 
   uint count = tile_n_segments[tile_id]; 
+  if(count == 0) return;
 
   int x0 = int(tile.x * pc.tile_size);
-
-  for (int dx = 0; dx < pc.tile_size; dx++) {
-    if(count != 0) {
-      bool on_corner = (scan == 0 || scan == pc.tile_size - 1 ||  dx == 0 || dx == pc.tile_size - 1);
-    imageStore(
-        outImage,
-        ivec2(x0 + dx, y),
-        vec4(1.0, on_corner ? 1.0f : 0.0, 0.0, 1.0)
-        );
-    } else {
-      bool on_corner = (scan == 0 || scan == pc.tile_size - 1 ||  dx == 0 || dx == pc.tile_size - 1);
-    imageStore(
-        outImage,
-        ivec2(x0 + dx, y),
-        vec4(0.0, on_corner ? 1.0f : 0.0, 1.0, 1.0)
-        );
-    }
-  }
 
   int coverage[32];
   for (int i = 0; i < pc.tile_size; i++)

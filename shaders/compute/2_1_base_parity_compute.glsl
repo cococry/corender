@@ -1,93 +1,105 @@
-
 #version 450
 
-layout(local_size_x = 1, local_size_y = 32) in;
+layout(local_size_x = 32) in;
 
-struct Segment { vec2 p0; vec2 p1; };
-struct TileHeader { uint n_segments; };
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 
+struct Segment {
+  vec2 p0;
+  vec2 p1;
+};
 
 layout(set = 0, binding = 0, std430) readonly buffer Segments {
   Segment segments[];
 };
-layout(set = 0, binding = 1, std430) buffer TileNSegments {
-    uint tile_n_segments[];
-};
-layout(set = 0, binding = 2, std430) buffer TileOffsets {
-    uint tile_offsets[];
+
+layout(set = 0, binding = 1, std430) readonly buffer TileNSegments {
+  uint tile_n_segments[];
 };
 
-layout(set = 0, binding = 4, std430) buffer TileSegments {
-    uint tile_segments[];
+layout(set = 0, binding = 2, std430) readonly buffer TileOffsets {
+  uint tile_offsets[];
 };
 
-layout(set = 0, binding = 6, std430) buffer PrefixParity { uint prefix_parity[]; };
+layout(set = 0, binding = 4, std430) readonly buffer TileSegments {
+  uint tile_segments[];
+};
+
+layout(set = 0, binding = 6, std430) writeonly buffer PrefixParity {
+  uint prefix_parity[];
+};
 
 layout(push_constant) uniform PC {
   uint screen_w, screen_h;
   uint n_tiles_x, n_tiles_y;
   uint tile_size;
-  uint n_segments;
-  uint n_paths;
-  uint fill_rule;
 } pc;
-
-const uint MAX_SEGMENTS_PER_TILE = 32;
-
-shared uint s_toggle[32];
-
-void main() {
+void main()
+{
   uvec2 tile = gl_WorkGroupID.xy;
-  uint scan  = gl_LocalInvocationID.y;
+  uint lane  = gl_LocalInvocationID.x;
 
   uint tile_id = tile.y * pc.n_tiles_x + tile.x;
-  uint count   = tile_n_segments[tile_id];
 
-  int y = int(tile.y * pc.tile_size + scan);
+  uint base  = tile_offsets[tile_id];
+  uint count = tile_n_segments[tile_id];
 
-  uint toggle = 0u;
+  if(count == 0) return;
 
-  if (y >= 0 && y < int(pc.screen_h) && count > 0) {
-    int x0 = int(tile.x * pc.tile_size);
-    uint base = tile_offsets[tile_id]; 
+  float tile_x0 = float(tile.x) * float(pc.tile_size);
+  float tile_x1 = tile_x0 + float(pc.tile_size);
 
-    int parity = 0;
-    float scan_y = float(y) + 0.5;
+  float tile_y0 = float(tile.y) * float(pc.tile_size);
 
-    for (uint i = 0; i < count; i++) {
-      uint seg_id = tile_segments[base + i];
-      Segment s = segments[seg_id];
+  uint mask = 0u;
+  for (uint i = lane; i < count; i += 32) {
+    uint seg_id = tile_segments[base + i];
+    Segment s   = segments[seg_id];
 
-      float y0 = s.p0.y;
-      float y1 = s.p1.y;
-      if (y0 == y1) continue;
+    float y0 = s.p0.y;
+    float y1 = s.p1.y;
+    
+    float x0 = s.p0.x;
+    float x1 = s.p1.x;
+    
+    if (y0 > y1) {
+      float tmp_y = y0;
+      y0 = y1;
+      y1 = tmp_y;
 
-      bool hit =
-        (y0 <= scan_y && scan_y < y1) ||
-        (y1 <= scan_y && scan_y < y0);
-
-      if (!hit) continue;
-
-      float t = (scan_y - y0) / (y1 - y0);
-      float x_hit = mix(s.p0.x, s.p1.x, t);
-
-      if (x_hit >= float(x0) && x_hit < float(x0 + int(pc.tile_size))) {
-        parity ^= 1;
-      }
+      float tmp_x = x0;
+      x0 = x1;
+      x1 = tmp_x;
     }
 
-    toggle = uint(parity & 1);
+    if (y0 == y1) continue;
+
+    float ymin_f = min(y0, y1) - tile_y0;
+    float ymax_f = max(y0, y1) - tile_y0 - 0.5;
+
+    int ymin = clamp(int(floor(ymin_f)), 0, 31);
+    int ymax = clamp(int(ceil (ymax_f)), 0, 32);
+
+    float dy = y1 - y0;
+    float slope = (x1 - x0) / dy;
+    float scan_y = tile_y0 + float(ymin) + 0.5;
+
+    float x = x0 + (scan_y - y0) * slope;
+
+    for (int j = ymin; j < ymax; j++) {
+      if (x>= tile_x0 && x < tile_x1) {
+        mask ^= (1u << uint(j));
+      }
+      x += slope;
+    }
   }
 
-  s_toggle[scan] = toggle;
+  uint final_mask = subgroupXor(mask);
 
-  barrier();
-
-  if (scan == 0u) {
-    uint mask = 0u;
-    for (uint i = 0u; i < 32u; i++) {
-      mask |= (s_toggle[i] & 1u) << i;
-    }
-    prefix_parity[tile_id] = mask;
+  if (subgroupElect())
+  {
+    prefix_parity[tile_id] = final_mask;
   }
 }
+
