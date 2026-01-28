@@ -40,6 +40,15 @@ struct cr_gpu_buffer_t {
   VkMemoryPropertyFlags _mem_props;
 };
 
+typedef struct cr_storage_image_t {
+    VkImage image;
+    VkImageView view;
+    VmaAllocation allocation;
+    uint32_t width;
+    uint32_t height;
+} cr_storage_image_t;
+
+
 struct cr_staging_ring_t {
   struct cr_gpu_buffer_t buf;
   VkDeviceSize tail, head, capacity;
@@ -92,3 +101,12 @@ bool
 cr_mem_staging_ring_end(struct cr_frame_t* frame);
 
 VmaAllocator cr_mem_get_allocator();
+
+bool cr_mem_create_storage_image(
+    struct cr_context_t* ctx,
+    uint32_t width,
+    uint32_t height,
+    cr_storage_image_t* out_image
+);
+
+bool cr_mem_destroy_storage_image(struct cr_context_t* ctx, struct cr_storage_image_t* img);

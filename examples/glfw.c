@@ -1,3 +1,5 @@
+
+#include <string.h>
 #include <time.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -96,22 +98,32 @@ int main() {
     uint32_t rng = 0x12345678;
 
 
+  static int offsets_x[100]; 
+  static int offsets_y[100];
+  for(uint32_t i = 0; i < 100; i++) {
+    offsets_x[i] = rand() % 1280;
+    offsets_y[i] = rand() % 720;
+  }
   float size = 20.0f;
   bool up = true;
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { 0, size}, .p1 = {size,size} });
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size, size}, .p1 = {size/2.0f, 0} });
-cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size/2.0f, 0}, .p1 = {0, size} });
+    for(uint32_t i = 0; i < 100; i++) {
+      int offset_x = offsets_x[i];
+      int offset_y = offsets_y[i];
+      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { offset_x, size + offset_y}, .p1 = {size + offset_x ,size + offset_y} });
+      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size + offset_x, size + offset_y}, .p1 = {size/2.0f + offset_x, offset_y} });
+      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size/2.0f + offset_x, offset_y}, .p1 = {offset_x, size + offset_y} });
+    }
 
-    float add = 0.05f; 
+    float add = 0.005f; 
     if(up)
       size += add;
     else 
       size -= add;
 
-    if(size >= 1280.0f && up) up = false;
+    if(size >= 50.0f && up) up = false;
 
     if(size <= 10 && !up) up = true;
 

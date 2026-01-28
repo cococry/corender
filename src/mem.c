@@ -498,3 +498,93 @@ VmaAllocator
 cr_mem_get_allocator(){ 
   return _vma_allocator;
 }
+
+bool 
+cr_mem_create_storage_image(
+  struct cr_context_t* ctx,
+  uint32_t width,
+  uint32_t height,
+  cr_storage_image_t* out_image
+) {
+  if (!ctx || !out_image) return false;
+
+  VmaAllocator allocator = cr_mem_get_allocator();
+
+  VkImageCreateInfo image_info = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .imageType = VK_IMAGE_TYPE_2D,
+    .format = VK_FORMAT_R8G8B8A8_UNORM,
+    .extent = {
+      .width  = width,
+      .height = height,
+      .depth  = 1
+    },
+    .mipLevels = 1,
+    .arrayLayers = 1,
+    .samples = VK_SAMPLE_COUNT_1_BIT,
+    .tiling = VK_IMAGE_TILING_OPTIMAL,
+    .usage =
+    VK_IMAGE_USAGE_STORAGE_BIT |
+    VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+    VK_IMAGE_USAGE_TRANSFER_DST_BIT, 
+    .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+  };
+
+  VmaAllocationCreateInfo alloc_info = {
+    .usage = VMA_MEMORY_USAGE_GPU_ONLY
+  };
+
+  VkResult res = vmaCreateImage(
+    allocator,
+    &image_info,
+    &alloc_info,
+    &out_image->image,
+    &out_image->allocation,
+    NULL
+  );
+
+  if (res != VK_SUCCESS)
+    return false;
+
+  VkImageViewCreateInfo view_info = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .image = out_image->image,
+    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+    .format = VK_FORMAT_R8G8B8A8_UNORM,
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1
+    }
+  };
+
+  res = vkCreateImageView(
+    ctx->logical_dev,
+    &view_info,
+    NULL,
+    &out_image->view
+  );
+
+  if (res != VK_SUCCESS) {
+    vmaDestroyImage(allocator, out_image->image, out_image->allocation);
+    return false;
+  }
+
+  out_image->width  = width;
+  out_image->height = height;
+
+  return true;
+
+}
+
+bool 
+cr_mem_destroy_storage_image(struct cr_context_t* ctx, struct cr_storage_image_t* img) {
+  vkDestroyImageView(ctx->logical_dev, img->view, NULL);
+  vmaDestroyImage(cr_mem_get_allocator(), img->image, img->allocation);
+  *img = (struct cr_storage_image_t){0};
+
+  return true;
+}

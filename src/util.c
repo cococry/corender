@@ -184,3 +184,15 @@ cr_util_get_time_ns() {
   clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
   return (uint64_t)ts.tv_sec * 1000000000ull + ts.tv_nsec;
 }
+
+uint32_t cr_util_djb2_hash(char *str) {
+  unsigned long hash = 5381;
+  int c;
+
+  while ((c = *str++))
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+  return hash;
+
+}
+

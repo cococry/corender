@@ -150,3 +150,7 @@ const char* cr_util_vk_result_to_string(VkResult r);
 
 uint64_t cr_util_get_time_ns();
 
+uint32_t cr_util_djb2_hash(char *str); 
+
+uint32_t cr_util_djb2_hash(char *str);
+

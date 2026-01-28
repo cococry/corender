@@ -36,17 +36,10 @@ struct cr_compute_pipeline_init_info_t {
 
   char** shader_paths;
   uint32_t n_shaders;
+  
+  struct cr_compute_pipeline_layout_binding_t* layout_bindings;
+  uint32_t n_layout_bindings;
 };
-
-
-typedef struct cr_storage_image_t {
-    VkImage         image;
-    VkImageView     view;
-    VmaAllocation   allocation;
-    uint32_t        width;
-    uint32_t        height;
-} cr_storage_image_t;
-
 
 struct cr_compute_pipeline_dynamic_state_t {
   struct cr_gpu_buffer_t segment_buf; 
@@ -55,34 +48,33 @@ struct cr_compute_pipeline_dynamic_state_t {
   struct cr_segment_t* segment_data;
 };
 
+struct cr_compute_kernel_t {
+  char* shader_path;
+  uint32_t hash;
+  VkPipeline kernel_pipeline;
+};
+
+struct cr_compute_pipeline_layout_binding_t {
+  const char* name;
+  size_t buffer_size;
+};
+
+struct cr_compute_pipeline_layout_buffer_t {
+  uint32_t hash;
+  struct cr_gpu_buffer_t buf;
+};
+
 struct cr_compute_pipeline_t {
-
-  VkPipeline pipeline_bin_count, 
-             pipeline_bin_prefix_per_sub,
-             pipeline_bin_prefix_all, 
-             pipeline_bin_prefix_final, 
-             pipeline_bin_scatter, 
-
-             pipeline_base_parity, 
-             pipeline_prefix_per_sg, 
-             pipeline_prefix_all_sgs,
-             pipeline_prefix_final,
-
-             pipeline_fill;
+  struct cr_compute_kernel_t* kernels;
 
   struct cr_compute_pipeline_init_info_t info;
-
-  struct cr_gpu_buffer_t n_segments_per_tile_buf, 
-                         offsets_per_tile_buf, 
-                         sg_tmp_bin_buf, 
-                         segment_indices_per_tile_buf,
-                         tile_scatter_cursor_buf,
-                         prefix_parity_buf,
-                         sg_tmp_parity_buf;
 
   struct cr_compute_pipeline_dynamic_state_t* dynamic;
 
   struct cr_storage_image_t storage_img;
+
+  struct cr_compute_pipeline_layout_buffer_t* buffers;
+  uint32_t n_buffers;
 };
 
 bool cr_compute_pipeline_init(struct cr_context_t* ctx, struct cr_compute_pipeline_init_info_t* info, struct cr_compute_pipeline_t* pipeline);
