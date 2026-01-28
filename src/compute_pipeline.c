@@ -722,11 +722,11 @@ cr_compute_pipeline_dispatch(
 
   _vk_dispatch_compute(
     frame,
-    _kernel_by_name(ctx, pipeline, "prefix_per_sub"), 
+    _kernel_by_name(ctx, pipeline, "parity_prefix_per_sub"), 
     swapchain_image_idx,
     &pc,
+    DIV_UP(pc.n_tiles_x, WG),
     pc.n_tiles_y, 
-    1,
     1,
     (struct cr_gpu_buffer_t[]){
       *_buffer_by_name(ctx, pipeline, "prefix_parity"),
@@ -735,36 +735,34 @@ cr_compute_pipeline_dispatch(
     2
   );
 
-  uint32_t subgroups_per_row = (pc.n_tiles_x + 31) / 32;
-
-  if(subgroups_per_row > 1) {
-    _vk_dispatch_compute(
-      frame,
-      _kernel_by_name(ctx, pipeline, "prefix_all_subs"), 
-      swapchain_image_idx,
-      &pc,
-      pc.n_tiles_y, 
-      1,
-      1,
-      (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
-      },
-      1
-    );
-    _vk_dispatch_compute(
-      frame,
-      _kernel_by_name(ctx, pipeline, "prefix_final"), 
-      swapchain_image_idx,
-      &pc,
-      pc.n_tiles_y, 
-      1,
-      1,
-      (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, "prefix_parity"),
-        *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
-      },
-      2
-    );
+  if(pc.n_tiles_x > 256) {
+  _vk_dispatch_compute(
+    frame,
+    _kernel_by_name(ctx, pipeline, "parity_prefix_all_subs"), 
+    swapchain_image_idx,
+    &pc,
+    DIV_UP(pc.n_tiles_x, WG),
+    pc.n_tiles_y, 
+    1,
+    (struct cr_gpu_buffer_t[]){
+      *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
+    },
+    1
+  );
+  _vk_dispatch_compute(
+    frame,
+    _kernel_by_name(ctx, pipeline, "parity_prefix_final"), 
+    swapchain_image_idx,
+    &pc,
+    DIV_UP(pc.n_tiles_x, WG),
+    pc.n_tiles_y,
+    1,
+    (struct cr_gpu_buffer_t[]){
+      *_buffer_by_name(ctx, pipeline, "prefix_parity"),
+      *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
+    },
+    2
+  );
   }
 
   _vk_dispatch_compute(
