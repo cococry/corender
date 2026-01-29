@@ -3,7 +3,7 @@
 #cmakedefine PREFIX_OUTPUT
 #cmakedefine DO_XOR 
 
-layout (local_size_x = 256) in;
+layout (local_size_x = 64) in;
 
 layout(set = 0, binding = 3, std430) buffer SubgroupTmp {
     uint subgroup_tmp[];
@@ -19,8 +19,6 @@ layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileOffsets {
 };
 #endif
 
-
-
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
@@ -32,15 +30,13 @@ layout(push_constant) uniform push_constant {
   uint fill_rule;
 } pc;
 
-
-
 void main() {
   uint block = gl_WorkGroupID.x;
   uint row = gl_WorkGroupID.y;
   uint lane = gl_LocalInvocationID.x;
-  uint blocks_per_row = (pc.n_tiles_x + 255) / 256;
+  uint blocks_per_row = (pc.n_tiles_x + 63) / 64;
 
-  uint x = block*256 + lane;
+  uint x = block * 64 + lane;
 
   if(x >= pc.n_tiles_x) return;
 

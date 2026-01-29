@@ -4,7 +4,7 @@
 
 #cmakedefine DO_XOR 
 
-layout (local_size_x = 256) in;
+layout (local_size_x = 64) in;
 
 #ifdef PREFIX_OUTPUT
 layout(set = 0, binding = @OUTPUT_BINDING@, std430) buffer TileOffsets {
@@ -39,8 +39,8 @@ void main() {
   if(gid >= pc.n_tiles_x * pc.n_tiles_y) return;
 
 #ifdef DO_XOR 
-  @PREFIXED_OUTPUT@[gid] ^= subgroup_tmp[gid / 256];
+  @PREFIXED_OUTPUT@[gid] ^= subgroup_tmp[gid / 64];
 #else 
-  @PREFIXED_OUTPUT@[gid] += subgroup_tmp[gid / 256];
+  @PREFIXED_OUTPUT@[gid] += subgroup_tmp[gid / 64];
 #endif 
 }

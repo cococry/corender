@@ -7,7 +7,7 @@
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
-layout(local_size_x = 256) in;
+layout(local_size_x = 64) in;
 
 #ifdef PREFIX_OUTPUT
 layout(set = 0, binding = @OUTPUT_BINDING@, std430) buffer TileOffsets {
@@ -36,7 +36,7 @@ layout(push_constant) uniform push_constant {
 
 #define SG_SIZE @SUBGROUP_SIZE@
 
-#define SGS_PER_WG 256 / SG_SIZE
+#define SGS_PER_WG 64 / SG_SIZE
 
 shared uint subgroup_totals[SGS_PER_WG]; 
 
@@ -45,8 +45,8 @@ void main() {
   uint block = gl_WorkGroupID.x;
   uint row = gl_WorkGroupID.y;
 
-  uint x = block * 256 + lid;
-  uint blocks_per_row = (pc.n_tiles_x + 255) / 256;
+  uint x = block * 64+ lid;
+  uint blocks_per_row = (pc.n_tiles_x + 63) / 64;
   
   uint gid = row * pc.n_tiles_x + x; 
 
@@ -106,7 +106,7 @@ void main() {
     @PREFIXED_OUTPUT@[gid] = prefix;
 #endif 
 
-  if (lid == 255 || x == pc.n_tiles_x - 1)
+  if (lid == 63 || x == pc.n_tiles_x - 1)
   {
 #ifdef DO_XOR 
     subgroup_tmp[row * blocks_per_row + block] = prefix ^ prefix_val;

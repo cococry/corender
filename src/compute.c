@@ -615,7 +615,7 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
                                const char* output_name) {
 
   // Dispatch binning pipeline 
-  const uint32_t WG = 256;
+  const uint32_t WG = 64;
   if(!two_dimensional) {
     uint32_t gx_bin_per = DIV_UP(n_elements_x, WG); 
     uint32_t gx_bin_all = DIV_UP(gx_bin_per, WG); 
@@ -635,18 +635,20 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
                          },
                          2); 
 
-    _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, step2), 
-                         swapchain_image_idx, pc, gx_bin_all, 1, 1,
-                         (struct cr_gpu_buffer_t[]){
-                         *_buffer_by_name(ctx, pipeline, tmp_name)}, 1); 
+    if(gx_bin_per > 1) {
+      _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, step2), 
+                           swapchain_image_idx, pc, gx_bin_all, 1, 1,
+                           (struct cr_gpu_buffer_t[]){
+                           *_buffer_by_name(ctx, pipeline, tmp_name)}, 1); 
 
-    _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, step3),
-                         swapchain_image_idx, pc, gx_bin_per, 1, 1,
-                         (struct cr_gpu_buffer_t[]){
-                         *_buffer_by_name(ctx, pipeline, tmp_name),
-                         *_buffer_by_name(ctx, pipeline, output_name)
-                         },
-                         2); 
+      _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, step3),
+                           swapchain_image_idx, pc, gx_bin_per, 1, 1,
+                           (struct cr_gpu_buffer_t[]){
+                           *_buffer_by_name(ctx, pipeline, tmp_name),
+                           *_buffer_by_name(ctx, pipeline, output_name)
+                           },
+                           2); 
+    }
   } else {
     char step1[PATH_MAX];
     sprintf(step1, "%s_prefix2d_step1_sg%i", pipeline_stage, ctx->_subgroup_size);
@@ -775,7 +777,7 @@ cr_compute_pipeline_dispatch(
   vkCmdPipelineBarrier2(frame->cmd_buf, &dep_compute);
 
 
-  const uint32_t WG = 256;
+  const uint32_t WG = 64;
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_count"), 
                        swapchain_image_idx, &pc, DIV_UP(n_segments, WG), 1, 1,
                        (struct cr_gpu_buffer_t[]){*_buffer_by_name(ctx, pipeline, "tile_n_segments")},

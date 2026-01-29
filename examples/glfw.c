@@ -101,15 +101,15 @@ int main() {
   static int offsets_x[100]; 
   static int offsets_y[100];
   for(uint32_t i = 0; i < 100; i++) {
-    offsets_x[i] = rand() % 1280;
-    offsets_y[i] = rand() % 720;
+    offsets_x[i] = 50; 
+    offsets_y[i] = 50; 
   }
   float size = 20.0f;
   bool up = true;
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-    for(uint32_t i = 0; i < 100; i++) {
+    for(uint32_t i = 0; i < 1; i++) {
       int offset_x = offsets_x[i];
       int offset_y = offsets_y[i];
       cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { offset_x, size + offset_y}, .p1 = {size + offset_x ,size + offset_y} });
@@ -123,7 +123,7 @@ int main() {
     else 
       size -= add;
 
-    if(size >= 50.0f && up) up = false;
+    if(size >= 500.0f && up) up = false;
 
     if(size <= 10 && !up) up = true;
 

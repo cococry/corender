@@ -51,8 +51,6 @@ void main() {
   uint tile_id = tile.y * pc.n_tiles_x + tile.x;
 
   uint count = tile_n_segments[tile_id]; 
-  if(count == 0) return;
-
   int x0 = int(tile.x * pc.tile_size);
 
   int coverage[32];
@@ -105,7 +103,7 @@ void main() {
       imageStore(
           outImage,
           ivec2(x0 + dx, y),
-          vec4(0.0, 1.0, 0.0, 1.0)
+          vec4(count >= 1 ? 1.0 : 0.0, 0.0,  1.0, 1.0)
           );
     }
   }

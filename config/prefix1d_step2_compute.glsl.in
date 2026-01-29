@@ -3,7 +3,7 @@
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
-layout(local_size_x = 256) in;
+layout(local_size_x = 64) in;
 
 #cmakedefine DO_XOR 
 
@@ -24,7 +24,7 @@ layout(push_constant) uniform push_constant {
 
 #define SG_SIZE @SUBGROUP_SIZE@
 
-#define SGS_PER_WG 256 / SG_SIZE
+#define SGS_PER_WG 64 / SG_SIZE
 
 shared uint subgroup_totals[SGS_PER_WG]; 
 
@@ -34,7 +34,7 @@ void main() {
   uint groupID = gl_WorkGroupID.x;
 
   uint n_tiles  = pc.n_tiles_x * pc.n_tiles_y;
-  uint n_groups = (n_tiles + 255) / 256;
+  uint n_groups = (n_tiles + 63) / 64;
 
   if (gid >= n_groups) return;
 

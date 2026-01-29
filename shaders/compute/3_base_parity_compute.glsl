@@ -45,8 +45,6 @@ void main()
   uint base  = tile_offsets[tile_id];
   uint count = tile_n_segments[tile_id];
 
-  if(count == 0) return;
-
   float tile_x0 = float(tile.x) * float(pc.tile_size);
   float tile_x1 = tile_x0 + float(pc.tile_size);
 
