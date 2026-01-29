@@ -48,7 +48,7 @@ void main() {
 #ifdef DO_XOR
   uint sg_sum = subgroupXor(x);
 #else 
-  uint prefix = subgroupAdd(x);
+  uint sg_sum = subgroupAdd(x);
 #endif 
 
   if (subgroupElect())

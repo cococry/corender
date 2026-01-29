@@ -46,7 +46,11 @@ void main() {
   uint prefix = subgroupExclusiveAdd(x);
 #endif
 
+#ifdef DO_XOR
+  uint sg_sum = subgroupXor(x);
+#else 
   uint sg_sum = subgroupAdd(x);
+#endif
 
   if (subgroupElect())
     subgroup_totals[gl_SubgroupID] = sg_sum;
