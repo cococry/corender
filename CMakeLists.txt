@@ -44,7 +44,7 @@ set(SHADER_SRC_DIR ${CMAKE_SOURCE_DIR}/shaders)
 set(SHADER_CFG_DIR ${CMAKE_SOURCE_DIR}/config)
 set(SHADER_BIN_DIR ${CMAKE_BINARY_DIR}/bin/shaders)
 
-set(SUBGROUP_SIZES 16 32 64)
+set(SUBGROUP_SIZES 4 8 16 32 64)
 
 set(PIPELINE_bin
     bin # name
