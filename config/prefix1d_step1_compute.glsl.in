@@ -19,7 +19,7 @@ layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileNSegments {
 };
 
 layout(set = 0, binding = 3, std430) buffer SubgroupTmpBinning {
-    uint subgroup_tmp_binning[];
+    uint subgroup_tmp[];
 };
 
 
@@ -102,9 +102,9 @@ void main() {
   if (lid == 255)
   {
 #ifdef DO_XOR
-    subgroup_tmp_binning[group_id] = prefix ^ x;
+    subgroup_tmp[group_id] = prefix ^ x;
 #else 
-    subgroup_tmp_binning[group_id] = prefix + x;
+    subgroup_tmp[group_id] = prefix + x;
 #endif
   }
 }

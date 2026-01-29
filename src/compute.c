@@ -524,11 +524,10 @@ cr_compute_pipeline_init(
   struct cr_compute_pipeline_layout_binding_t bindings[] = {
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "tile_n_segments"       }, // 1
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "tile_offsets"          }, // 2
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "subgroup_tmp_binning"  }, // 3
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "subgroup_tmp"          }, // 3
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y * 32,   .name = "tile_segments"         }, // 4
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "tile_cursor"           }, // 5
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "prefix_parity"         }, // 6
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * total_prefix_parity_size, .name = "subgroup_tmp"          }, // 7
   };
 
   if(!_vk_pipeline_layout_init(ctx, pipeline, bindings, sizeof(bindings) / sizeof(bindings[0]))) {
@@ -782,7 +781,7 @@ cr_compute_pipeline_dispatch(
                        (struct cr_gpu_buffer_t[]){*_buffer_by_name(ctx, pipeline, "tile_n_segments")},
                        1); 
 
-  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, tiles_x * tiles_y, 1, "bin", "subgroup_tmp_binning", "tile_offsets");
+  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, tiles_x * tiles_y, 1, "bin", "subgroup_tmp", "tile_offsets");
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_scatter"),
                        swapchain_image_idx, &pc, DIV_UP(n_segments, WG), 1, 1,

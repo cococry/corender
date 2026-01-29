@@ -5,7 +5,7 @@
 
 layout (local_size_x = 256) in;
 
-layout(set = 0, binding = 7, std430) buffer SubgroupTmp {
+layout(set = 0, binding = 3, std430) buffer SubgroupTmp {
     uint subgroup_tmp[];
 };
 

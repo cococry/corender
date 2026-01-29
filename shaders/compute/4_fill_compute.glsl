@@ -28,7 +28,7 @@ layout(set = 0, binding = 6, std430) readonly buffer PrefixParity {
   uint prefix_parity[]; 
 };
 
-layout(set = 0, binding = 8, rgba8) uniform image2D outImage;
+layout(set = 0, binding = 7, rgba8) uniform image2D outImage;
 
 layout(push_constant) uniform PC {
   uint screen_w, screen_h;

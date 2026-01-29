@@ -17,7 +17,7 @@ layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileOffsets {
 #endif
 
 layout(set = 0, binding = 3, std430) buffer SubgroupTmp {
-  uint subgroup_tmp_binning[];
+  uint subgroup_tmp[];
 };
 
 layout(push_constant) uniform push_constant {
@@ -39,8 +39,8 @@ void main() {
   if(gid >= pc.n_tiles_x * pc.n_tiles_y) return;
 
 #ifdef DO_XOR 
-  @PREFIXED_OUTPUT@[gid] ^= subgroup_tmp_binning[gid / 256];
+  @PREFIXED_OUTPUT@[gid] ^= subgroup_tmp[gid / 256];
 #else 
-  @PREFIXED_OUTPUT@[gid] += subgroup_tmp_binning[gid / 256];
+  @PREFIXED_OUTPUT@[gid] += subgroup_tmp[gid / 256];
 #endif 
 }
