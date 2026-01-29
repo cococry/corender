@@ -1,9 +1,10 @@
-#include "compute_pipeline.h"
+#include "compute.h"
 #include "mem.h"
 #include "util.h"
 #include <errno.h>
 #include <linux/limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <dirent.h>
 #include <sys/types.h>
@@ -76,14 +77,14 @@ _vk_create_compute_pipeline(
   VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT subgroupInfo = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT,
     .pNext = NULL,
-    .requiredSubgroupSize = 32
+    .requiredSubgroupSize = ctx->_subgroup_size 
   };
   VkPipelineShaderStageCreateInfo stage_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
     .stage = VK_SHADER_STAGE_COMPUTE_BIT,
     .module = comp_mod,
     .pName = "main",
-    .pNext  = &subgroupInfo
+    .pNext  = ctx->_have_subgroup_size_control ? &subgroupInfo : NULL
   };
 
   VkComputePipelineCreateInfo pipeline_info = {
@@ -121,9 +122,6 @@ static bool _extract_kernel_name(
   char* p = strchr(temp, '_');
   if (!p) goto fail;
 
-  p = strchr(p + 1, '_');
-  if (!p) goto fail;
-
   char* name_start = p + 1;
 
   char* compute = strstr(name_start, "_compute");
@@ -142,7 +140,9 @@ fail:
 VkPipeline _kernel_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, const char* kernel_name) {
   uint32_t name_hash = cr_util_djb2_hash((char*)kernel_name);
   for(uint32_t i = 0; i < pipeline->info.n_shaders; i++) {
-    if(pipeline->kernels[i].hash == name_hash) return pipeline->kernels[i].kernel_pipeline;
+    if(pipeline->kernels[i].hash == name_hash) {
+      return pipeline->kernels[i].kernel_pipeline;
+    }
   }
   CR_ERROR(ctx->log, "Kernel name '%s' did not match any pipelines.", kernel_name);
   return VK_NULL_HANDLE;
@@ -538,7 +538,11 @@ cr_compute_pipeline_init(
 
   for (uint32_t i = 0; i < info->n_shaders; i++) {
     const char* path = info->shader_paths[i];
-
+    if(strstr(path, "prefix") != NULL) {
+      char sg_buf[32];
+      sprintf(sg_buf,"sg%i", ctx->_subgroup_size); 
+      if(strstr(path, sg_buf) == NULL) continue;
+    }
     char kernel_name[256];
     if(!_extract_kernel_name(path, kernel_name, sizeof(kernel_name))) {
       CR_WARN(ctx->log, "Kernel shader at path '%s' uses invalid naming convention. Kernel will not be created correctly.",
@@ -600,6 +604,106 @@ struct _vk_access_masks {
   VkAccessFlags2 src_access; 
   VkAccessFlags2 dst_access;
 };
+
+static 
+bool 
+_dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, struct cr_frame_t* frame,
+                               uint32_t swapchain_image_idx,
+                               struct cr_compute_pipeline_push_constant_t* pc,
+                               bool two_dimensional, uint32_t n_elements_x, uint32_t n_rows,
+                               const char* pipeline_stage,
+                               const char* tmp_name,
+                               const char* output_name) {
+
+  // Dispatch binning pipeline 
+  const uint32_t WG = 256;
+  if(!two_dimensional) {
+    uint32_t gx_bin_per = DIV_UP(n_elements_x, WG); 
+    uint32_t gx_bin_all = DIV_UP(gx_bin_per, WG); 
+
+    char step1[PATH_MAX];
+    sprintf(step1, "%s_prefix1d_step1_sg%i", pipeline_stage, ctx->_subgroup_size);
+    char step2[PATH_MAX];
+    sprintf(step2, "%s_prefix1d_step2_sg%i", pipeline_stage, ctx->_subgroup_size);
+    char step3[PATH_MAX];
+    sprintf(step3, "%s_prefix1d_step3_sg%i", pipeline_stage, ctx->_subgroup_size);
+
+    _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, step1), 
+                         swapchain_image_idx, pc, gx_bin_per, 1, 1,
+                         (struct cr_gpu_buffer_t[]){
+                         *_buffer_by_name(ctx, pipeline, tmp_name),
+                         *_buffer_by_name(ctx, pipeline, output_name)
+                         },
+                         2); 
+
+    _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, step2), 
+                         swapchain_image_idx, pc, gx_bin_all, 1, 1,
+                         (struct cr_gpu_buffer_t[]){
+                         *_buffer_by_name(ctx, pipeline, tmp_name)}, 1); 
+
+    _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, step3),
+                         swapchain_image_idx, pc, gx_bin_per, 1, 1,
+                         (struct cr_gpu_buffer_t[]){
+                         *_buffer_by_name(ctx, pipeline, tmp_name),
+                         *_buffer_by_name(ctx, pipeline, output_name)
+                         },
+                         2); 
+  } else {
+    char step1[PATH_MAX];
+    sprintf(step1, "%s_prefix2d_step1_sg%i", pipeline_stage, ctx->_subgroup_size);
+    char step2[PATH_MAX];
+    sprintf(step2, "%s_prefix2d_step2_sg%i", pipeline_stage, ctx->_subgroup_size);
+    char step3[PATH_MAX];
+    sprintf(step3, "%s_prefix2d_step3_sg%i", pipeline_stage, ctx->_subgroup_size);
+
+    _vk_dispatch_compute(
+      frame,
+      _kernel_by_name(ctx, pipeline, step1), 
+      swapchain_image_idx,
+      pc,
+      DIV_UP(n_elements_x, WG),
+      n_rows,
+      1,
+      (struct cr_gpu_buffer_t[]){
+        *_buffer_by_name(ctx, pipeline, output_name), 
+        *_buffer_by_name(ctx, pipeline, tmp_name),
+      },
+      2
+    );
+
+    if(n_elements_x > WG) {
+      _vk_dispatch_compute(
+        frame,
+        _kernel_by_name(ctx, pipeline, step2), 
+        swapchain_image_idx,
+        pc,
+        DIV_UP(n_elements_x, WG),
+        n_rows, 
+        1,
+        (struct cr_gpu_buffer_t[]){
+          *_buffer_by_name(ctx, pipeline, tmp_name),
+        },
+        1
+      );
+      _vk_dispatch_compute(
+        frame,
+        _kernel_by_name(ctx, pipeline, step3), 
+        swapchain_image_idx,
+        pc,
+        DIV_UP(n_elements_x, WG),
+        n_rows,
+        1,
+        (struct cr_gpu_buffer_t[]){
+          *_buffer_by_name(ctx, pipeline, output_name),
+          *_buffer_by_name(ctx, pipeline, tmp_name),
+        },
+        2
+      );
+    }
+  }
+
+  return true;
+} 
 
 bool
 cr_compute_pipeline_dispatch(
@@ -671,42 +775,17 @@ cr_compute_pipeline_dispatch(
 
   vkCmdPipelineBarrier2(frame->cmd_buf, &dep_compute);
 
-  // Dispatch binning pipeline 
+
   const uint32_t WG = 256;
-
-  uint32_t gx_bin_per = DIV_UP(tiles_x * tiles_y, WG); 
-  uint32_t gx_bin_all = DIV_UP(gx_bin_per, WG); 
-  uint32_t gx_bin_count =
-    (n_segments + WG - 1) / WG;
-
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_count"), 
-                       swapchain_image_idx, &pc, gx_bin_count, 1, 1,
+                       swapchain_image_idx, &pc, DIV_UP(n_segments, WG), 1, 1,
                        (struct cr_gpu_buffer_t[]){*_buffer_by_name(ctx, pipeline, "tile_n_segments")},
                        1); 
 
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_prefix_per_sub"), 
-                       swapchain_image_idx, &pc, gx_bin_per, 1, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "subgroup_tmp_binning"),
-                       *_buffer_by_name(ctx, pipeline, "tile_offsets")
-                       },
-                       2); 
-
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_prefix_all_subs"), 
-                       swapchain_image_idx, &pc, gx_bin_all, 1, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "subgroup_tmp_binning")}, 1); 
-
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_prefix_final") ,
-                       swapchain_image_idx, &pc, gx_bin_per, 1, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "subgroup_tmp_binning"),
-                       *_buffer_by_name(ctx, pipeline, "tile_offsets")
-                       },
-                       2); 
+  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, tiles_x * tiles_y, 1, "bin", "subgroup_tmp_binning", "tile_offsets");
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_scatter"),
-                       swapchain_image_idx, &pc, gx_bin_count, 1, 1,
+                       swapchain_image_idx, &pc, DIV_UP(n_segments, WG), 1, 1,
                        (struct cr_gpu_buffer_t[]){
                        *_buffer_by_name(ctx, pipeline, "tile_segments"),
                        *_buffer_by_name(ctx, pipeline, "tile_cursor")
@@ -720,51 +799,8 @@ cr_compute_pipeline_dispatch(
                        1
                        );
 
-  _vk_dispatch_compute(
-    frame,
-    _kernel_by_name(ctx, pipeline, "parity_prefix_per_sub"), 
-    swapchain_image_idx,
-    &pc,
-    DIV_UP(pc.n_tiles_x, WG),
-    pc.n_tiles_y, 
-    1,
-    (struct cr_gpu_buffer_t[]){
-      *_buffer_by_name(ctx, pipeline, "prefix_parity"),
-      *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
-    },
-    2
-  );
-
-  if(pc.n_tiles_x > 256) {
-  _vk_dispatch_compute(
-    frame,
-    _kernel_by_name(ctx, pipeline, "parity_prefix_all_subs"), 
-    swapchain_image_idx,
-    &pc,
-    DIV_UP(pc.n_tiles_x, WG),
-    pc.n_tiles_y, 
-    1,
-    (struct cr_gpu_buffer_t[]){
-      *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
-    },
-    1
-  );
-  _vk_dispatch_compute(
-    frame,
-    _kernel_by_name(ctx, pipeline, "parity_prefix_final"), 
-    swapchain_image_idx,
-    &pc,
-    DIV_UP(pc.n_tiles_x, WG),
-    pc.n_tiles_y,
-    1,
-    (struct cr_gpu_buffer_t[]){
-      *_buffer_by_name(ctx, pipeline, "prefix_parity"),
-      *_buffer_by_name(ctx, pipeline, "subgroup_tmp"),
-    },
-    2
-  );
-  }
-
+  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, true, tiles_x, tiles_y, "parity", "subgroup_tmp", "prefix_parity");
+  
   _vk_dispatch_compute(
     frame,
     _kernel_by_name(ctx, pipeline, "fill"), 

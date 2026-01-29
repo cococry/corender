@@ -143,6 +143,8 @@ struct cr_context_t {
   uint32_t n_pending_draws;
 
   bool _have_multi_draw_indirect;
+  bool _have_subgroup_size_control;
+  int _subgroup_size;
 
   double ms_gpu, ms_cpu;
   bool enable_time_measuring;

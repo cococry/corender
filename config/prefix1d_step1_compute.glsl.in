@@ -1,0 +1,111 @@
+#version 450
+
+#cmakedefine PREFIX_OUTPUT
+#cmakedefine DO_XOR 
+
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
+layout(local_size_x = 256) in;
+
+#ifdef PREFIX_OUTPUT
+layout(set = 0, binding = @OUTPUT_BINDING@, std430) buffer TileOffsets {
+    uint @PREFIXED_OUTPUT@[];
+};
+#endif
+
+layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileNSegments {
+    uint @INPUT@[];
+};
+
+layout(set = 0, binding = 3, std430) buffer SubgroupTmpBinning {
+    uint subgroup_tmp_binning[];
+};
+
+
+layout(push_constant) uniform push_constant {
+  uint screen_w,  screen_h;
+  uint n_tiles_x, n_tiles_y;
+  uint tile_size;
+
+  uint n_segments;
+  uint n_paths;
+
+  uint fill_rule;
+} pc;
+
+#define SG_SIZE @SUBGROUP_SIZE@
+
+#define SGS_PER_WG 256 / SG_SIZE
+
+shared uint subgroup_totals[SGS_PER_WG]; 
+
+void main() {
+  uint gid = gl_GlobalInvocationID.x;
+  uint lid = gl_LocalInvocationID.x;
+  uint group_id = gl_WorkGroupID.x;
+
+  uint x = (gid < pc.n_tiles_x * pc.n_tiles_y) ? @INPUT@[gid] : 0;
+
+#ifdef DO_XOR
+  uint prefix = subgroupExclusiveXor(x);
+#else 
+  uint prefix = subgroupExclusiveAdd(x);
+#endif
+
+#ifdef DO_XOR
+  uint sg_sum = subgroupXor(x);
+#else 
+  uint sg_sum = subgroupAdd(x);
+#endif
+
+  if (subgroupElect())
+    subgroup_totals[gl_SubgroupID] = sg_sum;
+
+  barrier();
+
+  uint sg_offset = 0;
+
+  if (gl_SubgroupID == 0)
+  {
+    uint lane = gl_SubgroupInvocationID;
+    uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
+
+#ifdef DO_XOR
+    uint off = subgroupExclusiveXor(val);
+#else
+    uint off = subgroupExclusiveAdd(val);
+#endif 
+
+    if (lane < SGS_PER_WG)
+      subgroup_totals[lane] = off;
+  }
+
+  barrier();
+
+  sg_offset = subgroup_totals[gl_SubgroupID];
+
+#ifdef DO_XOR
+  prefix ^= sg_offset;
+#else 
+  prefix += sg_offset;
+#endif
+
+#ifdef PREFIX_OUTPUT
+  if (gid < pc.n_tiles_x * pc.n_tiles_y)
+    @PREFIXED_OUTPUT@[gid] = prefix;
+#else 
+  if (gid < pc.n_tiles_x * pc.n_tiles_y)
+    @INPUT@[gid] = prefix;
+#endif 
+
+  if (lid == 255)
+  {
+#ifdef DO_XOR
+    subgroup_tmp_binning[group_id] = prefix ^ x;
+#else 
+    subgroup_tmp_binning[group_id] = prefix + x;
+#endif
+  }
+}
+

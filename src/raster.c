@@ -1,8 +1,7 @@
-#include "raster_pipeline.h"
+#include "raster.h"
 #include "../vendor/vma/vk_mem_alloc.h"
 #include "mem.h"
 #include "util.h"
-#include "raster_pipeline.h"
 
 #include <string.h>
 #include <linux/limits.h>
@@ -15,12 +14,8 @@
 
 static void _vk_render_set_dynamic_state(struct cr_context_t* ctx);
 
-static bool _create_shader_module(struct 
-                                  cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
+static bool _vk_create_shader_module(struct cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
 
-static bool 
-_create_shader_module(struct 
-                      cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
 
 static bool     
 _vk_create_raster_pipeline(
@@ -59,14 +54,8 @@ void _vk_render_set_dynamic_state(struct cr_context_t* ctx) {
     ctx->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc); 
 }
 
-
 bool 
-_create_shader_module(struct 
-                      cr_context_t* ctx, const char* filepath, VkShaderModule* o_module);
-
-bool 
-
-_create_shader_module(struct 
+_vk_create_shader_module(struct 
                       cr_context_t* ctx, const char* filepath, VkShaderModule* o_module) {
   if(!ctx || !filepath || !o_module) _PARAM_CHECK_FAIL();
   size_t file_size;
@@ -98,12 +87,12 @@ _vk_create_raster_pipeline(
 
   VkShaderModule vert_mod, frag_mod;
 
-  if(!_create_shader_module(ctx, vertex_path, &vert_mod)) {
+  if(!_vk_create_shader_module(ctx, vertex_path, &vert_mod)) {
     CR_ERROR(ctx->log, "Failed to create vertex shader byte code for file '%s'", 
              vertex_path);
     goto err;
   }
-  if(!_create_shader_module(ctx, fragment_path, &frag_mod)) {
+  if(!_vk_create_shader_module(ctx, fragment_path, &frag_mod)) {
     CR_ERROR(ctx->log, "Failed to create fragment shader byte code for file '%s'", 
              fragment_path);
     goto err;
@@ -238,8 +227,6 @@ cr_raster_pipeline_get_internal_shader_paths(const char* subpath, char** o_verte
 
   return true;
 }
-
-
 
 bool 
 cr_raster_pipeline_init(struct cr_context_t* ctx, 

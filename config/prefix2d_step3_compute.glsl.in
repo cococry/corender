@@ -1,14 +1,24 @@
 #version 450 core
 
+#cmakedefine PREFIX_OUTPUT
+#cmakedefine DO_XOR 
+
 layout (local_size_x = 256) in;
 
 layout(set = 0, binding = 7, std430) buffer SubgroupTmp {
     uint subgroup_tmp[];
 };
 
-layout(set = 0, binding = 6, std430) buffer PrefixParity {
-  uint prefix_parity[];
+#ifdef PREFIX_OUTPUT
+layout(set = 0, binding = @OUTPUT_BINDING@, std430) buffer TileOffsets {
+  uint @PREFIXED_OUTPUT@[];
 };
+#else 
+layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileOffsets {
+  uint @INPUT@[];
+};
+#endif
+
 
 
 layout(push_constant) uniform push_constant {
@@ -37,5 +47,11 @@ void main() {
   uint idx = row * pc.n_tiles_x + x;
 
   uint block_idx = row * blocks_per_row + block;
-  prefix_parity[idx] ^= subgroup_tmp[block_idx];
+
+#ifdef DO_XOR
+  @PREFIXED_OUTPUT@[idx] ^= subgroup_tmp[block_idx];
+#else 
+  @PREFIXED_OUTPUT@[idx] += subgroup_tmp[block_idx];
+#endif 
 }
+

@@ -5,6 +5,8 @@
 
 layout(local_size_x = 256) in;
 
+#cmakedefine DO_XOR 
+
 layout(set = 0, binding = 7, std430) buffer SubgroupTmp {
     uint subgroup_tmp[];
 };
@@ -20,7 +22,11 @@ layout(push_constant) uniform push_constant {
   uint fill_rule;
 } pc;
 
-shared uint subgroup_totals[8]; 
+#define SG_SIZE @SUBGROUP_SIZE@
+
+#define SGS_PER_WG 256 / SG_SIZE
+
+shared uint subgroup_totals[SGS_PER_WG]; 
 
 void main() {
   uint row   = gl_WorkGroupID.y;
@@ -33,50 +39,50 @@ void main() {
 
   uint x = subgroup_tmp[gid];
 
-  // ---------------------------------------------------
-  // Step 1: subgroup exclusive prefix
-  // ---------------------------------------------------
+#ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
+#else 
+  uint prefix = subgroupExclusiveAdd(x);
+#endif
 
-  // ---------------------------------------------------
-  // Step 2: subgroup sum
-  // ---------------------------------------------------
+#ifdef DO_XOR
   uint sg_sum = subgroupXor(x);
+#else 
+  uint prefix = subgroupAdd(x);
+#endif 
 
-  // One lane writes subgroup total
   if (subgroupElect())
     subgroup_totals[gl_SubgroupID] = sg_sum;
 
   barrier();
 
-  // ---------------------------------------------------
-  // Step 3: subgroup 0 scans subgroup totals
-  // ---------------------------------------------------
   uint sg_offset = 0;
 
-  if (gl_SubgroupID == 0)
-  {
+  if (gl_SubgroupID == 0) {
     uint lane = gl_SubgroupInvocationID;
 
-    uint val = (lane < 8) ? subgroup_totals[lane] : 0;
+    uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
 
+#ifdef DO_XOR
     uint off = subgroupExclusiveXor(val);
+#else 
+    uint off = subgroupExclusiveAdd(val);
+#endif 
 
-    if (lane < 8)
+    if (lane < SGS_PER_WG)
       subgroup_totals[lane] = off;
   }
 
   barrier();
 
-  // ---------------------------------------------------
-  // Step 4: add subgroup offset
-  // ---------------------------------------------------
   sg_offset = subgroup_totals[gl_SubgroupID];
-  prefix ^= sg_offset;
 
-  // ---------------------------------------------------
-  // Write tile prefix
-  // ---------------------------------------------------
+#ifdef DO_XOR
+  prefix ^= sg_offset;
+#else 
+  prefix += sg_offset;
+#endif
+
   subgroup_tmp[gid] = prefix;
 
 }

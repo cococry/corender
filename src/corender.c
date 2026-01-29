@@ -11,8 +11,8 @@
 
 #include "../vendor/vma/vk_mem_alloc.h"
 #include "../include/corender/corender.h"
-#include "compute_pipeline.h"
-#include "raster_pipeline.h"
+#include "compute.h"
+#include "raster.h"
 #include "util.h"
 #include "mem.h"
 
@@ -47,19 +47,19 @@ struct cr_compute_pipeline_t compute_pipeline = {0};
 static VmaAllocation _depth_allocs[CR_FRAME_COUNT];
 static uint64_t _frame_start_time = 0.0f;
 
-static bool     _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
-static bool     _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
-static bool     _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
-static bool     _create_logical_device(struct cr_context_t* ctx);
-static bool     _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
-static bool     _create_upload_context(struct cr_context_t* ctx, struct cr_upload_context_t* o_upload, uint32_t graphics_queue_family);
-static bool     _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family); 
-static bool     _create_render_raster_pipelines(struct cr_context_t* ctx);
-static bool     _create_render_compute_pipeline(struct cr_context_t* ctx);
-static bool     _create_shader_module(struct cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
-static bool     _create_raster_pipeline(struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
+static bool                   _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
+static bool                   _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
+static bool                   _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
+static bool                   _create_logical_device(struct cr_context_t* ctx);
+static bool                   _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h);
+static bool                   _create_upload_context(struct cr_context_t* ctx, struct cr_upload_context_t* o_upload, uint32_t graphics_queue_family);
+static bool                   _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, uint32_t graphics_queue_family); 
+static bool                   _create_render_raster_pipelines(struct cr_context_t* ctx);
+static bool                   _create_render_compute_pipeline(struct cr_context_t* ctx);
+static bool                   _create_shader_module(struct cr_context_t* ctx, const char* filepath, VkShaderModule* o_module); 
+static bool                   _create_raster_pipeline(struct cr_context_t* ctx, VkPipelineVertexInputStateCreateInfo vertex_input_state,
                                  const char* shader_subpath, VkPipeline* o_raster_pipeline); 
-static bool     _pick_physical_device(struct cr_context_t* ctx);
+static bool                   _pick_physical_device(struct cr_context_t* ctx);
 
 static bool                   _renderer_handle_resize(struct cr_context_t* ctx);
 
@@ -163,7 +163,6 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
 
   cr_draw_set_clear_color(ctx, (vec4){0.1f, 0.1f, 0.1f, 1.0f});
 
-
   return true;
 
 err:
@@ -252,20 +251,39 @@ _create_logical_device(struct cr_context_t* ctx) {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
   };
 
-  VkPhysicalDeviceFeatures enabledFeatures = {};
-  enabledFeatures.multiDrawIndirect = ctx->_have_multi_draw_indirect;
+  VkPhysicalDeviceFeatures enabled_features = {};
+  enabled_features.multiDrawIndirect = ctx->_have_multi_draw_indirect;
+
   VkPhysicalDeviceSynchronization2Features sync2 = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
     .synchronization2 = VK_TRUE
   };
 
-  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroupControl = {
+  VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_control = {
     .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT,
     .pNext = NULL,
     .subgroupSizeControl = VK_TRUE,
     .computeFullSubgroups = VK_TRUE
   };
-  subgroupControl.pNext = &sync2;
+
+
+  VkPhysicalDeviceFeatures2 features2 = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+    .pNext = &subgroup_control
+  };
+
+
+  vkGetPhysicalDeviceFeatures2(ctx->phys_dev, &features2);
+  
+  ctx->_have_subgroup_size_control = subgroup_control.subgroupSizeControl;
+
+  if (!subgroup_control.subgroupSizeControl) {
+    CR_WARN(ctx->log, "Subgroup size control is supported, will use native subgroup size: %i\n", ctx->_subgroup_size);
+  } else {
+    ctx->_subgroup_size = 32;
+  ;}
+
+  subgroup_control.pNext = &sync2;
 
   VkDeviceCreateInfo device_info = {
     .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -273,8 +291,8 @@ _create_logical_device(struct cr_context_t* ctx) {
     .queueCreateInfoCount = queue_count, 
     .enabledExtensionCount = ctx->surf.surf ? 1 : 0, 
     .ppEnabledExtensionNames = ctx->surf.surf ? device_exts : NULL,
-    .pEnabledFeatures = &enabledFeatures,
-    .pNext = &subgroupControl,
+    .pEnabledFeatures = &enabled_features,
+    .pNext = &subgroup_control,
   };
 
 
@@ -988,13 +1006,15 @@ bool _pick_physical_device(struct cr_context_t* ctx) {
 
         vkGetPhysicalDeviceProperties2(dev, &props2);
 
+        ctx->_subgroup_size = subgroup.subgroupSize;
+
         bool have_subgroups =
           ((subgroup.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) &&
-          (subgroup.supportedOperations & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT)) && subgroup.subgroupSize == 32;
+          (subgroup.supportedOperations & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT)); 
         if(!have_subgroups) {
-        CR_WARN(
+        CR_ERROR(
           ctx->log, 
-          "Supgroups ops are not supported, will fallback to shared memory prefix sum in tile based vector rendering.");
+          "Supgroup operations are not supported by physical device, compute pipeline will not function.");
         }
       }
 
