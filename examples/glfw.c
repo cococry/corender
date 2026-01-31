@@ -98,9 +98,9 @@ int main() {
     uint32_t rng = 0x12345678;
 
 
-  static int offsets_x[1000]; 
-  static int offsets_y[1000];
-  for(uint32_t i = 0; i < 1000; i++) {
+  static int offsets_x[100]; 
+  static int offsets_y[100];
+  for(uint32_t i = 0; i < 100; i++) {
     offsets_x[i] = rand() % 1280;
     offsets_y[i] = rand() % 720;
   }
@@ -109,21 +109,21 @@ int main() {
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-    for(uint32_t i = 0; i < 1000; i++) {
-      int offset_x = offsets_x[i];
-      int offset_y = offsets_y[i];
+    for(uint32_t i = 0; i < 1; i++) {
+      int offset_x = 0;
+      int offset_y = 0;
       cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { offset_x, size + offset_y}, .p1 = {size + offset_x ,size + offset_y} });
       cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size + offset_x, size + offset_y}, .p1 = {size/2.0f + offset_x, offset_y} });
       cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size/2.0f + offset_x, offset_y}, .p1 = {offset_x, size + offset_y} });
     }
 
-    float add = 0.005f; 
+    float add = 0.5f; 
     if(up)
       size += add;
     else 
       size -= add;
 
-    if(size >= 50.0f && up) up = false;
+    if(size >= 500.0f && up) up = false;
 
     if(size <= 10 && !up) up = true;
 

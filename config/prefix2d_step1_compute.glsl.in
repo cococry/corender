@@ -19,14 +19,15 @@ layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileNSegments {
     uint @INPUT@[];
 };
 
-layout(set = 0, binding = 3, std430) buffer SubgroupTmp {
+layout(set = 0, binding = 8, std430) buffer SubgroupTmp {
     uint subgroup_tmp[];
 };
 
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
-  uint tile_size;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
 
   uint n_segments;
   uint n_paths;
@@ -46,12 +47,12 @@ void main() {
   uint row = gl_WorkGroupID.y;
 
   uint x = block * 64+ lid;
-  uint blocks_per_row = (pc.n_tiles_x + 63) / 64;
+  uint blocks_per_row = (pc.@DIM_X@ + 63) / 64;
   
-  uint gid = row * pc.n_tiles_x + x; 
+  uint gid = row * pc.@DIM_X@ + x; 
 
   uint prefix_val = 0u;
-  if (x < pc.n_tiles_x)
+  if (x < pc.@DIM_X@)
     prefix_val = @INPUT@[gid];
 
 #ifdef DO_XOR
@@ -99,14 +100,14 @@ void main() {
 #endif
 
 #ifdef PREFIX_OUTPUT 
-  if (x < pc.n_tiles_x)
-    @INPUT@[gid] = prefix;
-#else 
-  if (x < pc.n_tiles_x)
+  if (x < pc.@DIM_X@)
     @PREFIXED_OUTPUT@[gid] = prefix;
+#else 
+  if (x < pc.@DIM_X@)
+    @INPUT@[gid] = prefix;
 #endif 
 
-  if (lid == 63 || x == pc.n_tiles_x - 1)
+  if(block < blocks_per_row && (lid == 63 || x == pc.@DIM_X@ - 1))
   {
 #ifdef DO_XOR 
     subgroup_tmp[row * blocks_per_row + block] = prefix ^ prefix_val;

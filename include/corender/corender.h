@@ -58,6 +58,7 @@ struct cr_swapchain_t {
   VkImageView* img_views;
   VkImageView* img_views_depth;
   VkImage* depth_images;
+  VkFence* imgs_in_flight;
 };
 
 struct cr_frameloop_t {

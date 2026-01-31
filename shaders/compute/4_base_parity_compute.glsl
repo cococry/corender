@@ -14,26 +14,32 @@ layout(set = 0, binding = 0, std430) readonly buffer Segments {
   Segment segments[];
 };
 
-layout(set = 0, binding = 1, std430) readonly buffer TileNSegments {
+layout(set = 0, binding = 6, std430) readonly buffer TileNSegments {
   uint tile_n_segments[];
 };
 
-layout(set = 0, binding = 2, std430) readonly buffer TileOffsets {
+layout(set = 0, binding = 7, std430) readonly buffer TileOffsets {
   uint tile_offsets[];
 };
 
-layout(set = 0, binding = 4, std430) readonly buffer TileSegments {
+layout(set = 0, binding = 5, std430) readonly buffer TileSegments {
   uint tile_segments[];
 };
 
-layout(set = 0, binding = 6, std430) writeonly buffer PrefixParity {
+layout(set = 0, binding = 9, std430) writeonly buffer PrefixParity {
   uint prefix_parity[];
 };
 
-layout(push_constant) uniform PC {
+
+layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
   uint n_tiles_x, n_tiles_y;
-  uint tile_size;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
+
+  uint n_segments;
+  uint n_paths;
+  uint fill_rule;
 } pc;
 void main()
 {

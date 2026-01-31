@@ -7,14 +7,15 @@ layout(local_size_x = 64) in;
 
 #cmakedefine DO_XOR 
 
-layout(set = 0, binding = 3, std430) buffer SubgroupTmpBinning {
+layout(set = 0, binding = 8, std430) buffer SubgroupTmpBinning {
     uint subgroup_tmp[];
 };
 
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
-  uint tile_size;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
 
   uint n_segments;
   uint n_paths;
@@ -33,12 +34,12 @@ void main() {
   uint lid = gl_LocalInvocationID.x;
   uint groupID = gl_WorkGroupID.x;
 
-  uint n_tiles  = pc.n_tiles_x * pc.n_tiles_y;
+  uint n_tiles  = pc.@DIM_X@ * pc.@DIM_Y@;
   uint n_groups = (n_tiles + 63) / 64;
 
-  if (gid >= n_groups) return;
+  bool is_active = gid < n_groups;
 
-  uint x = subgroup_tmp[gid];
+  uint x = is_active ? subgroup_tmp[gid] : 0;
 
 #ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
@@ -85,6 +86,7 @@ void main() {
   prefix += sg_offset;
 #endif 
 
-  subgroup_tmp[gid] = prefix;
+  if(is_active)
+    subgroup_tmp[gid] = prefix;
 }
 

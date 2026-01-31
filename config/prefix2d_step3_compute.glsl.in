@@ -5,7 +5,7 @@
 
 layout (local_size_x = 64) in;
 
-layout(set = 0, binding = 3, std430) buffer SubgroupTmp {
+layout(set = 0, binding = 8, std430) buffer SubgroupTmp {
     uint subgroup_tmp[];
 };
 
@@ -22,7 +22,8 @@ layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileOffsets {
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
-  uint tile_size;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
 
   uint n_segments;
   uint n_paths;
@@ -34,20 +35,21 @@ void main() {
   uint block = gl_WorkGroupID.x;
   uint row = gl_WorkGroupID.y;
   uint lane = gl_LocalInvocationID.x;
-  uint blocks_per_row = (pc.n_tiles_x + 63) / 64;
+  uint blocks_per_row = (pc.@DIM_X@ + 63) / 64;
 
   uint x = block * 64 + lane;
 
-  if(x >= pc.n_tiles_x) return;
-
-  uint idx = row * pc.n_tiles_x + x;
+  uint idx = row * pc.@DIM_X@ + x;
 
   uint block_idx = row * blocks_per_row + block;
 
+  bool is_active = block_idx < blocks_per_row * pc.@DIM_Y@ && x < pc.@DIM_X@;
+  if(is_active) {
 #ifdef DO_XOR
-  @PREFIXED_OUTPUT@[idx] ^= subgroup_tmp[block_idx];
+    @PREFIXED_OUTPUT@[idx] ^= subgroup_tmp[block_idx];
 #else 
-  @PREFIXED_OUTPUT@[idx] += subgroup_tmp[block_idx];
+    @PREFIXED_OUTPUT@[idx] += subgroup_tmp[block_idx];
 #endif 
+  }
 }
 

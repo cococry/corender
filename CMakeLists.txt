@@ -48,28 +48,49 @@ set(SUBGROUP_SIZES 4 8 16 32 64)
 
 set(PIPELINE_bin
     bin # name
-    tile_n_segments # input buffer
+    macrotile_n_segments # input buffer
     1 # input buffer binding
     2 # output buffer binding
+    macrotile_offsets # output buffer
+    1 # enable 1d
+    0 # enable 2d
+    0 # if the prefix pass is Xor (else we just add)
+    n_macrotiles_x
+    n_macrotiles_y
+)
+
+set(PIPELINE_bin_fine
+    bin_fine # name
+    tile_n_segments # input buffer
+    6 # input buffer binding
+    7 # output buffer binding
     tile_offsets # output buffer
     1 # enable 1d
     0 # enable 2d
     0 # if the prefix pass is Xor (else we just add) 
+    n_tiles_x 
+    n_tiles_y
 )
+
+
 
 set(PIPELINE_parity
     parity
     prefix_parity
-    6
+    9
     -1
     -1
     0
     1
     1
+    n_tiles_x 
+    n_tiles_y
 )
+
 
 set(PIPELINE_LIST
     PIPELINE_bin
+    PIPELINE_bin_fine
     PIPELINE_parity
 )
 
@@ -105,6 +126,8 @@ foreach(TEMPLATE IN LISTS PREFIX_TEMPLATES)
         list(GET PIPELINE 5 ENABLE_1D)
         list(GET PIPELINE 6 ENABLE_2D)
         list(GET PIPELINE 7 DO_XOR)
+        list(GET PIPELINE 8 DIM_X)
+        list(GET PIPELINE 9 DIM_Y)
 
         if(PREFIX_DIM STREQUAL "prefix1d" AND NOT ENABLE_1D)
             continue()

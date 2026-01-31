@@ -16,14 +16,15 @@ layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileOffsets {
 };
 #endif
 
-layout(set = 0, binding = 3, std430) buffer SubgroupTmp {
+layout(set = 0, binding = 8, std430) buffer SubgroupTmp {
   uint subgroup_tmp[];
 };
 
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
-  uint tile_size;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
 
   uint n_segments;
   uint n_paths;
@@ -36,11 +37,13 @@ void main() {
   uint gid = gl_GlobalInvocationID.x;
   uint wid = gl_WorkGroupID.x;
 
-  if(gid >= pc.n_tiles_x * pc.n_tiles_y) return;
+  bool is_active = gid < pc.@DIM_X@ * pc.@DIM_Y@;
 
+  if(is_active) {
 #ifdef DO_XOR 
   @PREFIXED_OUTPUT@[gid] ^= subgroup_tmp[gid / 64];
 #else 
   @PREFIXED_OUTPUT@[gid] += subgroup_tmp[gid / 64];
 #endif 
+  }
 }

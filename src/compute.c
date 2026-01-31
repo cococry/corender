@@ -512,22 +512,20 @@ cr_compute_pipeline_init(
   uint32_t tiles_x = (screen_w + tile_size - 1) / tile_size;
   uint32_t tiles_y = (screen_h + tile_size - 1) / tile_size;
 
-  uint32_t subgroup_size = 32;
-
-  uint32_t n_rows = tiles_y * info->tile_size;
-
-  uint32_t subgroups_per_row =
-    (tiles_x + subgroup_size - 1) / subgroup_size;
-
-  uint32_t total_prefix_parity_size = n_rows * subgroups_per_row;
+  uint macrotiles_x = DIV_UP(tiles_x, 8);
+  uint macrotiles_y = DIV_UP(tiles_y, 8);
 
   struct cr_compute_pipeline_layout_binding_t bindings[] = {
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "tile_n_segments"       }, // 1
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "tile_offsets"          }, // 2
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "subgroup_tmp"          }, // 3
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y * 32,   .name = "tile_segments"         }, // 4
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "tile_cursor"           }, // 5
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,        .name = "prefix_parity"         }, // 6
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_n_segments"  },   //  1
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_offsets"     },   //  2
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y * 1024,   .name = "macrotile_segments"    },   //  3
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y ,   .name = "macrotile_cursor"      },   //  4
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y * 256,             .name = "tile_segments"         },   //  5
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y ,                 .name = "tile_n_segments"       },   //  6
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y ,                 .name = "tile_offsets"          },   //  7
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y ,                 .name = "subgroup_tmp"          },   //  8
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y ,                 .name = "prefix_parity"         },   //  9
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y ,                 .name = "tile_cursor"         },    //  10
   };
 
   if(!_vk_pipeline_layout_init(ctx, pipeline, bindings, sizeof(bindings) / sizeof(bindings[0]))) {
@@ -657,12 +655,13 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
     char step3[PATH_MAX];
     sprintf(step3, "%s_prefix2d_step3_sg%i", pipeline_stage, ctx->_subgroup_size);
 
+    uint blocks_per_row = DIV_UP(n_elements_x, WG);
     _vk_dispatch_compute(
       frame,
       _kernel_by_name(ctx, pipeline, step1), 
       swapchain_image_idx,
       pc,
-      DIV_UP(n_elements_x, WG),
+      blocks_per_row,
       n_rows,
       1,
       (struct cr_gpu_buffer_t[]){
@@ -672,13 +671,13 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
       2
     );
 
-    if(n_elements_x > WG) {
+    if(blocks_per_row > 1) {
       _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, step2), 
         swapchain_image_idx,
         pc,
-        DIV_UP(n_elements_x, WG),
+        DIV_UP(blocks_per_row, WG),
         n_rows, 
         1,
         (struct cr_gpu_buffer_t[]){
@@ -691,7 +690,7 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
         _kernel_by_name(ctx, pipeline, step3), 
         swapchain_image_idx,
         pc,
-        DIV_UP(n_elements_x, WG),
+        blocks_per_row,
         n_rows,
         1,
         (struct cr_gpu_buffer_t[]){
@@ -713,7 +712,7 @@ cr_compute_pipeline_dispatch(
   uint32_t frame_idx,
   uint32_t swapchain_image_idx
 ) {
-  struct cr_frame_t* frame = &ctx->frameloop.frames[frame_idx];
+   struct cr_frame_t* frame = &ctx->frameloop.frames[frame_idx];
 
   if(pipeline->dynamic[swapchain_image_idx].n_segments > 0) {
     cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].segment_data,
@@ -729,6 +728,8 @@ cr_compute_pipeline_dispatch(
 
   uint32_t tiles_x = (screen_w + tile_size - 1) / tile_size;
   uint32_t tiles_y = (screen_h + tile_size - 1) / tile_size;
+  uint32_t n_macrotiles_x = DIV_UP(tiles_x, 8);
+  uint32_t n_macrotiles_y =  DIV_UP(tiles_y, 8);
 
   uint32_t n_segments = pipeline->dynamic[swapchain_image_idx].n_segments;
 
@@ -736,19 +737,20 @@ cr_compute_pipeline_dispatch(
     .tile_size = tile_size,
     .n_tiles_x = tiles_x,
     .n_tiles_y = tiles_y,
+    .n_macrotiles_x = n_macrotiles_x,
+    .n_macrotiles_y = n_macrotiles_y,
     .n_segments = n_segments,
     .fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD,
     .screen_w = screen_w,
     .screen_h = screen_h,
-    .n_paths = pipeline->dynamic[swapchain_image_idx].n_paths
+    .n_paths = pipeline->dynamic[swapchain_image_idx].n_paths,
+    .macrotile_size = tile_size * 8, 
   };
 
-  // Clear temporary buffers
   for(uint32_t i = 0; i < pipeline->n_buffers; i++) {
     cr_mem_clear_gpu_buffer(ctx, frame, &pipeline->buffers[i].buf);
   }
 
-  // Clear the storage image pixels 
   cr_mem_clear_storage_image_color(ctx, frame, &pipeline->storage_img, (float[4]){0.1f, 0.1f, 0.1f, 1.0f});
 
   VkImageMemoryBarrier2 to_compute = {
@@ -778,19 +780,35 @@ cr_compute_pipeline_dispatch(
 
 
   const uint32_t WG = 64;
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_count"), 
+  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_macro_count"), 
                        swapchain_image_idx, &pc, DIV_UP(n_segments, WG), 1, 1,
-                       (struct cr_gpu_buffer_t[]){*_buffer_by_name(ctx, pipeline, "tile_n_segments")},
+                       (struct cr_gpu_buffer_t[]){*_buffer_by_name(ctx, pipeline, "macrotile_n_segments")},
                        1); 
 
-  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, tiles_x * tiles_y, 1, "bin", "subgroup_tmp", "tile_offsets");
+  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, n_macrotiles_x * n_macrotiles_y, 1, "bin", "subgroup_tmp", "macrotile_offsets");
 
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_scatter"),
+  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_macro_scatter"),
                        swapchain_image_idx, &pc, DIV_UP(n_segments, WG), 1, 1,
                        (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "tile_segments"),
-                       *_buffer_by_name(ctx, pipeline, "tile_cursor")
+                       *_buffer_by_name(ctx, pipeline, "macrotile_segments"),
+                       *_buffer_by_name(ctx, pipeline, "macrotile_cursor"),
                        }, 2);
+ 
+  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_micro_count"),
+                       swapchain_image_idx, &pc, n_macrotiles_x, n_macrotiles_y, 1,
+                       (struct cr_gpu_buffer_t[]){
+                       *_buffer_by_name(ctx, pipeline, "tile_n_segments"),
+                         }, 1);
+ 
+  cr_mem_clear_gpu_buffer(ctx, frame, _buffer_by_name(ctx, pipeline, "subgroup_tmp")); 
+  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, tiles_x * tiles_y , 1, "bin_fine", "subgroup_tmp", "tile_offsets");
+
+  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_micro_scatter"),
+                       swapchain_image_idx, &pc, n_macrotiles_x, n_macrotiles_y, 1,
+                       (struct cr_gpu_buffer_t[]){
+                       *_buffer_by_name(ctx, pipeline, "tile_segments"),
+                       *_buffer_by_name(ctx, pipeline, "tile_cursor"),
+                         }, 2);
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "base_parity"), 
                        swapchain_image_idx, &pc, pc.n_tiles_x, pc.n_tiles_y, 1, 
@@ -800,6 +818,7 @@ cr_compute_pipeline_dispatch(
                        1
                        );
 
+  cr_mem_clear_gpu_buffer(ctx, frame, _buffer_by_name(ctx, pipeline, "subgroup_tmp")); 
   _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, true, tiles_x, tiles_y, "parity", "subgroup_tmp", "prefix_parity");
   
   _vk_dispatch_compute(

@@ -18,7 +18,7 @@ layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileNSegments {
     uint @INPUT@[];
 };
 
-layout(set = 0, binding = 3, std430) buffer SubgroupTmpBinning {
+layout(set = 0, binding = 8, std430) buffer SubgroupTmpBinning {
     uint subgroup_tmp[];
 };
 
@@ -26,7 +26,8 @@ layout(set = 0, binding = 3, std430) buffer SubgroupTmpBinning {
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
-  uint tile_size;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
 
   uint n_segments;
   uint n_paths;
@@ -45,7 +46,7 @@ void main() {
   uint lid = gl_LocalInvocationID.x;
   uint group_id = gl_WorkGroupID.x;
 
-  uint x = (gid < pc.n_tiles_x * pc.n_tiles_y) ? @INPUT@[gid] : 0;
+  uint x = (gid < pc.@DIM_X@ * pc.@DIM_Y@) ? @INPUT@[gid] : 0;
 
 #ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
@@ -92,10 +93,10 @@ void main() {
 #endif
 
 #ifdef PREFIX_OUTPUT
-  if (gid < pc.n_tiles_x * pc.n_tiles_y)
+  if (gid < pc.@DIM_X@ * pc.@DIM_Y@)
     @PREFIXED_OUTPUT@[gid] = prefix;
 #else 
-  if (gid < pc.n_tiles_x * pc.n_tiles_y)
+  if (gid < pc.@DIM_X@ * pc.@DIM_Y@)
     @INPUT@[gid] = prefix;
 #endif 
 

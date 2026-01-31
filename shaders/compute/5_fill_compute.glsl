@@ -12,36 +12,42 @@ layout(set = 0, binding = 0, std430) readonly buffer Segments {
   Segment segments[];
 };
 
-layout(set = 0, binding = 1, std430) buffer TilenSegments {
+layout(set = 0, binding = 6, std430) buffer TilenSegments {
     uint tile_n_segments[];
 };
 
-layout(set = 0, binding = 2, std430) buffer TileOffsets {
+layout(set = 0, binding = 7, std430) buffer TileOffsets {
     uint tile_offsets[];
 };
 
-layout(set = 0, binding = 4, std430) buffer TileSegments {
+layout(set = 0, binding = 5, std430) buffer TileSegments {
     uint tile_segments[];
 };
 
-layout(set = 0, binding = 6, std430) readonly buffer PrefixParity {
+layout(set = 0, binding = 9, std430) readonly buffer PrefixParity {
   uint prefix_parity[]; 
 };
 
-layout(set = 0, binding = 7, rgba8) uniform image2D outImage;
+layout(set = 0, binding = 11, rgba8) uniform image2D outImage;
 
-layout(push_constant) uniform PC {
+layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
   uint n_tiles_x, n_tiles_y;
-  uint tile_size;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
+
+  uint n_segments;
+  uint n_paths;
+  uint fill_rule;
 } pc;
+
 
 const uint MAX_SEGMENTS_PER_TILE = 32;
 const uint SUBGROUP_SIZE = 32;
 const uint MAX_SUBGROUPS = 32;
 
 void main() {
-  uvec2 tile = gl_WorkGroupID.xy;
+    uvec2 tile = gl_WorkGroupID.xy;
   uint scan  = gl_LocalInvocationID.y;
 
   int y = int(tile.y * pc.tile_size + scan);

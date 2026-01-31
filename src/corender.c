@@ -13,6 +13,7 @@
 #include "../include/corender/corender.h"
 #include "compute.h"
 #include "raster.h"
+#include "raster.h"
 #include "util.h"
 #include "mem.h"
 
@@ -20,7 +21,6 @@
 
 #define _MAX_BINDING_DESC 2
 #define _MAX_VERT_ATTRS 5
-#define _MAX_STAGING_RING_MEM 1024 * 1024 * 256
 
 struct _swapchain_info_t {
   VkPresentModeKHR present_modes[16];
@@ -44,7 +44,7 @@ struct cr_raster_pipeline_t instanced_raster_pipeline = {0};
 struct cr_raster_pipeline_t vertex_raster_pipeline    = {0};
 struct cr_compute_pipeline_t compute_pipeline = {0};
 
-static VmaAllocation _depth_allocs[CR_FRAME_COUNT];
+static VmaAllocation* _depth_allocs = NULL;
 static uint64_t _frame_start_time = 0.0f;
 
 static bool                   _create_log_context(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);
@@ -316,8 +316,11 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   if(o_swapchain->img_views) free(o_swapchain->img_views);
   if(o_swapchain->img_views_depth) free(o_swapchain->img_views_depth);
   if(o_swapchain->depth_images) free(o_swapchain->depth_images);
+  if(o_swapchain->imgs_in_flight) free(o_swapchain->imgs_in_flight);
+
 
   memset(o_swapchain, 0, sizeof(*o_swapchain));
+  
 
   struct _swapchain_info_t info;
   if(!_get_swapchain_info_from_physical_device(ctx, ctx->phys_dev, ctx->surf.surf, &info)) {
@@ -332,6 +335,10 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   uint32_t n_imgs = info.caps.minImageCount + 1;
   if(info.caps.maxImageCount > 0 && n_imgs > info.caps.maxImageCount) {
     n_imgs = info.caps.maxImageCount;
+  }
+  if(!_depth_allocs || n_imgs != ctx->swapchain.n_imgs) {
+    if(_depth_allocs) free(_depth_allocs);
+    _depth_allocs = calloc(n_imgs, sizeof(*_depth_allocs));
   }
 
   VkSwapchainCreateInfoKHR create_info = {
@@ -371,6 +378,10 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   o_swapchain->img_views = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImageView));
   o_swapchain->img_views_depth = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImageView));
   o_swapchain->depth_images = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkImage));
+  o_swapchain->imgs_in_flight = cr_util_alloc(ctx, o_swapchain->n_imgs, sizeof(VkFence));
+  for (int i = 0; i < o_swapchain->n_imgs; i++)
+    o_swapchain->imgs_in_flight[i] = VK_NULL_HANDLE;
+
 
   o_swapchain->present_mode = present_mode;
   o_swapchain->fmt = fmt.format;
@@ -1043,10 +1054,7 @@ _render_handle_resize(struct cr_context_t* ctx) {
   }
 
 
-
   free(ctx->frameloop.fbs);
-
-
   vkDestroySwapchainKHR(ctx->logical_dev, ctx->swapchain.swapchain_handle, NULL);
 
   if(!_create_swapchain(ctx, &ctx->swapchain, ctx->pending_resize.width, ctx->pending_resize.height)) goto err; 
@@ -1272,6 +1280,20 @@ cr_draw_begin(struct cr_context_t* ctx) {
     &ctx->_swapchain_img_idx
   );
 
+  /* Wait if this image is already being used */
+  if (ctx->swapchain.imgs_in_flight[ctx->_swapchain_img_idx] != VK_NULL_HANDLE) {
+    vkWaitForFences(
+      ctx->logical_dev,
+      1,
+      &ctx->swapchain.imgs_in_flight[ctx->_swapchain_img_idx],
+      VK_TRUE,
+      UINT64_MAX
+    );
+  }
+
+/* Mark the image as now being used by this frame */
+ctx->swapchain.imgs_in_flight[ctx->_swapchain_img_idx] = frame->in_flight_fence;
+
 
   if (res == VK_ERROR_OUT_OF_DATE_KHR) {
     ctx->pending_resize.pending = true;
@@ -1379,60 +1401,16 @@ cr_draw_end(struct cr_context_t* ctx) {
 
   _VK_CHECK(ctx, vkBeginCommandBuffer(frame->cmd_buf, &begin_info));
 
-
+  //cr_raster_pipeline_batching_commit(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
+  cr_compute_pipeline_dispatch(ctx, &compute_pipeline, ctx->frameloop.frame_idx, ctx->_swapchain_img_idx);
   
-  cr_compute_pipeline_dispatch(ctx, &compute_pipeline,ctx->frameloop.frame_idx, ctx->_swapchain_img_idx); 
-  
-  /*
-  cr_raster_pipeline_batching_upload(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
-  cr_raster_pipeline_batching_upload(ctx, &vertex_raster_pipeline, ctx->frameloop.frame_idx);
 
-  VkClearValue clears[2];
-  clears[0].color = (VkClearColorValue){{0.1, 0.1, 0.1, 1}};
-  clears[1].depthStencil = (VkClearDepthStencilValue){1.0f, 0};
-
-  VkRenderPassBeginInfo render_pass = {
-    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-    .renderPass = ctx->frameloop.crnt_pass,
-    .framebuffer = ctx->frameloop.fbs[ctx->_swapchain_img_idx],
-    .renderArea = {
-      .offset = {0, 0},
-      .extent = ctx->swapchain.dimensions
-    },
-    .clearValueCount = 2,
-    .pClearValues = clears
-  };
-
-  vkCmdBeginRenderPass(frame->cmd_buf, &render_pass, VK_SUBPASS_CONTENTS_INLINE);
-
-
-  cr_raster_pipeline_batching_commit(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
-  cr_raster_pipeline_batching_commit(ctx, &vertex_raster_pipeline, ctx->frameloop.frame_idx);
-
-  vkCmdEndRenderPass(frame->cmd_buf);
-  _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
-
-
-  VkPipelineStageFlags pipeline_flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-  VkSubmitInfo submit_info = {
-    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .waitSemaphoreCount = 1, 
-    .pWaitSemaphores = &frame->image_available,
-    .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &frame->render_finished_per_image[ctx->_swapchain_img_idx],
-    .pWaitDstStageMask  = &pipeline_flags, 
-    .commandBufferCount = 1,
-    .pCommandBuffers = &frame->cmd_buf,
-  };
-  *_VK_CHECK(ctx, vkQueueSubmit(ctx->graphics_queue, 1, &submit_info, frame->in_flight_fence));
-  */
-
+  //cr_raster_pipeline_batching_commit(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
 
   _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
 
   VkPipelineStageFlags wait_stage =
-    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
 VkSubmitInfo submit_info = {
     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
