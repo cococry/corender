@@ -1,7 +1,8 @@
 CMakeFiles/corender.dir/src/raster.c.o: \
- /home/luca/dev/corender/src/raster.c /usr/include/stdc-predef.h \
- /home/luca/dev/corender/src/raster.h /usr/include/vulkan/vulkan_core.h \
- /usr/include/vulkan/vk_platform.h \
+ /home/luca/dev/corender-bruteforce/src/raster.c \
+ /usr/include/stdc-predef.h \
+ /home/luca/dev/corender-bruteforce/src/raster.h \
+ /usr/include/vulkan/vulkan_core.h /usr/include/vulkan/vk_platform.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stddef.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/libc-header-start.h \
@@ -29,7 +30,7 @@ CMakeFiles/corender.dir/src/raster.c.o: \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std_decode.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
- /home/luca/dev/corender/src/util.h /usr/include/stdio.h \
+ /home/luca/dev/corender-bruteforce/src/util.h /usr/include/stdio.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdarg.h \
  /usr/include/bits/types/__fpos_t.h /usr/include/bits/types/__mbstate_t.h \
  /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
@@ -53,9 +54,9 @@ CMakeFiles/corender.dir/src/raster.c.o: \
  /usr/include/bits/atomic_wide_counter.h /usr/include/bits/struct_mutex.h \
  /usr/include/bits/struct_rwlock.h /usr/include/alloca.h \
  /usr/include/bits/stdlib-bsearch.h /usr/include/bits/stdlib-float.h \
- /home/luca/dev/corender/src/mem.h \
+ /home/luca/dev/corender-bruteforce/src/mem.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdbool.h \
- /home/luca/dev/corender/src/../include/corender/corender.h \
+ /home/luca/dev/corender-bruteforce/src/../include/corender/corender.h \
  /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
  /usr/include/cglm/cglm.h /usr/include/cglm/common.h /usr/include/math.h \
@@ -202,7 +203,7 @@ CMakeFiles/corender.dir/src/raster.c.o: \
  /usr/include/cglm/sphere.h /usr/include/cglm/ease.h \
  /usr/include/cglm/curve.h /usr/include/cglm/bezier.h \
  /usr/include/cglm/ray.h /usr/include/cglm/affine2d.h \
- /home/luca/dev/corender/src/../vendor/vma/vk_mem_alloc.h \
+ /home/luca/dev/corender-bruteforce/src/../vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
  /usr/include/string.h /usr/include/bits/types/locale_t.h \
  /usr/include/bits/types/__locale_t.h /usr/include/strings.h \

@@ -1,6 +1,7 @@
 CMakeFiles/corender.dir/src/compute.c.o: \
- /home/luca/dev/corender/src/compute.c /usr/include/stdc-predef.h \
- /home/luca/dev/corender/src/compute.h \
+ /home/luca/dev/corender-bruteforce/src/compute.c \
+ /usr/include/stdc-predef.h \
+ /home/luca/dev/corender-bruteforce/src/compute.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -30,7 +31,7 @@ CMakeFiles/corender.dir/src/compute.c.o: \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std_decode.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
- /home/luca/dev/corender/src/../include/corender/corender.h \
+ /home/luca/dev/corender-bruteforce/src/../include/corender/corender.h \
  /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
  /usr/include/stdio.h \
@@ -202,10 +203,10 @@ CMakeFiles/corender.dir/src/compute.c.o: \
  /usr/include/cglm/sphere.h /usr/include/cglm/ease.h \
  /usr/include/cglm/curve.h /usr/include/cglm/bezier.h \
  /usr/include/cglm/ray.h /usr/include/cglm/affine2d.h \
- /home/luca/dev/corender/src/mem.h \
- /home/luca/dev/corender/src/../vendor/vma/vk_mem_alloc.h \
+ /home/luca/dev/corender-bruteforce/src/mem.h \
+ /home/luca/dev/corender-bruteforce/src/../vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
- /home/luca/dev/corender/src/util.h /usr/include/errno.h \
+ /home/luca/dev/corender-bruteforce/src/util.h /usr/include/errno.h \
  /usr/include/bits/errno.h /usr/include/linux/errno.h \
  /usr/include/asm/errno.h /usr/include/asm-generic/errno.h \
  /usr/include/asm-generic/errno-base.h /usr/include/linux/limits.h \

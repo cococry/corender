@@ -1,7 +1,7 @@
 CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o: \
- /home/luca/dev/corender/vendor/vma/vma_impl.cpp \
+ /home/luca/dev/corender-bruteforce/vendor/vma/vma_impl.cpp \
  /usr/include/stdc-predef.h \
- /home/luca/dev/corender/vendor/vma/vk_mem_alloc.h \
+ /home/luca/dev/corender-bruteforce/vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vk_platform.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stddef.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdint.h \

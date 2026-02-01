@@ -1,27 +1,15 @@
 #version 450
 
-#define PREFIX_OUTPUT
-/* #undef DO_XOR */
-
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
 layout(local_size_x = 64) in;
 
-#ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 7, std430) buffer TileOffsets {
-    uint tile_offsets[];
-};
-#endif
-
-layout(set = 0, binding = 6, std430) buffer TileNSegments {
-    uint tile_n_segments[];
-};
+/* #undef DO_XOR */
 
 layout(set = 0, binding = 8, std430) buffer SubgroupTmpBinning {
-    uint subgroup_tmp[];
+  uint subgroup_tmp[];
 };
-
 
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
@@ -35,18 +23,27 @@ layout(push_constant) uniform push_constant {
   uint fill_rule;
 } pc;
 
-#define SG_SIZE 64
+#define SG_SIZE 4
 
 #define SGS_PER_WG 64 / SG_SIZE
 
 shared uint subgroup_totals[SGS_PER_WG]; 
 
 void main() {
-  uint gid = gl_GlobalInvocationID.x;
   uint lid = gl_LocalInvocationID.x;
-  uint group_id = gl_WorkGroupID.x;
+  if(lid < SGS_PER_WG)
+    subgroup_totals[lid] = 0;
+  barrier();
 
-  uint x = (gid < pc.n_tiles_x * pc.n_tiles_y) ? tile_n_segments[gid] : 0;
+  uint gid = gl_GlobalInvocationID.x;
+  uint groupID = gl_WorkGroupID.x;
+
+  uint n_tiles  = pc.n_macrotiles_x * pc.n_macrotiles_y;
+  uint n_groups = (n_tiles + 63) / 64;
+
+  bool is_active = gid < n_groups;
+
+  uint x = is_active ? subgroup_tmp[gid] : 0;
 
 #ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
@@ -70,13 +67,14 @@ void main() {
   if (gl_SubgroupID == 0)
   {
     uint lane = gl_SubgroupInvocationID;
+
     uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
 
 #ifdef DO_XOR
     uint off = subgroupExclusiveXor(val);
-#else
+#else 
     uint off = subgroupExclusiveAdd(val);
-#endif 
+#endif
 
     if (lane < SGS_PER_WG)
       subgroup_totals[lane] = off;
@@ -90,23 +88,9 @@ void main() {
   prefix ^= sg_offset;
 #else 
   prefix += sg_offset;
-#endif
-
-#ifdef PREFIX_OUTPUT
-  if (gid < pc.n_tiles_x * pc.n_tiles_y)
-    tile_offsets[gid] = prefix;
-#else 
-  if (gid < pc.n_tiles_x * pc.n_tiles_y)
-    tile_n_segments[gid] = prefix;
 #endif 
 
-  if (lid == 63)
-  {
-#ifdef DO_XOR
-    subgroup_tmp[group_id] = prefix ^ x;
-#else 
-    subgroup_tmp[group_id] = prefix + x;
-#endif
-  }
+  if(is_active)
+    subgroup_tmp[gid] = prefix;
 }
 

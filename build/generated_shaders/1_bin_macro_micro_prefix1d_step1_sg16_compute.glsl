@@ -1,15 +1,27 @@
 #version 450
 
+#define PREFIX_OUTPUT
+/* #undef DO_XOR */
+
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
 layout(local_size_x = 64) in;
 
-/* #undef DO_XOR */
+#ifdef PREFIX_OUTPUT
+layout(set = 0, binding = 12, std430) buffer TileOffsets {
+    uint macrotile_offsets_micro[];
+};
+#endif
+
+layout(set = 0, binding = 11, std430) buffer TileNSegments {
+    uint macrotile_n_segments_micro[];
+};
 
 layout(set = 0, binding = 8, std430) buffer SubgroupTmpBinning {
     uint subgroup_tmp[];
 };
+
 
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
@@ -30,16 +42,15 @@ layout(push_constant) uniform push_constant {
 shared uint subgroup_totals[SGS_PER_WG]; 
 
 void main() {
-  uint gid = gl_GlobalInvocationID.x;
   uint lid = gl_LocalInvocationID.x;
-  uint groupID = gl_WorkGroupID.x;
+  if(lid < SGS_PER_WG)
+    subgroup_totals[lid] = 0;
+barrier();
 
-  uint n_tiles  = pc.n_tiles_x * pc.n_tiles_y;
-  uint n_groups = (n_tiles + 63) / 64;
+  uint group_id = gl_WorkGroupID.x;
+  uint gid = gl_GlobalInvocationID.x;
 
-  bool is_active = gid < n_groups;
-
-  uint x = is_active ? subgroup_tmp[gid] : 0;
+  uint x = (gid < pc.n_macrotiles_x * pc.n_macrotiles_y) ? macrotile_n_segments_micro[gid] : 0;
 
 #ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
@@ -63,14 +74,13 @@ void main() {
   if (gl_SubgroupID == 0)
   {
     uint lane = gl_SubgroupInvocationID;
-
     uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
 
 #ifdef DO_XOR
     uint off = subgroupExclusiveXor(val);
-#else 
+#else
     uint off = subgroupExclusiveAdd(val);
-#endif
+#endif 
 
     if (lane < SGS_PER_WG)
       subgroup_totals[lane] = off;
@@ -84,9 +94,25 @@ void main() {
   prefix ^= sg_offset;
 #else 
   prefix += sg_offset;
+#endif
+
+#ifdef PREFIX_OUTPUT
+  if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
+    macrotile_offsets_micro[gid] = prefix;
+#else 
+  if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
+    macrotile_n_segments_micro[gid] = prefix;
 #endif 
 
-  if(is_active)
-    subgroup_tmp[gid] = prefix;
+
+  if(subgroupElect() && gl_SubgroupID == SGS_PER_WG - 1 && gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
+  {
+#ifdef DO_XOR
+    subgroup_tmp[group_id] = sg_offset ^ sg_sum;
+#else
+    subgroup_tmp[group_id] = sg_offset + sg_sum;
+#endif
+  }
+
 }
 

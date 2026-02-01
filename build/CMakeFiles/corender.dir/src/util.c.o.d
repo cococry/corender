@@ -1,5 +1,5 @@
-CMakeFiles/corender.dir/src/util.c.o: /home/luca/dev/corender/src/util.c \
- /usr/include/stdc-predef.h \
+CMakeFiles/corender.dir/src/util.c.o: \
+ /home/luca/dev/corender-bruteforce/src/util.c /usr/include/stdc-predef.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdbool.h \
  /usr/include/stdio.h /usr/include/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -16,7 +16,7 @@ CMakeFiles/corender.dir/src/util.c.o: /home/luca/dev/corender/src/util.c \
  /usr/include/bits/types/cookie_io_functions_t.h \
  /usr/include/bits/stdio_lim.h /usr/include/bits/floatn.h \
  /usr/include/bits/floatn-common.h /usr/include/bits/stdio.h \
- /home/luca/dev/corender/src/util.h /usr/include/stdlib.h \
+ /home/luca/dev/corender-bruteforce/src/util.h /usr/include/stdlib.h \
  /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h \
  /usr/include/bits/types/locale_t.h /usr/include/bits/types/__locale_t.h \
  /usr/include/sys/types.h /usr/include/bits/types/clock_t.h \
@@ -54,7 +54,7 @@ CMakeFiles/corender.dir/src/util.c.o: /home/luca/dev/corender/src/util.c \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std_decode.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
- /home/luca/dev/corender/src/../include/corender/corender.h \
+ /home/luca/dev/corender-bruteforce/src/../include/corender/corender.h \
  /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
  /usr/include/cglm/cglm.h /usr/include/cglm/common.h /usr/include/math.h \

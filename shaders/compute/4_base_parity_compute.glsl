@@ -5,6 +5,7 @@ layout(local_size_x = 32) in;
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
+#extension GL_EXT_debug_printf : enable
 struct Segment {
   vec2 p0;
   vec2 p1;
@@ -56,6 +57,7 @@ void main()
 
   float tile_y0 = float(tile.y) * float(pc.tile_size);
 
+
   uint mask = 0u;
   for (uint i = lane; i < count; i += 32) {
     uint seg_id = tile_segments[base + i];
@@ -77,10 +79,10 @@ void main()
       x1 = tmp_x;
     }
 
-    if (y0 == y1) continue;
+    if (abs(y0 - y1) < 1e-6) continue;
 
     float ymin_f = min(y0, y1) - tile_y0;
-    float ymax_f = max(y0, y1) - tile_y0 - 0.5;
+    float ymax_f = max(y0, y1) - tile_y0;
 
     int ymin = clamp(int(floor(ymin_f)), 0, 31);
     int ymax = clamp(int(ceil (ymax_f)), 0, 32);

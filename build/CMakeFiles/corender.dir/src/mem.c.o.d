@@ -1,5 +1,6 @@
-CMakeFiles/corender.dir/src/mem.c.o: /home/luca/dev/corender/src/mem.c \
- /usr/include/stdc-predef.h /home/luca/dev/corender/src/mem.h \
+CMakeFiles/corender.dir/src/mem.c.o: \
+ /home/luca/dev/corender-bruteforce/src/mem.c /usr/include/stdc-predef.h \
+ /home/luca/dev/corender-bruteforce/src/mem.h \
  /usr/include/vulkan/vulkan_core.h /usr/include/vulkan/vk_platform.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stddef.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdint.h \
@@ -29,7 +30,7 @@ CMakeFiles/corender.dir/src/mem.c.o: /home/luca/dev/corender/src/mem.c \
  /usr/include/vk_video/vulkan_video_codec_vp9std_decode.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdbool.h \
- /home/luca/dev/corender/src/../include/corender/corender.h \
+ /home/luca/dev/corender-bruteforce/src/../include/corender/corender.h \
  /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
  /usr/include/stdio.h \
@@ -201,8 +202,8 @@ CMakeFiles/corender.dir/src/mem.c.o: /home/luca/dev/corender/src/mem.c \
  /usr/include/cglm/sphere.h /usr/include/cglm/ease.h \
  /usr/include/cglm/curve.h /usr/include/cglm/bezier.h \
  /usr/include/cglm/ray.h /usr/include/cglm/affine2d.h \
- /home/luca/dev/corender/src/../vendor/vma/vk_mem_alloc.h \
+ /home/luca/dev/corender-bruteforce/src/../vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
- /home/luca/dev/corender/src/util.h /usr/include/string.h \
+ /home/luca/dev/corender-bruteforce/src/util.h /usr/include/string.h \
  /usr/include/bits/types/locale_t.h /usr/include/bits/types/__locale_t.h \
  /usr/include/strings.h

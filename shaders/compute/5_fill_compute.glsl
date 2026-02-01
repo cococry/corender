@@ -28,7 +28,10 @@ layout(set = 0, binding = 9, std430) readonly buffer PrefixParity {
   uint prefix_parity[]; 
 };
 
-layout(set = 0, binding = 11, rgba8) uniform image2D outImage;
+layout(set = 0, binding = 12, std430) readonly buffer macrotileOffsetsMicro {
+  uint macrotile_offsets_micro[]; 
+};
+layout(set = 0, binding = 14, rgba8) uniform image2D outImage;
 
 layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
@@ -72,8 +75,7 @@ void main() {
 
       float y0 = s.p0.y;
       float y1 = s.p1.y;
-      if (y0 == y1)
-        continue;
+    if (abs(y0 - y1) < 1e-6) continue;
 
       float scan_y = float(y) + 0.5;
 
@@ -109,8 +111,10 @@ void main() {
       imageStore(
           outImage,
           ivec2(x0 + dx, y),
-          vec4(count >= 1 ? 1.0 : 0.0, 0.0,  1.0, 1.0)
+          vec4(1.0, 0.0, 0.0, 1.0)
           );
+    } else {
+
     }
   }
 }

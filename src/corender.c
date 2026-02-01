@@ -195,6 +195,15 @@ _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* 
     .engineVersion      = VK_MAKE_VERSION(0, 0, 1),
     .apiVersion         = ver 
   };
+VkValidationFeatureEnableEXT enables[] = {
+    VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT
+};
+
+VkValidationFeaturesEXT validationFeatures = {
+    .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
+    .enabledValidationFeatureCount = 1,
+    .pEnabledValidationFeatures = enables
+};
 
 
   VkInstanceCreateInfo create_info = {
@@ -203,7 +212,8 @@ _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* 
     .enabledExtensionCount = info->n_exts,
     .ppEnabledExtensionNames = info->exts,
     .enabledLayerCount = info->enable_validation ?  info->n_layers : 0,
-    .ppEnabledLayerNames = info->enable_validation ? info->layers : NULL
+    .ppEnabledLayerNames = info->enable_validation ? info->layers : NULL,
+    .pNext = &validationFeatures
   };
 
   _VK_CHECK(ctx, vkCreateInstance(&create_info, NULL, &ctx->instance)); 

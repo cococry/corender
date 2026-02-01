@@ -7,12 +7,12 @@
 layout (local_size_x = 64) in;
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 7, std430) buffer TileOffsets {
-  uint tile_offsets[];
+layout(set = 0, binding = 12, std430) buffer TileOffsets {
+  uint macrotile_offsets_micro[];
 };
 #else 
-layout(set = 0, binding = 6, std430) buffer TileOffsets {
-  uint tile_n_segments[];
+layout(set = 0, binding = 11, std430) buffer TileOffsets {
+  uint macrotile_n_segments_micro[];
 };
 #endif
 
@@ -37,13 +37,13 @@ void main() {
   uint gid = gl_GlobalInvocationID.x;
   uint wid = gl_WorkGroupID.x;
 
-  bool is_active = gid < pc.n_tiles_x * pc.n_tiles_y;
+  bool is_active = gid < pc.n_macrotiles_x * pc.n_macrotiles_y;
 
   if(is_active) {
 #ifdef DO_XOR 
-  tile_offsets[gid] ^= subgroup_tmp[gid / 64];
+  macrotile_offsets_micro[gid] ^= subgroup_tmp[gid / 64];
 #else 
-  tile_offsets[gid] += subgroup_tmp[gid / 64];
+  macrotile_offsets_micro[gid] += subgroup_tmp[gid / 64];
 #endif 
   }
 }

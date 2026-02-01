@@ -5,13 +5,13 @@
 # compile CXX with /usr/bin/c++
 C_DEFINES = 
 
-C_INCLUDES = -I/home/luca/dev/corender/include
+C_INCLUDES = -I/home/luca/dev/corender-bruteforce/include
 
 C_FLAGS = -O3 -DNDEBUG -std=gnu11 -fPIC -O3 -DNDEBUG -march=native -flto -fno-plt -fomit-frame-pointer -fstrict-aliasing
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/luca/dev/corender/include
+CXX_INCLUDES = -I/home/luca/dev/corender-bruteforce/include
 
 CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17 -fPIC -O3 -DNDEBUG -march=native -flto -fno-plt -fomit-frame-pointer -fstrict-aliasing
 

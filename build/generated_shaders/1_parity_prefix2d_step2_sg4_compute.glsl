@@ -30,8 +30,11 @@ layout(push_constant) uniform push_constant {
 shared uint subgroup_totals[SGS_PER_WG]; 
 
 void main() {
-  uint row   = gl_WorkGroupID.y;
   uint lane  = gl_LocalInvocationID.x;
+  if(lane < SGS_PER_WG)
+    subgroup_totals[lane] = 0;
+  barrier();
+  uint row   = gl_WorkGroupID.y;
 
   uint blocks_per_row = (pc.n_tiles_x + 63) / 64;
   uint gid = row * blocks_per_row + lane;

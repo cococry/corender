@@ -9,13 +9,13 @@
 layout(local_size_x = 64) in;
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 7, std430) buffer TileOffsets {
-    uint tile_offsets[];
+layout(set = 0, binding = 12, std430) buffer TileOffsets {
+    uint macrotile_offsets_micro[];
 };
 #endif
 
-layout(set = 0, binding = 6, std430) buffer TileNSegments {
-    uint tile_n_segments[];
+layout(set = 0, binding = 11, std430) buffer TileNSegments {
+    uint macrotile_n_segments_micro[];
 };
 
 layout(set = 0, binding = 8, std430) buffer SubgroupTmpBinning {
@@ -35,18 +35,22 @@ layout(push_constant) uniform push_constant {
   uint fill_rule;
 } pc;
 
-#define SG_SIZE 32
+#define SG_SIZE 4
 
 #define SGS_PER_WG 64 / SG_SIZE
 
 shared uint subgroup_totals[SGS_PER_WG]; 
 
 void main() {
-  uint gid = gl_GlobalInvocationID.x;
   uint lid = gl_LocalInvocationID.x;
-  uint group_id = gl_WorkGroupID.x;
+  if(lid < SGS_PER_WG)
+    subgroup_totals[lid] = 0;
+barrier();
 
-  uint x = (gid < pc.n_tiles_x * pc.n_tiles_y) ? tile_n_segments[gid] : 0;
+  uint group_id = gl_WorkGroupID.x;
+  uint gid = gl_GlobalInvocationID.x;
+
+  uint x = (gid < pc.n_macrotiles_x * pc.n_macrotiles_y) ? macrotile_n_segments_micro[gid] : 0;
 
 #ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
@@ -93,20 +97,22 @@ void main() {
 #endif
 
 #ifdef PREFIX_OUTPUT
-  if (gid < pc.n_tiles_x * pc.n_tiles_y)
-    tile_offsets[gid] = prefix;
+  if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
+    macrotile_offsets_micro[gid] = prefix;
 #else 
-  if (gid < pc.n_tiles_x * pc.n_tiles_y)
-    tile_n_segments[gid] = prefix;
+  if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
+    macrotile_n_segments_micro[gid] = prefix;
 #endif 
 
-  if (lid == 63)
+
+  if(subgroupElect() && gl_SubgroupID == SGS_PER_WG - 1 && gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
   {
 #ifdef DO_XOR
-    subgroup_tmp[group_id] = prefix ^ x;
-#else 
-    subgroup_tmp[group_id] = prefix + x;
+    subgroup_tmp[group_id] = sg_offset ^ sg_sum;
+#else
+    subgroup_tmp[group_id] = sg_offset + sg_sum;
 #endif
   }
+
 }
 

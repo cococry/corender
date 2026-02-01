@@ -8,7 +8,7 @@ layout(local_size_x = 64) in;
 /* #undef DO_XOR */
 
 layout(set = 0, binding = 8, std430) buffer SubgroupTmpBinning {
-    uint subgroup_tmp[];
+  uint subgroup_tmp[];
 };
 
 layout(push_constant) uniform push_constant {
@@ -23,18 +23,22 @@ layout(push_constant) uniform push_constant {
   uint fill_rule;
 } pc;
 
-#define SG_SIZE 8
+#define SG_SIZE 16
 
 #define SGS_PER_WG 64 / SG_SIZE
 
 shared uint subgroup_totals[SGS_PER_WG]; 
 
 void main() {
-  uint gid = gl_GlobalInvocationID.x;
   uint lid = gl_LocalInvocationID.x;
+  if(lid < SGS_PER_WG)
+    subgroup_totals[lid] = 0;
+  barrier();
+
+  uint gid = gl_GlobalInvocationID.x;
   uint groupID = gl_WorkGroupID.x;
 
-  uint n_tiles  = pc.n_tiles_x * pc.n_tiles_y;
+  uint n_tiles  = pc.n_macrotiles_x * pc.n_macrotiles_y;
   uint n_groups = (n_tiles + 63) / 64;
 
   bool is_active = gid < n_groups;
