@@ -1,0 +1,9 @@
+/home/cococry/dev/corender/build/CMakeFiles/corender.dir
+/home/cococry/dev/corender/build/CMakeFiles/shaders.dir
+/home/cococry/dev/corender/build/CMakeFiles/example_glfw.dir
+/home/cococry/dev/corender/build/CMakeFiles/edit_cache.dir
+/home/cococry/dev/corender/build/CMakeFiles/rebuild_cache.dir
+/home/cococry/dev/corender/build/CMakeFiles/list_install_components.dir
+/home/cococry/dev/corender/build/CMakeFiles/install.dir
+/home/cococry/dev/corender/build/CMakeFiles/install/local.dir
+/home/cococry/dev/corender/build/CMakeFiles/install/strip.dir

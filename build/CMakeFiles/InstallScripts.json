@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/cococry/dev/corender/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

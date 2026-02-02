@@ -18,6 +18,10 @@ layout(set = 0, binding = 13, std430) buffer TileCountsMacro {
     uint tile_counts_micro[];
 };
 
+layout(set = 0, binding = 6, std430) buffer TileCounts {
+    uint tile_counts[];
+};
+
 layout(push_constant) uniform push_constant {
     uint screen_w, screen_h;
     uint n_tiles_x, n_tiles_y;
@@ -43,7 +47,19 @@ void main() {
 
   uint lid = gl_LocalInvocationID.x;
 
-  tmp[lid] = tile_counts_micro[macro_id*64+lid];
+  uint tile = lid;
+
+
+  ivec2 macro_tile_base =
+    ivec2(int(gl_WorkGroupID.x) * 8,
+        int(gl_WorkGroupID.y) * 8);
+
+  uint gx = uint(macro_tile_base.x) + (tile % 8);
+  uint gy = uint(macro_tile_base.y) + (tile / 8);
+      
+  uint global_tile_id = gy * pc.n_tiles_x + gx;
+
+  tmp[lid] = tile_counts[global_tile_id];
 
   barrier();
 

@@ -110,15 +110,15 @@ int main() {
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
 
-    for(uint32_t i = 0; i < 10; i++) {
-    int offset_x = offsets_x[i];
-    int offset_y = offsets_y[i];
+    for(uint32_t i = 0; i < 1; i++) {
+    int offset_x = 50; 
+    int offset_y = 50; 
 
     float cx = size / 2.0f + offset_x;   // center X
     float cy = size / 2.0f + offset_y;   // center Y
     float r  = size / 2.0f;              // radius
 
-    int segments = 32; // more = smoother circle
+    int segments = 10; // more = smoother circle
 
     for(int j = 0; j < segments; j++) {
         float a0 = (2.0f * M_PI * j) / segments;
@@ -140,13 +140,13 @@ int main() {
 }
 
 
-    float add = 0.5f; 
+    float add = 0.05f; 
     if(up)
       size += add;
     else 
       size -= add;
 
-    if(size >= 150.0f && up) up = false;
+    if(size >= 513.0f && up) up = false;
 
     if(size <= 10 && !up) up = true;
 

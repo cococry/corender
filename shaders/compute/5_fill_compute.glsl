@@ -7,6 +7,10 @@ struct Segment {
   vec2 p1;
 };
 
+layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
+  uint macrotile_count[];
+};
+
 
 layout(set = 0, binding = 0, std430) readonly buffer Segments {
   Segment segments[];
@@ -15,6 +19,12 @@ layout(set = 0, binding = 0, std430) readonly buffer Segments {
 layout(set = 0, binding = 6, std430) buffer TilenSegments {
     uint tile_n_segments[];
 };
+
+layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
+  uint macrotile_offsets[];
+};
+
+
 
 layout(set = 0, binding = 7, std430) buffer TileOffsets {
     uint tile_offsets[];
@@ -28,10 +38,7 @@ layout(set = 0, binding = 9, std430) readonly buffer PrefixParity {
   uint prefix_parity[]; 
 };
 
-layout(set = 0, binding = 12, std430) readonly buffer macrotileOffsetsMicro {
-  uint macrotile_offsets_micro[]; 
-};
-layout(set = 0, binding = 14, rgba8) uniform image2D outImage;
+layout(set = 0, binding = 15, rgba8) uniform image2D outImage;
 
 layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
@@ -59,9 +66,9 @@ void main() {
 
   uint tile_id = tile.y * pc.n_tiles_x + tile.x;
 
-  uint count = tile_n_segments[tile_id]; 
   int x0 = int(tile.x * pc.tile_size);
-
+  
+  uint count = tile_n_segments[tile_id]; 
   int coverage[32];
   for (int i = 0; i < pc.tile_size; i++)
     coverage[i] = 0;
@@ -111,7 +118,7 @@ void main() {
       imageStore(
           outImage,
           ivec2(x0 + dx, y),
-          vec4(1.0, 0.0, 0.0, 1.0)
+          vec4(1.0, 0 , 0.0, 1.0)
           );
     } else {
 

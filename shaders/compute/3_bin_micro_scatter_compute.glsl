@@ -2,7 +2,6 @@
 
 #extension GL_KHR_shader_subgroup_basic : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
-#extension GL_EXT_debug_printf : enable
 
 
 #define SG_SIZE 32 
@@ -169,8 +168,6 @@ barrier();
 
         if(idx >= tile_counts[local_tile]) continue;
         uint micro_base = macrotile_offsets_micro[macro_id] + tile_local_offset[local_tile];
-
-
 
         tile_segments[micro_base + idx] = seg_id; 
       }

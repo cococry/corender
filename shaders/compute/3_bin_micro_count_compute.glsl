@@ -1,29 +1,42 @@
+
 #version 450
 
 #extension GL_KHR_shader_subgroup_basic  : enable
+#extension GL_KHR_shader_subgroup_ballot : enable
 
 layout(local_size_x = 64) in;
 
+#define WG_SIZE   256
+#define SG_SIZE   32
+#define N_WARPS   (WG_SIZE / SG_SIZE)
+#define N_MICRO   64 
+
 struct Segment {
-    vec2 p0;
-    vec2 p1;
+  vec2 p0;
+  vec2 p1;
 };
 
-layout(set = 0, binding = 0, std430) readonly buffer Segments {
-    Segment segments[];
+layout(set=0,binding=0,std430) readonly buffer Segments {
+  Segment segments[];
 };
+
 
 layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
-    uint macrotile_n_segments[];
+  uint macrotile_count[];
 };
 
 layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
-    uint macrotile_offsets[];
+  uint macrotile_offsets[];
 };
 
 layout(set = 0, binding = 3, std430) buffer macrotileSegments {
-    uint macrotile_segments[];
+  uint macrotile_segments[];
 };
+
+layout(set = 0, binding = 4, std430) buffer macrotileCursor {
+  uint macrotile_cursor[];
+};
+
 
 layout(set = 0, binding = 6, std430) buffer TileNSegments {
     uint tile_n_segments[];
@@ -32,96 +45,113 @@ layout(set = 0, binding = 6, std430) buffer TileNSegments {
 layout(set = 0, binding = 13, std430) buffer TileCountsMacro {
     uint tile_counts_micro[];
 };
-layout(push_constant) uniform push_constant {
-    uint screen_w, screen_h;
-    uint n_tiles_x, n_tiles_y;
-    uint n_macrotiles_x, n_macrotiles_y;
-    uint tile_size, macrotile_size;
 
-    uint n_segments;
-    uint n_paths;
-    uint fill_rule;
+layout(push_constant) uniform push_constant {
+  uint screen_w, screen_h;
+  uint n_tiles_x, n_tiles_y;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
+
+  uint n_segments;
+  uint n_paths;
+  uint fill_rule;
 } pc;
 
-#define WG_SIZE 64 
-#define SG_SIZE 32
-shared uint warp_tile_counts[WG_SIZE / SG_SIZE][64];
+shared uint warp_mask[N_WARPS][N_MICRO];
 
-void main() {
-  if(gl_WorkGroupID.x >= pc.n_macrotiles_x ||
-   gl_WorkGroupID.y >= pc.n_macrotiles_y)
-    return;
-  uint macro_id = gl_WorkGroupID.y * pc.n_macrotiles_x + gl_WorkGroupID.x;
+uint macroIndex(vec2 p)
+{
+  float ms = float(pc.macrotile_size);
 
-  uint count = macrotile_n_segments[macro_id];
-  uint base  = macrotile_offsets[macro_id];
+  ivec2 m = ivec2(floor(p / ms));
+  m = clamp(m,
+      ivec2(0),
+      ivec2(int(pc.n_macrotiles_x - 1),
+        int(pc.n_macrotiles_y - 1)));
 
-  uint lane = gl_SubgroupInvocationID;
-  uint warp = gl_LocalInvocationID.x / SG_SIZE;
+  return uint(m.y) * pc.n_macrotiles_x + uint(m.x);
+}
 
-  if(lane < SG_SIZE) {
-    for(uint i = 0; i < uint(WG_SIZE / SG_SIZE); i++) {
-      warp_tile_counts[warp][lane + (SG_SIZE * i)] = 0;
-    }
-  }
+void main()
+{
+  uint tid   = gl_LocalInvocationID.x;
+  uint lane  = gl_SubgroupInvocationID;
+  uint warp  = tid / SG_SIZE;
+
+  for(uint t = lane; t < N_MICRO; t += SG_SIZE)
+    warp_mask[warp][t] = 0;
 
   barrier();
 
-  float tile_size = float(pc.tile_size);
+  uint macro_x = gl_WorkGroupID.x;
+  uint macro_y = gl_WorkGroupID.y;
 
-  ivec2 macro_base = ivec2(int(gl_WorkGroupID.x) * 8,
-                           int(gl_WorkGroupID.y) * 8);
+  uint macro_id = macro_y * pc.n_macrotiles_x + macro_x;
 
-  ivec2 macro_end = macro_base + ivec2(7);
+  ivec2 start = ivec2(0);
+  ivec2 end   = ivec2(-1);
 
-  ivec2 tile_min = ivec2(0);
-  ivec2 tile_max = ivec2(int(pc.n_tiles_x - 1),
-                         int(pc.n_tiles_y - 1));
+  uint base = macrotile_offsets[macro_id];
+  uint count = macrotile_count[macro_id];
 
-  for(uint i = gl_LocalInvocationID.x; i < count; i += WG_SIZE) {
 
-    Segment seg = segments[macrotile_segments[base + i]];
+  ivec2 macro_tile_base =
+    ivec2(int(macro_x) * 8,
+        int(macro_y) * 8);
 
-    ivec2 tile_start = ivec2(floor(min(seg.p0, seg.p1) / tile_size));
-    ivec2 tile_end   = ivec2(floor(max(seg.p0, seg.p1) / tile_size));
+  ivec2 macro_tile_end = macro_tile_base + ivec2(7, 7);
 
-    tile_start = clamp(tile_start, tile_min, tile_max);
-    tile_end   = clamp(tile_end,   tile_min, tile_max);
+  for(uint i = tid; i < count; i += WG_SIZE)
+  {
+    uint seg_id = macrotile_segments[base + i]; 
 
-    tile_start = clamp(tile_start, macro_base, macro_end);
-    tile_end   = clamp(tile_end,   macro_base, macro_end);
+    Segment seg = segments[seg_id];
 
-    for(int ty = tile_start.y; ty <= tile_end.y; ty++) {
-      for(int tx = tile_start.x; tx <= tile_end.x; tx++) {
+    vec2 seg_min = min(seg.p0, seg.p1);
+    vec2 seg_max = max(seg.p0, seg.p1);
 
-        uint local_tile =
-          uint((ty - macro_base.y) * 8 +
-               (tx - macro_base.x));
+    float size = float(pc.tile_size);
 
-        atomicAdd(warp_tile_counts[warp][local_tile], 1);
+    start = ivec2(floor(seg_min / size));
+    end   = ivec2(floor(seg_max / size));
+    ivec2 tile_max =
+      ivec2(int(pc.n_tiles_x - 1),
+          int(pc.n_tiles_y - 1));
+
+    ivec2 macro_end =
+      min(macro_tile_end, tile_max);
+
+    start = clamp(start, macro_tile_base, macro_end);
+    end   = clamp(end,   macro_tile_base, macro_end);
+
+    for(int ty = start.y; ty <= end.y; ty++) { 
+      for(int tx = start.x; tx <= end.x; tx++) {
+        ivec2 local_tile = ivec2(tx, ty) - macro_tile_base; 
+        uint local_idx = local_tile.y * 8 + local_tile.x; 
+        atomicOr(warp_mask[warp][local_idx], 1u << lane);
       }
     }
   }
 
   barrier();
+  if(tid < 64)
+  {
+    uint c = 0;
+    for(uint w=0; w<N_WARPS; w++)
+      c += bitCount(warp_mask[w][tid]);
 
-  if(gl_LocalInvocationID.x < 64) {
+    uint tile = tid;
 
-    uint tile = gl_LocalInvocationID.x;
-    uint sum = 0;
-    for(uint i = 0; i < uint(WG_SIZE / SG_SIZE); i++) {
-      sum += warp_tile_counts[i][tile];
+    uint gx = uint(macro_tile_base.x) + (tile % 8);
+    uint gy = uint(macro_tile_base.y) + (tile / 8);
+
+    if(gx < pc.n_tiles_x && gy < pc.n_tiles_y)
+    {
+      uint global_tile_id = gy * pc.n_tiles_x + gx;
+
+      tile_n_segments[global_tile_id] = c;
+      tile_counts_micro[macro_id*64 + tile] = c;
     }
-
-    uint gx = uint(macro_base.x) + (tile % 8);
-    uint gy = uint(macro_base.y) + (tile / 8);
-
-    if(gx >= pc.n_tiles_x || gy >= pc.n_tiles_y)
-      return;
-
-    uint global_tile_id = gy * pc.n_tiles_x + gx;
-
-    tile_n_segments[global_tile_id] = sum;
-    tile_counts_micro[macro_id*64+tile] = sum;
   }
 }
+
