@@ -66,8 +66,8 @@ void main()
     uint(macro_xy.y) * pc.n_macrotiles_x +
     uint(macro_xy.x);
 
-  uint base  = tile_offsets[tile_id];
-  uint count = tile_n_segments[tile_id];
+  uint base  = macrotile_offsets[macro_id];
+  uint count = macrotile_count[macro_id];
 
   float tile_x0 = float(tile.x) * float(pc.tile_size);
   float tile_x1 = tile_x0 + float(pc.tile_size);
@@ -80,7 +80,7 @@ void main()
 
   for (uint i = lane; i < count; i += sgSize)
   {
-    uint seg_id = tile_segments[base + i];
+    uint seg_id = macrotile_segments[base + i];
     Segment s   = segments[seg_id];
 
     float x0 = s.p0.x;

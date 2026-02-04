@@ -787,45 +787,11 @@ cr_compute_pipeline_dispatch(
                        swapchain_image_idx, &pc, DIV_UP(n_segments, 256), 1, 1,
                        (struct cr_gpu_buffer_t[]){
                        *_buffer_by_name(ctx, pipeline, "macrotile_n_segments"),
-                                        },
-                       1); 
-
-  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, n_macrotiles_x * n_macrotiles_y, 1, "bin", "subgroup_tmp", "macrotile_offsets");
-
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_macro_scatter"),
-                       swapchain_image_idx, &pc, DIV_UP(n_segments, 256), 1, 1,
-                       (struct cr_gpu_buffer_t[]){
                        *_buffer_by_name(ctx, pipeline, "macrotile_segments"),
-                       *_buffer_by_name(ctx, pipeline, "macrotile_cursor"),
-                       }, 2);
-
-
-
-    _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_micro_count"),
-                       swapchain_image_idx, &pc, n_macrotiles_x, n_macrotiles_y, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "tile_n_segments"),
-                       *_buffer_by_name(ctx, pipeline, "tile_counts_micro"),
-                         }, 1);
-  
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_macro_count_micro"),
-                       swapchain_image_idx, &pc, n_macrotiles_x, n_macrotiles_y, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "macrotile_n_segments_micro"),
-                         }, 1);
-  
-  cr_mem_clear_gpu_buffer(ctx, frame, _buffer_by_name(ctx, pipeline, "subgroup_tmp")); 
-  _dispatch_prefix_sum_pass(ctx, pipeline, frame, swapchain_image_idx, &pc, false, n_macrotiles_x * n_macrotiles_y, 1, "bin_macro_micro", "subgroup_tmp", "macrotile_offsets_micro");
-
- 
-
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_micro_scatter"),
-                       swapchain_image_idx, &pc, n_macrotiles_x, n_macrotiles_y, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "tile_segments"),
-                       *_buffer_by_name(ctx, pipeline, "tile_offsets"),
-                         }, 1);
-
+                       *_buffer_by_name(ctx, pipeline, "macrotile_offsets"),
+                       *_buffer_by_name(ctx, pipeline, "tile_bump"),
+                                        },
+                       4); 
 
 
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "base_parity"), 

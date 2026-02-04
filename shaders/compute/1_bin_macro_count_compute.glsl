@@ -1,27 +1,39 @@
 #version 450
-
-#extension GL_KHR_shader_subgroup_basic  : enable
-#extension GL_KHR_shader_subgroup_ballot : enable
+#extension GL_KHR_shader_subgroup_basic      : enable
+#extension GL_KHR_shader_subgroup_ballot     : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#extension GL_EXT_debug_printf : enable
 
 layout(local_size_x = 256) in;
 
 #define WG_SIZE   256
 #define SG_SIZE   32
-#define N_WARPS   (WG_SIZE / SG_SIZE)
-#define MAX_MACRO 256
+#define N_WARPS   (WG_SIZE/SG_SIZE)
 
 struct Segment {
-  vec2 p0;
-  vec2 p1;
+    vec2 p0;
+    vec2 p1;
 };
 
 layout(set=0,binding=0,std430) readonly buffer Segments {
-  Segment segments[];
+    Segment segments[];
 };
 
-layout(set = 0, binding = 1, std430) writeonly buffer macrotileNSegments {
+layout(set=0,binding=14,std430) buffer BumpAlloc {
+    uint bump_cursor;
+};
+
+layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
   uint macrotile_count[];
 };
+layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
+  uint macrotile_offsets[];
+};
+
+layout(set = 0, binding = 3, std430) buffer macrotileSegments {
+  uint macrotile_segments[];
+};
+
 
 layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
@@ -34,77 +46,102 @@ layout(push_constant) uniform push_constant {
   uint fill_rule;
 } pc;
 
-shared uint warp_mask[N_WARPS][MAX_MACRO];
-
+shared uint warp_mask[N_WARPS][256];
+shared uint bin_base[256];
 
 void main()
 {
-  // ==============================================
-  // Dispatch: X: DIV_UP(N_segments / WG_SIZE)
-  // ==============================================
+    uint tid  = gl_LocalInvocationID.x;
+    uint lane = gl_SubgroupInvocationID;
+    uint warp = tid / SG_SIZE;
 
-  uint tid   = gl_LocalInvocationID.x;
-  uint lane  = gl_SubgroupInvocationID;
-  uint warp  = tid / SG_SIZE;
+    uint n_bins = pc.n_macrotiles_x * pc.n_macrotiles_y;
 
-  // clear the segment "count" mask for each macrotile
-  uint n_macro = pc.n_macrotiles_x * pc.n_macrotiles_y;
-  for(uint i = lane; i < n_macro; i += SG_SIZE)
-    warp_mask[warp][i] = 0;
+    for(uint i = lane; i < n_bins; i += SG_SIZE)
+        warp_mask[warp][i] = 0;
 
-  barrier();
+    if(tid < n_bins)
+        bin_base[tid] = 0;
 
-  uint seg_id = gl_WorkGroupID.x * WG_SIZE + tid;
+    barrier();
 
-  if(seg_id < pc.n_segments) { 
+    uint seg_id = gl_WorkGroupID.x * WG_SIZE + tid;
 
-  Segment seg = segments[seg_id];
+    ivec2 t0 = ivec2(0);
+    ivec2 t1 = ivec2(-1);
 
-  vec2 seg_min = min(seg.p0, seg.p1);
-  vec2 seg_max = max(seg.p0, seg.p1);
+    if(seg_id < pc.n_segments)
+    {
+        Segment s = segments[seg_id];
 
-  float ms = float(pc.macrotile_size);
+        vec2 mn = min(s.p0, s.p1);
+        vec2 mx = max(s.p0, s.p1);
 
-  // Eval AABB box of segment
-  ivec2 start = ivec2(floor(seg_min / ms));
-  ivec2 end = ivec2(floor(seg_max / ms));
+        float ts = float(pc.macrotile_size);
 
-  // clamp to avoid UB writing
-  start = clamp(start, ivec2(0), ivec2(int(pc.n_macrotiles_x - 1), int(pc.n_macrotiles_y - 1)));
-  end = clamp(end, ivec2(0), ivec2(int(pc.n_macrotiles_x - 1), int(pc.n_macrotiles_y - 1)));
+        t0 = ivec2(floor(mn / ts));
+        t1 = ivec2(floor(mx / ts));
 
+        t0 = clamp(t0, ivec2(0),
+                   ivec2(int(pc.n_macrotiles_x-1), int(pc.n_macrotiles_y-1)));
 
-  for(int ty = start.y; ty <= end.y; ty++) {
-    for(int tx = start.x; tx <= end.x; tx++) {
+        t1 = clamp(t1, ivec2(0),
+                   ivec2(int(pc.n_macrotiles_x-1), int(pc.n_macrotiles_y-1)));
 
-      // Each lane handles exactly one segment, so we set the bit
-      // representing the segment in the mask of this bin.
-      // --
-      // Because we are subgroup aggregating, each warp has its own mask,
-      // so we set the bit inside the current warp.
-      uint bin = uint(ty) * pc.n_macrotiles_x + uint(tx);
-      atomicOr(warp_mask[warp][bin], 1u << lane);
+        for(int ty=t0.y; ty<=t1.y; ty++)
+        for(int tx=t0.x; tx<=t1.x; tx++)
+        {
+            uint bin = uint(ty)*pc.n_macrotiles_x + uint(tx);
+            atomicOr(warp_mask[warp][bin], 1u<<lane);
+        }
     }
-  }
 
-  }
-  barrier();
+    barrier();
 
-  for(uint bin = tid; bin < n_macro; bin += WG_SIZE) {
-    // Sum up the bit count of all warps in the workgroup for this bin.
+    for(uint bin = tid; bin < n_bins; bin += WG_SIZE)
+    {
+      if(bin < pc.n_macrotiles_x * pc.n_macrotiles_y) {
+        uint count = 0;
+        for(uint w=0; w<N_WARPS; w++)
+            count += bitCount(warp_mask[w][bin]);
 
-    // The bit count per mask is exactly how many segments intersected the 
-    // bin's AABB within the respective warp. Adding all warp counts together 
-    // results in the total number of segments inside this bin.
-    uint count = 0;
-    for(uint w = 0; w < N_WARPS; w++)
-      count += bitCount(warp_mask[w][bin]);
+        uint base = 0;
+        if(count != 0)
+            base = atomicAdd(bump_cursor, count);
 
-    // global atomic scales deterministically 
-    if(count != 0) {
-      atomicAdd(macrotile_count[bin], count);
+        macrotile_count[bin] = count;
+        macrotile_offsets[bin] = base;
+
+
+        bin_base[bin] = base;
+      }
     }
-  }
 
+    barrier();
+
+    if(seg_id >= pc.n_segments)
+        return;
+
+    for(int ty=t0.y; ty<=t1.y; ty++)
+    for(int tx=t0.x; tx<=t1.x; tx++)
+    {
+        uint bin = uint(ty)*pc.n_macrotiles_x + uint(tx);
+
+        uint mask = warp_mask[warp][bin];
+        uint bit  = 1u<<lane;
+
+        if((mask & bit) != 0)
+        {
+            uint rank = bitCount(mask & (bit-1u));
+
+            uint prefix = 0;
+            for(uint w=0; w<warp; w++)
+                prefix += bitCount(warp_mask[w][bin]);
+
+            uint out_idx = bin_base[bin] + prefix + rank;
+
+            macrotile_segments[out_idx] = seg_id;
+        }
+    }
 }
 

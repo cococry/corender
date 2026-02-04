@@ -109,38 +109,16 @@ int main() {
   /* Loop until the user closes the window */
   while (!glfwWindowShouldClose(window)) {
     cr_draw_begin(&ctx);
-
     for(uint32_t i = 0; i < 1; i++) {
-    int offset_x = 50; 
-    int offset_y = 50; 
-
-    float cx = size / 2.0f + offset_x;   // center X
-    float cy = size / 2.0f + offset_y;   // center Y
-    float r  = size / 2.0f;              // radius
-
-    int segments = 10; // more = smoother circle
-
-    for(int j = 0; j < segments; j++) {
-        float a0 = (2.0f * M_PI * j) / segments;
-        float a1 = (2.0f * M_PI * (j + 1)) / segments;
-
-        float x0 = cx + cosf(a0) * r;
-        float y0 = cy + sinf(a0) * r;
-
-        float x1 = cx + cosf(a1) * r;
-        float y1 = cy + sinf(a1) * r;
-
-        cr_draw_segment(&ctx,
-            (struct cr_segment_t){
-                .p0 = { x0, y0 },
-                .p1 = { x1, y1 }
-            }
-        );
+      int offset_x =0; 
+      int offset_y = 0; 
+      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { offset_x, size + offset_y}, .p1 = {size + offset_x ,size + offset_y} });
+      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size + offset_x, size + offset_y}, .p1 = {size/2.0f + offset_x, offset_y} });
+      cr_draw_segment(&ctx, (struct cr_segment_t){ .p0 = { size/2.0f + offset_x, offset_y}, .p1 = {offset_x, size + offset_y} });
     }
-}
 
 
-    float add = 0.05f; 
+    float add = 0.5f; 
     if(up)
       size += add;
     else 

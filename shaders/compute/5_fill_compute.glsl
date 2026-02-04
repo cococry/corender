@@ -12,6 +12,16 @@ layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
 };
 
 
+
+layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
+  uint macrotile_offsets[];
+};
+
+layout(set = 0, binding = 3, std430) buffer macrotileSegments {
+  uint macrotile_segments[];
+};
+
+
 layout(set = 0, binding = 0, std430) readonly buffer Segments {
   Segment segments[];
 };
@@ -20,9 +30,6 @@ layout(set = 0, binding = 6, std430) buffer TilenSegments {
     uint tile_n_segments[];
 };
 
-layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
-  uint macrotile_offsets[];
-};
 
 
 
@@ -68,21 +75,27 @@ void main() {
 
   int x0 = int(tile.x * pc.tile_size);
   
-  uint count = tile_n_segments[tile_id]; 
+  ivec2 macro_xy = ivec2(tile / 8);
+  uint macro_id =
+    uint(macro_xy.y) * pc.n_macrotiles_x +
+    uint(macro_xy.x);
+  
+  uint count = macrotile_count[macro_id]; 
   int coverage[32];
   for (int i = 0; i < pc.tile_size; i++)
     coverage[i] = 0;
 
+
   if (count > 0) {
-    uint base = tile_offsets[tile_id]; 
+    uint base = macrotile_offsets[macro_id]; 
 
     for (uint i = 0; i < count; i++) {
-      uint seg_id = tile_segments[base + i];
+      uint seg_id = macrotile_segments[base + i];
       Segment s = segments[seg_id];
 
       float y0 = s.p0.y;
       float y1 = s.p1.y;
-    if (abs(y0 - y1) < 1e-6) continue;
+      if (abs(y0 - y1) < 1e-6) continue;
 
       float scan_y = float(y) + 0.5;
 
@@ -118,7 +131,7 @@ void main() {
       imageStore(
           outImage,
           ivec2(x0 + dx, y),
-          vec4(1.0, 0 , 0.0, 1.0)
+          vec4(1.0, float(macrotile_offsets[macro_id]) / float(pc.n_macrotiles_x * pc.n_macrotiles_y), 0.0, 1.0)
           );
     } else {
 

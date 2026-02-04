@@ -4,6 +4,7 @@
 #extension GL_KHR_shader_subgroup_basic  : enable
 #extension GL_KHR_shader_subgroup_ballot : enable
 
+
 layout(local_size_x = 256) in;
 
 #define WG_SIZE   256
@@ -120,9 +121,6 @@ barrier();
 
 
   barrier();
-
-  if(seg_id >= pc.n_segments)
-    return;
 
   for(int ty = start.y; ty <= end.y; ty++)
   {
