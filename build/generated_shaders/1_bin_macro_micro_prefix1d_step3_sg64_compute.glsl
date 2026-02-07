@@ -1,17 +1,17 @@
 #version 450 core
 
-#define PREFIX_OUTPUT
+/* #undef PREFIX_OUTPUT */
 
 /* #undef DO_XOR */
 
 layout (local_size_x = 64) in;
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 12, std430) buffer TileOffsets {
-  uint macrotile_offsets_micro[];
+layout(set = 0, binding = 6, std430) buffer TileOffsets {
+  uint macrotile_n_segments_micro[];
 };
 #else 
-layout(set = 0, binding = 11, std430) buffer TileOffsets {
+layout(set = 0, binding = 6, std430) buffer TileOffsets {
   uint macrotile_n_segments_micro[];
 };
 #endif
@@ -41,9 +41,9 @@ void main() {
 
   if(is_active) {
 #ifdef DO_XOR 
-  macrotile_offsets_micro[gid] ^= subgroup_tmp[gid / 64];
+  macrotile_n_segments_micro[gid] ^= subgroup_tmp[gid / 64];
 #else 
-  macrotile_offsets_micro[gid] += subgroup_tmp[gid / 64];
+  macrotile_n_segments_micro[gid] += subgroup_tmp[gid / 64];
 #endif 
   }
 }

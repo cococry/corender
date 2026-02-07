@@ -12,56 +12,51 @@ shared uint subgroup_totals[SGS_PER_WG];
 layout(local_size_x = 64) in;
 
 struct Segment {
-    vec2 p0;
-    vec2 p1;
+  vec2 p0;
+  vec2 p1;
 };
 
 layout(set = 0, binding = 0, std430) readonly buffer Segments {
-    Segment segments[];
+  Segment segments[];
 };
 
-
 layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
-    uint macrotile_n_segments[];
+  uint macrotile_n_segments[];
 };
 
 layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
-    uint macrotile_offsets[];
+  uint macrotile_offsets[];
 };
 
 layout(set = 0, binding = 3, std430) buffer macrotileSegments {
-    uint macrotile_segments[];
+  uint macrotile_segments[];
 };
 
-
-layout(set = 0, binding = 5, std430) buffer TileSegments {
-    uint tile_segments[];
+layout(set = 0, binding = 5, std430) buffer TileNSegments {
+    uint tile_n_segments[];
 };
 
+layout(set = 0, binding = 6, std430) buffer macrotileNSegmentsMicro {
+    uint macrotile_n_segments_micro[];
+};
 
 layout(set = 0, binding = 7, std430) buffer TileOffsets {
-    uint tile_offsets_micro[];
+  uint tile_offsets[];
 };
 
-layout(set = 0, binding = 12, std430) readonly buffer macrotileOffsetsMicro{
-    uint macrotile_offsets_micro[];
+layout(set = 0, binding = 9, std430) buffer TileSegments {
+  uint tile_segments[];
 };
-
-layout(set = 0, binding = 13, std430) buffer TileCountsMacro {
-    uint tile_counts_micro[];
-};
-
-
 
 layout(push_constant) uniform push_constant {
-    uint screen_w, screen_h;
-    uint n_tiles_x, n_tiles_y;
-    uint n_macrotiles_x, n_macrotiles_y;
-    uint tile_size, macrotile_size;
+  uint screen_w, screen_h;
+  uint n_tiles_x, n_tiles_y;
+  uint n_macrotiles_x, n_macrotiles_y;
+  uint tile_size, macrotile_size;
 
-    uint n_segments;
-    uint n_paths;
-    uint fill_rule;
+  uint n_segments;
+  uint n_paths;
+  uint fill_rule;
 } pc;
 
 shared uint tile_cursor_local[64];
@@ -80,8 +75,20 @@ void main() {
     uint macro_id =
       gl_WorkGroupID.y * pc.n_macrotiles_x +
       gl_WorkGroupID.x;
-    tile_local_offset[lid] = tile_counts_micro[macro_id*64+lid];
-    tile_counts[lid] = tile_counts_micro[macro_id*64+lid];
+
+    uint tile = lid;
+
+    ivec2 macro_tile_base =
+      ivec2(int(gl_WorkGroupID.x) * 8,
+          int(gl_WorkGroupID.y) * 8);
+
+    uint gx = uint(macro_tile_base.x) + (tile % 8);
+    uint gy = uint(macro_tile_base.y) + (tile / 8);
+
+    uint global_tile_id = gy * pc.n_tiles_x + gx;
+
+    tile_local_offset[lid] = tile_n_segments[global_tile_id];
+    tile_counts[lid] = tile_n_segments[global_tile_id];
   }
   barrier();
 
@@ -116,24 +123,23 @@ void main() {
   tile_local_offset[lid] = prefix;
   barrier();
 
-
   uint macro_id = gl_WorkGroupID.y * pc.n_macrotiles_x + gl_WorkGroupID.x;
 
-if(lid < 64)
-{
+  if(lid < 64)
+  {
     uint gx = uint(macro_base.x) + (lid % 8);
     uint gy = uint(macro_base.y) + (lid / 8);
 
     if(gx < pc.n_tiles_x && gy < pc.n_tiles_y)
     {
-        uint tile_id = gy * pc.n_tiles_x + gx;
+      uint tile_id = gy * pc.n_tiles_x + gx;
 
-        tile_offsets_micro[tile_id] =
-            macrotile_offsets_micro[macro_id] +
-            tile_local_offset[lid];
+      tile_offsets[tile_id] =
+        macrotile_n_segments_micro[macro_id] +
+        tile_local_offset[lid];
     }
-}
-barrier();
+  }
+  barrier();
 
   uint count = macrotile_n_segments[macro_id];
   uint base = macrotile_offsets[macro_id];
@@ -167,7 +173,7 @@ barrier();
         uint idx = atomicAdd(tile_cursor_local[local_tile], 1);
 
         if(idx >= tile_counts[local_tile]) continue;
-        uint micro_base = macrotile_offsets_micro[macro_id] + tile_local_offset[local_tile];
+        uint micro_base = macrotile_n_segments_micro[macro_id] + tile_local_offset[local_tile];
 
         tile_segments[micro_base + idx] = seg_id; 
       }

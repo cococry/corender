@@ -20,6 +20,7 @@ events:
     names:
       - "uname"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -29,11 +30,13 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/"
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/uname"
       - "/usr/local/sbin/uname"
       - "/usr/local/bin/uname"
     found: "/usr/bin/uname"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -70,6 +73,7 @@ events:
       - "make"
       - "smake"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -79,6 +83,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/"
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/gmake"
       - "/usr/local/sbin/gmake"
       - "/usr/local/bin/gmake"
       - "/usr/bin/gmake"
@@ -87,11 +92,13 @@ events:
       - "/bin/gmake"
       - "/usr/lib/jvm/default-jdk/bin/gmake"
       - "/usr/lib/jvm/default-jre/bin/gmake"
+      - "/home/luca/.local/share/nvim/mason/bin/make"
       - "/usr/local/sbin/make"
       - "/usr/local/bin/make"
     found: "/usr/bin/make"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -126,6 +133,7 @@ events:
       - "icx"
       - "clang"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -135,11 +143,13 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/"
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/cc"
       - "/usr/local/sbin/cc"
       - "/usr/local/bin/cc"
     found: "/usr/bin/cc"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -175,6 +185,7 @@ events:
     found: "/usr/share/cmake-4.1/Modules/CMakeCCompilerId.c.in"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -226,6 +237,7 @@ events:
       - "ar"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -236,6 +248,7 @@ events:
     found: "/usr/bin/ar"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -265,6 +278,7 @@ events:
       - "ranlib"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -275,6 +289,7 @@ events:
     found: "/usr/bin/ranlib"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -304,6 +319,7 @@ events:
       - "strip"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -314,6 +330,7 @@ events:
     found: "/usr/bin/strip"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -343,6 +360,7 @@ events:
       - "ld"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -353,6 +371,7 @@ events:
     found: "/usr/bin/ld"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -382,6 +401,7 @@ events:
       - "nm"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -392,6 +412,7 @@ events:
     found: "/usr/bin/nm"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -421,6 +442,7 @@ events:
       - "objdump"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -431,6 +453,7 @@ events:
     found: "/usr/bin/objdump"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -460,6 +483,7 @@ events:
       - "objcopy"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -470,6 +494,7 @@ events:
     found: "/usr/bin/objcopy"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -499,6 +524,7 @@ events:
       - "readelf"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -509,6 +535,7 @@ events:
     found: "/usr/bin/readelf"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -538,6 +565,7 @@ events:
       - "dlltool"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -547,6 +575,7 @@ events:
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/dlltool"
+      - "/home/luca/.local/share/nvim/mason/bin/dlltool"
       - "/usr/local/sbin/dlltool"
       - "/usr/local/bin/dlltool"
       - "/usr/sbin/dlltool"
@@ -557,6 +586,7 @@ events:
     found: false
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -586,6 +616,7 @@ events:
       - "addr2line"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -596,6 +627,7 @@ events:
     found: "/usr/bin/addr2line"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -625,6 +657,7 @@ events:
       - "tapi"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -634,6 +667,7 @@ events:
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/tapi"
+      - "/home/luca/.local/share/nvim/mason/bin/tapi"
       - "/usr/local/sbin/tapi"
       - "/usr/local/bin/tapi"
       - "/usr/sbin/tapi"
@@ -644,6 +678,7 @@ events:
     found: false
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -676,6 +711,7 @@ events:
       - "gcc-ar"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -685,6 +721,7 @@ events:
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ar-14.2"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14.2"
       - "/usr/local/sbin/gcc-ar-14.2"
       - "/usr/local/bin/gcc-ar-14.2"
       - "/usr/sbin/gcc-ar-14.2"
@@ -693,6 +730,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14.2"
       - "/usr/lib/jvm/default-jre/bin/gcc-ar-14.2"
       - "/usr/bin/gcc-ar-14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14"
       - "/usr/local/sbin/gcc-ar-14"
       - "/usr/local/bin/gcc-ar-14"
       - "/usr/sbin/gcc-ar-14"
@@ -701,6 +739,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14"
       - "/usr/lib/jvm/default-jre/bin/gcc-ar-14"
       - "/usr/bin/gcc-ar14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar14"
       - "/usr/local/sbin/gcc-ar14"
       - "/usr/local/bin/gcc-ar14"
       - "/usr/sbin/gcc-ar14"
@@ -711,6 +750,7 @@ events:
     found: "/usr/bin/gcc-ar"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -743,6 +783,7 @@ events:
       - "gcc-ranlib"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -752,6 +793,7 @@ events:
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ranlib-14.2"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14.2"
       - "/usr/local/sbin/gcc-ranlib-14.2"
       - "/usr/local/bin/gcc-ranlib-14.2"
       - "/usr/sbin/gcc-ranlib-14.2"
@@ -760,6 +802,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14.2"
       - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14.2"
       - "/usr/bin/gcc-ranlib-14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14"
       - "/usr/local/sbin/gcc-ranlib-14"
       - "/usr/local/bin/gcc-ranlib-14"
       - "/usr/sbin/gcc-ranlib-14"
@@ -768,6 +811,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14"
       - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14"
       - "/usr/bin/gcc-ranlib14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib14"
       - "/usr/local/sbin/gcc-ranlib14"
       - "/usr/local/bin/gcc-ranlib14"
       - "/usr/sbin/gcc-ranlib14"
@@ -778,6 +822,7 @@ events:
     found: "/usr/bin/gcc-ranlib"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -819,6 +864,7 @@ events:
     found: "/usr/bin/c++"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -854,6 +900,7 @@ events:
     found: "/usr/share/cmake-4.1/Modules/CMakeCXXCompilerId.cpp.in"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -908,6 +955,7 @@ events:
       - "gcc-ar"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -917,6 +965,7 @@ events:
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ar-14.2"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14.2"
       - "/usr/local/sbin/gcc-ar-14.2"
       - "/usr/local/bin/gcc-ar-14.2"
       - "/usr/sbin/gcc-ar-14.2"
@@ -925,6 +974,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14.2"
       - "/usr/lib/jvm/default-jre/bin/gcc-ar-14.2"
       - "/usr/bin/gcc-ar-14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14"
       - "/usr/local/sbin/gcc-ar-14"
       - "/usr/local/bin/gcc-ar-14"
       - "/usr/sbin/gcc-ar-14"
@@ -933,6 +983,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14"
       - "/usr/lib/jvm/default-jre/bin/gcc-ar-14"
       - "/usr/bin/gcc-ar14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar14"
       - "/usr/local/sbin/gcc-ar14"
       - "/usr/local/bin/gcc-ar14"
       - "/usr/sbin/gcc-ar14"
@@ -943,6 +994,7 @@ events:
     found: "/usr/bin/gcc-ar"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -975,6 +1027,7 @@ events:
       - "gcc-ranlib"
     candidate_directories:
       - "/usr/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
@@ -984,6 +1037,7 @@ events:
       - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ranlib-14.2"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14.2"
       - "/usr/local/sbin/gcc-ranlib-14.2"
       - "/usr/local/bin/gcc-ranlib-14.2"
       - "/usr/sbin/gcc-ranlib-14.2"
@@ -992,6 +1046,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14.2"
       - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14.2"
       - "/usr/bin/gcc-ranlib-14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14"
       - "/usr/local/sbin/gcc-ranlib-14"
       - "/usr/local/bin/gcc-ranlib-14"
       - "/usr/sbin/gcc-ranlib-14"
@@ -1000,6 +1055,7 @@ events:
       - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14"
       - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14"
       - "/usr/bin/gcc-ranlib14"
+      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib14"
       - "/usr/local/sbin/gcc-ranlib14"
       - "/usr/local/bin/gcc-ranlib14"
       - "/usr/sbin/gcc-ranlib14"
@@ -1010,6 +1066,7 @@ events:
     found: "/usr/bin/gcc-ranlib"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1027,8 +1084,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-abKllY"
-      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-abKllY"
+      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4"
+      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4"
     cmakeVariables:
       CMAKE_C_FLAGS: ""
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1037,13 +1094,13 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-abKllY'
+        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_1aebf/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_1aebf.dir/build.make CMakeFiles/cmTC_1aebf.dir/build
-        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-abKllY'
-        Building C object CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o
-        /usr/bin/cc   -v -o CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_f6e41/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_f6e41.dir/build.make CMakeFiles/cmTC_f6e41.dir/build
+        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4'
+        Building C object CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -v -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         Target: x86_64-unknown-linux-gnu
@@ -1051,8 +1108,8 @@ events:
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20250405 (GCC) 
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_1aebf.dir/'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_1aebf.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccixN9eq.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_f6e41.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccyVIw9r.s
         GNU C17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)
         	compiled by GNU C version 14.2.1 20250405, GMP version 6.3.0, MPFR version 4.2.1, MPC version 1.3.1, isl version isl-0.26-GMP
         
@@ -1066,14 +1123,14 @@ events:
          /usr/include
         End of search list.
         Compiler executable checksum: d507a05d115bf3b5b90ff982a544bcc1
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_1aebf.dir/'
-         as -v --64 -o CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o /tmp/ccixN9eq.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/'
+         as -v --64 -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o /tmp/ccyVIw9r.s
         GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.'
-        Linking C executable cmTC_1aebf
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1aebf.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.'
+        Linking C executable cmTC_f6e41
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f6e41.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper
@@ -1084,14 +1141,14 @@ events:
         gcc version 14.2.1 20250405 (GCC) 
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_1aebf' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_1aebf.'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctnotnO.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_1aebf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f6e41' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f6e41.'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         collect2 version 14.2.1 20250405
-        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctnotnO.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_1aebf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         GNU ld (GNU Binutils) 2.44
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_1aebf' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_1aebf.'
-        /usr/bin/cc  -v -Wl,-v CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o -o cmTC_1aebf
-        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-abKllY'
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f6e41' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f6e41.'
+        /usr/bin/cc  -v -Wl,-v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -o cmTC_f6e41
+        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4'
         
       exitCode: 0
   -
@@ -1126,13 +1183,13 @@ events:
       Parsed C implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-abKllY']
+        ignore line: [Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_1aebf/fast]
-        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_1aebf.dir/build.make CMakeFiles/cmTC_1aebf.dir/build]
-        ignore line: [make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-abKllY']
-        ignore line: [Building C object CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o]
-        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_f6e41/fast]
+        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_f6e41.dir/build.make CMakeFiles/cmTC_f6e41.dir/build]
+        ignore line: [make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4']
+        ignore line: [Building C object CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [Target: x86_64-unknown-linux-gnu]
@@ -1140,8 +1197,8 @@ events:
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_1aebf.dir/']
-        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_1aebf.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccixN9eq.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/']
+        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_f6e41.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccyVIw9r.s]
         ignore line: [GNU C17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)]
         ignore line: [	compiled by GNU C version 14.2.1 20250405  GMP version 6.3.0  MPFR version 4.2.1  MPC version 1.3.1  isl version isl-0.26-GMP]
         ignore line: []
@@ -1155,14 +1212,14 @@ events:
         ignore line: [ /usr/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: d507a05d115bf3b5b90ff982a544bcc1]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_1aebf.dir/']
-        ignore line: [ as -v --64 -o CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o /tmp/ccixN9eq.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o /tmp/ccyVIw9r.s]
         ignore line: [GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.']
-        ignore line: [Linking C executable cmTC_1aebf]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1aebf.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.']
+        ignore line: [Linking C executable cmTC_f6e41]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f6e41.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper]
@@ -1173,13 +1230,13 @@ events:
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_1aebf' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_1aebf.']
-        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctnotnO.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_1aebf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f6e41' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f6e41.']
+        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/cctnotnO.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/cctqTSW7.res] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
           arg [-plugin-opt=-pass-through=-lc] ==> ignore
@@ -1194,7 +1251,7 @@ events:
           arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
           arg [-pie] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_1aebf] ==> ignore
+          arg [cmTC_f6e41] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o]
@@ -1204,7 +1261,7 @@ events:
           arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
           arg [-L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..] ==> dir [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..]
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o] ==> ignore
           arg [-lgcc] ==> lib [gcc]
           arg [--push-state] ==> ignore
           arg [--as-needed] ==> ignore
@@ -1219,7 +1276,7 @@ events:
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         ignore line: [collect2 version 14.2.1 20250405]
-        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctnotnO.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_1aebf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_1aebf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         linker tool for 'C': /usr/bin/ld
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> [/usr/lib64/Scrt1.o]
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
@@ -1254,8 +1311,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-EUHMHP"
-      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-EUHMHP"
+      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p"
+      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -1265,13 +1322,13 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-EUHMHP'
+        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_d9673/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_d9673.dir/build.make CMakeFiles/cmTC_d9673.dir/build
-        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-EUHMHP'
-        Building CXX object CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o
-        /usr/bin/c++   -v -o CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_6fdaf/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_6fdaf.dir/build.make CMakeFiles/cmTC_6fdaf.dir/build
+        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p'
+        Building CXX object CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -v -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp
         Using built-in specs.
         COLLECT_GCC=/usr/bin/c++
         Target: x86_64-unknown-linux-gnu
@@ -1279,8 +1336,8 @@ events:
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20250405 (GCC) 
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_d9673.dir/'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_d9673.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/ccOz9Nb2.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_6fdaf.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/cc28UWNt.s
         GNU C++17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)
         	compiled by GNU C version 14.2.1 20250405, GMP version 6.3.0, MPFR version 4.2.1, MPC version 1.3.1, isl version isl-0.26-GMP
         
@@ -1297,14 +1354,14 @@ events:
          /usr/include
         End of search list.
         Compiler executable checksum: d91c39a812dad8e706eddcfd1b8404ee
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_d9673.dir/'
-         as -v --64 -o CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccOz9Nb2.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/'
+         as -v --64 -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o /tmp/cc28UWNt.s
         GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.'
-        Linking CXX executable cmTC_d9673
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d9673.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.'
+        Linking CXX executable cmTC_6fdaf
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6fdaf.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/usr/bin/c++
         COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper
@@ -1315,14 +1372,14 @@ events:
         gcc version 14.2.1 20250405 (GCC) 
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_d9673' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_d9673.'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLKvwv5.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_d9673 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6fdaf' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6fdaf.'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         collect2 version 14.2.1 20250405
-        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLKvwv5.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_d9673 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         GNU ld (GNU Binutils) 2.44
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_d9673' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_d9673.'
-        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_d9673
-        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-EUHMHP'
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6fdaf' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6fdaf.'
+        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_6fdaf
+        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p'
         
       exitCode: 0
   -
@@ -1363,13 +1420,13 @@ events:
       Parsed CXX implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-EUHMHP']
+        ignore line: [Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_d9673/fast]
-        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_d9673.dir/build.make CMakeFiles/cmTC_d9673.dir/build]
-        ignore line: [make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-EUHMHP']
-        ignore line: [Building CXX object CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o]
-        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_6fdaf/fast]
+        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_6fdaf.dir/build.make CMakeFiles/cmTC_6fdaf.dir/build]
+        ignore line: [make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p']
+        ignore line: [Building CXX object CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/c++]
         ignore line: [Target: x86_64-unknown-linux-gnu]
@@ -1377,8 +1434,8 @@ events:
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_d9673.dir/']
-        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_d9673.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/ccOz9Nb2.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/']
+        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_6fdaf.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/cc28UWNt.s]
         ignore line: [GNU C++17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)]
         ignore line: [	compiled by GNU C version 14.2.1 20250405  GMP version 6.3.0  MPFR version 4.2.1  MPC version 1.3.1  isl version isl-0.26-GMP]
         ignore line: []
@@ -1395,14 +1452,14 @@ events:
         ignore line: [ /usr/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: d91c39a812dad8e706eddcfd1b8404ee]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_d9673.dir/']
-        ignore line: [ as -v --64 -o CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccOz9Nb2.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o /tmp/cc28UWNt.s]
         ignore line: [GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.']
-        ignore line: [Linking CXX executable cmTC_d9673]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d9673.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [Linking CXX executable cmTC_6fdaf]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6fdaf.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/c++]
         ignore line: [COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper]
@@ -1413,13 +1470,13 @@ events:
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_d9673' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_d9673.']
-        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLKvwv5.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_d9673 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6fdaf' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6fdaf.']
+        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/ccLKvwv5.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccrLeo94.res] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
           arg [-plugin-opt=-pass-through=-lc] ==> ignore
@@ -1434,7 +1491,7 @@ events:
           arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
           arg [-pie] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_d9673] ==> ignore
+          arg [cmTC_6fdaf] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o]
@@ -1444,7 +1501,7 @@ events:
           arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
           arg [-L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..] ==> dir [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..]
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
           arg [-lstdc++] ==> lib [stdc++]
           arg [-lm] ==> lib [m]
           arg [-lgcc_s] ==> lib [gcc_s]
@@ -1455,7 +1512,7 @@ events:
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         ignore line: [collect2 version 14.2.1 20250405]
-        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLKvwv5.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_d9673 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_d9673.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         linker tool for 'CXX': /usr/bin/ld
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> [/usr/lib64/Scrt1.o]
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
@@ -1501,6 +1558,7 @@ events:
       - "vulkan/vulkan.h"
     candidate_directories:
       - "/include/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -1523,6 +1581,7 @@ events:
       - "/usr/include/X11/"
     searched_directories:
       - "/include/vulkan/vulkan.h"
+      - "/home/luca/.local/share/nvim/mason/bin/vulkan/vulkan.h"
       - "/usr/local/sbin/vulkan/vulkan.h"
       - "/usr/local/bin/vulkan/vulkan.h"
       - "/usr/bin/vulkan/vulkan.h"
@@ -1536,6 +1595,7 @@ events:
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1576,6 +1636,7 @@ events:
       - "vulkan"
     candidate_directories:
       - "/lib/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -1594,6 +1655,7 @@ events:
     found: "/lib/libvulkan.so"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1634,6 +1696,7 @@ events:
       - "glslc"
     candidate_directories:
       - "/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -1661,6 +1724,7 @@ events:
     found: "/bin/glslc"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1699,6 +1763,7 @@ events:
       - "glslangValidator"
     candidate_directories:
       - "/bin/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -1726,6 +1791,7 @@ events:
     found: "/bin/glslangValidator"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1763,6 +1829,7 @@ events:
     names:
       - "GL/gl.h"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -1787,6 +1854,7 @@ events:
       - "/usr/openwin/share/include/"
       - "/opt/graphics/OpenGL/include/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/GL/gl.h"
       - "/usr/local/sbin/GL/gl.h"
       - "/usr/local/bin/GL/gl.h"
       - "/usr/bin/GL/gl.h"
@@ -1800,6 +1868,7 @@ events:
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1839,6 +1908,7 @@ events:
     names:
       - "GL/glx.h"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -1860,6 +1930,7 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/GL/glx.h"
       - "/usr/local/sbin/GL/glx.h"
       - "/usr/local/bin/GL/glx.h"
       - "/usr/bin/GL/glx.h"
@@ -1873,6 +1944,7 @@ events:
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1912,6 +1984,7 @@ events:
     names:
       - "EGL/egl.h"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -1933,6 +2006,7 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/EGL/egl.h"
       - "/usr/local/sbin/EGL/egl.h"
       - "/usr/local/bin/EGL/egl.h"
       - "/usr/bin/EGL/egl.h"
@@ -1946,6 +2020,7 @@ events:
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -1985,6 +2060,7 @@ events:
     names:
       - "GLES2/gl2.h"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2006,6 +2082,7 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/GLES2/gl2.h"
       - "/usr/local/sbin/GLES2/gl2.h"
       - "/usr/local/bin/GLES2/gl2.h"
       - "/usr/bin/GLES2/gl2.h"
@@ -2019,6 +2096,7 @@ events:
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2058,6 +2136,7 @@ events:
     names:
       - "GLES3/gl3.h"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2079,6 +2158,7 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/GLES3/gl3.h"
       - "/usr/local/sbin/GLES3/gl3.h"
       - "/usr/local/bin/GLES3/gl3.h"
       - "/usr/bin/GLES3/gl3.h"
@@ -2092,6 +2172,7 @@ events:
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2131,6 +2212,7 @@ events:
     names:
       - "GL/xmesa.h"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2155,6 +2237,7 @@ events:
       - "/usr/openwin/share/include/"
       - "/opt/graphics/OpenGL/include/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/GL/xmesa.h"
       - "/usr/local/sbin/GL/xmesa.h"
       - "/usr/local/bin/GL/xmesa.h"
       - "/usr/bin/GL/xmesa.h"
@@ -2181,6 +2264,7 @@ events:
     found: false
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2220,6 +2304,7 @@ events:
     names:
       - "GL/glu.h"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2241,6 +2326,7 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/GL/glu.h"
       - "/usr/local/sbin/GL/glu.h"
       - "/usr/local/bin/GL/glu.h"
       - "/usr/bin/GL/glu.h"
@@ -2254,6 +2340,7 @@ events:
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2293,6 +2380,7 @@ events:
     names:
       - "OpenGL"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2309,6 +2397,7 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2322,6 +2411,7 @@ events:
     found: "/usr/lib/libOpenGL.so"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2361,6 +2451,7 @@ events:
     names:
       - "GLX"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2377,6 +2468,7 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2390,6 +2482,7 @@ events:
     found: "/usr/lib/libGLX.so"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2429,6 +2522,7 @@ events:
     names:
       - "EGL"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2445,6 +2539,7 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2458,6 +2553,7 @@ events:
     found: "/usr/lib/libEGL.so"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2497,6 +2593,7 @@ events:
     names:
       - "GLESv2"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2513,6 +2610,7 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2526,6 +2624,7 @@ events:
     found: "/usr/lib/libGLESv2.so"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2566,6 +2665,7 @@ events:
       - "GLESv3"
       - "GLESv2"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2582,6 +2682,7 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2597,6 +2698,7 @@ events:
       - "/lib/"
       - "/opt/"
       - "/usr/lib/X11/"
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2610,6 +2712,7 @@ events:
     found: "/usr/lib/libGLESv2.so"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2650,6 +2753,7 @@ events:
       - "GLU"
       - "MesaGLU"
     candidate_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2666,6 +2770,7 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
+      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
@@ -2679,6 +2784,7 @@ events:
     found: "/usr/lib/libGLU.so"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
@@ -2712,8 +2818,8 @@ events:
     checks:
       - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
     directories:
-      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-0FF8Hj"
-      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-0FF8Hj"
+      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9"
+      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9"
     cmakeVariables:
       CMAKE_C_FLAGS: ""
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -2723,17 +2829,17 @@ events:
       variable: "CMAKE_HAVE_LIBC_PTHREAD"
       cached: true
       stdout: |
-        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-0FF8Hj'
+        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_d101a/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_d101a.dir/build.make CMakeFiles/cmTC_d101a.dir/build
-        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-0FF8Hj'
-        Building C object CMakeFiles/cmTC_d101a.dir/src.c.o
-        /usr/bin/cc -DCMAKE_HAVE_LIBC_PTHREAD  -std=gnu11 -fPIE -o CMakeFiles/cmTC_d101a.dir/src.c.o -c /home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-0FF8Hj/src.c
-        Linking C executable cmTC_d101a
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d101a.dir/link.txt --verbose=1
-        /usr/bin/cc CMakeFiles/cmTC_d101a.dir/src.c.o -o cmTC_d101a
-        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-0FF8Hj'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_e5be0/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_e5be0.dir/build.make CMakeFiles/cmTC_e5be0.dir/build
+        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9'
+        Building C object CMakeFiles/cmTC_e5be0.dir/src.c.o
+        /usr/bin/cc -DCMAKE_HAVE_LIBC_PTHREAD  -std=gnu11 -fPIE -o CMakeFiles/cmTC_e5be0.dir/src.c.o -c /home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9/src.c
+        Linking C executable cmTC_e5be0
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e5be0.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_e5be0.dir/src.c.o -o cmTC_e5be0
+        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9'
         
       exitCode: 0
   -
@@ -2780,6 +2886,14 @@ events:
         mode: "config"
         reason: "no_exist"
       -
+        path: "/home/luca/.local/share/nvim/mason/glfw3Config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "/home/luca/.local/share/nvim/mason/glfw3-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
         path: "/usr/local/glfw3Config.cmake"
         mode: "config"
         reason: "no_exist"
@@ -2801,6 +2915,7 @@ events:
       version: "3.4.0"
     search_context:
       ENV{PATH}:
+        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"

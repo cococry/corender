@@ -10,11 +10,11 @@ layout(set = 0, binding = 8, std430) buffer SubgroupTmp {
 };
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 9, std430) buffer TileOffsets {
+layout(set = 0, binding = 10, std430) buffer TileOffsets {
   uint prefix_parity[];
 };
 #else 
-layout(set = 0, binding = 9, std430) buffer TileOffsets {
+layout(set = 0, binding = 10, std430) buffer TileOffsets {
   uint prefix_parity[];
 };
 #endif

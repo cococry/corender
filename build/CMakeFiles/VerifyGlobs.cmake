@@ -28,13 +28,12 @@ endif()
 # COMPUTE_STATIC_SHADERS at CMakeLists.txt:200 (file)
 file(GLOB_RECURSE NEW_GLOB LIST_DIRECTORIES false "/home/luca/dev/corender/shaders/compute/*.glsl")
 set(OLD_GLOB
-  "/home/luca/dev/corender/shaders/compute/1_bin_macro_count_compute.glsl"
-  "/home/luca/dev/corender/shaders/compute/2_bin_macro_scatter_compute.glsl"
+  "/home/luca/dev/corender/shaders/compute/1_bin_macro_compute.glsl"
+  "/home/luca/dev/corender/shaders/compute/2_bin_micro_count_compute.glsl"
   "/home/luca/dev/corender/shaders/compute/3_bin_macro_count_micro_compute.glsl"
-  "/home/luca/dev/corender/shaders/compute/3_bin_micro_count_compute.glsl"
-  "/home/luca/dev/corender/shaders/compute/3_bin_micro_scatter_compute.glsl"
-  "/home/luca/dev/corender/shaders/compute/4_base_parity_compute.glsl"
-  "/home/luca/dev/corender/shaders/compute/5_fill_compute.glsl"
+  "/home/luca/dev/corender/shaders/compute/4_bin_micro_scatter_compute.glsl"
+  "/home/luca/dev/corender/shaders/compute/5_base_parity_compute.glsl"
+  "/home/luca/dev/corender/shaders/compute/6_fill_compute.glsl"
   )
 if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
   message("-- GLOB mismatch!")

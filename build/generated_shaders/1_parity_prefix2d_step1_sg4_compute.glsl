@@ -10,12 +10,12 @@
 layout(local_size_x = 64) in;
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 9, std430) buffer TileOffsets {
+layout(set = 0, binding = 10, std430) buffer TileOffsets {
     uint prefix_parity[];
 };
 #endif
 
-layout(set = 0, binding = 9, std430) buffer TileNSegments {
+layout(set = 0, binding = 10, std430) buffer TileNSegments {
     uint prefix_parity[];
 };
 

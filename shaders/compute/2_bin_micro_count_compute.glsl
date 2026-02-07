@@ -20,9 +20,8 @@ layout(set=0,binding=0,std430) readonly buffer Segments {
   Segment segments[];
 };
 
-
 layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
-  uint macrotile_count[];
+  uint macrotile_n_segments[];
 };
 
 layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
@@ -33,17 +32,8 @@ layout(set = 0, binding = 3, std430) buffer macrotileSegments {
   uint macrotile_segments[];
 };
 
-layout(set = 0, binding = 4, std430) buffer macrotileCursor {
-  uint macrotile_cursor[];
-};
-
-
-layout(set = 0, binding = 6, std430) buffer TileNSegments {
+layout(set = 0, binding = 5, std430) buffer TileNSegments {
     uint tile_n_segments[];
-};
-
-layout(set = 0, binding = 13, std430) buffer TileCountsMacro {
-    uint tile_counts_micro[];
 };
 
 layout(push_constant) uniform push_constant {
@@ -92,7 +82,7 @@ void main()
   ivec2 end   = ivec2(-1);
 
   uint base = macrotile_offsets[macro_id];
-  uint count = macrotile_count[macro_id];
+  uint count = macrotile_n_segments[macro_id];
 
 
   ivec2 macro_tile_base =
@@ -150,7 +140,6 @@ void main()
       uint global_tile_id = gy * pc.n_tiles_x + gx;
 
       tile_n_segments[global_tile_id] = c;
-      tile_counts_micro[macro_id*64 + tile] = c;
     }
   }
 }

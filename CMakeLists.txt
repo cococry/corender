@@ -62,9 +62,9 @@ set(PIPELINE_bin
 set(PIPELINE_bin_macro_micro
     bin_macro_micro # name
     macrotile_n_segments_micro # input buffer
-    11 # input buffer binding
-    12 # output buffer binding
-    macrotile_offsets_micro # output buffer
+    6 # input buffer binding
+    -1 # output buffer binding (no output, write to input)
+    -1 # output buffer (no output, write to input)
     1 # enable 1d
     0 # enable 2d
     0 # if the prefix pass is Xor (else we just add) 
@@ -75,7 +75,7 @@ set(PIPELINE_bin_macro_micro
 set(PIPELINE_bin_fine
     bin_macro_micro # name
     tile_n_segments # input buffer
-    6 # input buffer binding
+    5 # input buffer binding
     7 # output buffer binding
     tile_offsets # output buffer
     1 # enable 1d
@@ -85,12 +85,10 @@ set(PIPELINE_bin_fine
     n_tiles_y
 )
 
-
-
 set(PIPELINE_parity
     parity
     prefix_parity
-    9
+    10
     -1
     -1
     0

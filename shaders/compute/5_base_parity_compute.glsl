@@ -14,34 +14,21 @@ layout(set = 0, binding = 0, std430) readonly buffer Segments {
   Segment segments[];
 };
 
-layout(set = 0, binding = 6, std430) readonly buffer TileNSegments {
-  uint tile_n_segments[];
+layout(set = 0, binding = 5, std430) buffer TileNSegments {
+    uint tile_n_segments[];
 };
 
 layout(set = 0, binding = 7, std430) readonly buffer TileOffsets {
   uint tile_offsets[];
 };
 
-layout(set = 0, binding = 5, std430) readonly buffer TileSegments {
+layout(set = 0, binding = 9, std430) buffer TileSegments {
   uint tile_segments[];
 };
 
-layout(set = 0, binding = 9, std430) writeonly buffer PrefixParity {
+layout(set = 0, binding = 10, std430) writeonly buffer PrefixParity {
   uint prefix_parity[];
 };
-
-
-layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
-  uint macrotile_count[];
-};
-layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
-  uint macrotile_offsets[];
-};
-
-layout(set = 0, binding = 3, std430) buffer macrotileSegments {
-  uint macrotile_segments[];
-};
-
 
 layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
@@ -66,8 +53,8 @@ void main()
     uint(macro_xy.y) * pc.n_macrotiles_x +
     uint(macro_xy.x);
 
-  uint base  = macrotile_offsets[macro_id];
-  uint count = macrotile_count[macro_id];
+  uint base  = tile_offsets[tile_id];
+  uint count = tile_n_segments[tile_id];
 
   float tile_x0 = float(tile.x) * float(pc.tile_size);
   float tile_x1 = tile_x0 + float(pc.tile_size);
@@ -80,7 +67,7 @@ void main()
 
   for (uint i = lane; i < count; i += sgSize)
   {
-    uint seg_id = macrotile_segments[base + i];
+    uint seg_id = tile_segments[base + i];
     Segment s   = segments[seg_id];
 
     float x0 = s.p0.x;
@@ -97,8 +84,7 @@ void main()
 
     float dy = y1 - y0;
 
-    if (abs(dy) < 1e-6)
-      continue;
+    if (y0 == y1) continue;
 
     float slope = (x1 - x0) / dy;
 
@@ -109,7 +95,6 @@ void main()
         continue;
 
       float x = x0 + (scan_y - y0) * slope;
-      x -= 1e-6;
 
       if (x >= tile_x0 && x < tile_x1) {
         mask ^= (1u << uint(j));

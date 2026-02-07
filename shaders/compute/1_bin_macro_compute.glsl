@@ -2,7 +2,6 @@
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_ballot     : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
-#extension GL_EXT_debug_printf : enable
 
 layout(local_size_x = 256) in;
 
@@ -19,21 +18,20 @@ layout(set=0,binding=0,std430) readonly buffer Segments {
     Segment segments[];
 };
 
-layout(set=0,binding=14,std430) buffer BumpAlloc {
-    uint bump_cursor;
+layout(set = 0, binding = 1, std430) buffer MacrotileNSegments {
+  uint macrotile_n_segments[];
 };
-
-layout(set = 0, binding = 1, std430) buffer macrotileNSegments {
-  uint macrotile_count[];
-};
-layout(set = 0, binding = 2, std430) buffer macrotileOffsets {
+layout(set = 0, binding = 2, std430) buffer MacrotileOffsets {
   uint macrotile_offsets[];
 };
 
-layout(set = 0, binding = 3, std430) buffer macrotileSegments {
+layout(set = 0, binding = 3, std430) buffer MacrotileSegments {
   uint macrotile_segments[];
 };
 
+layout(set = 0,binding = 4, std430) buffer BumpAlloc {
+    uint bump_cursor;
+};
 
 layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
@@ -109,9 +107,8 @@ void main()
         if(count != 0)
             base = atomicAdd(bump_cursor, count);
 
-        macrotile_count[bin] = count;
+        macrotile_n_segments[bin] = count;
         macrotile_offsets[bin] = base;
-
 
         bin_base[bin] = base;
       }

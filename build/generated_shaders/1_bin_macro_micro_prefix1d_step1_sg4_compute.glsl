@@ -1,6 +1,6 @@
 #version 450
 
-#define PREFIX_OUTPUT
+/* #undef PREFIX_OUTPUT */
 /* #undef DO_XOR */
 
 #extension GL_KHR_shader_subgroup_basic      : enable
@@ -9,12 +9,12 @@
 layout(local_size_x = 64) in;
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 12, std430) buffer TileOffsets {
-    uint macrotile_offsets_micro[];
+layout(set = 0, binding = 6, std430) buffer TileOffsets {
+    uint macrotile_n_segments_micro[];
 };
 #endif
 
-layout(set = 0, binding = 11, std430) buffer TileNSegments {
+layout(set = 0, binding = 6, std430) buffer TileNSegments {
     uint macrotile_n_segments_micro[];
 };
 
@@ -98,7 +98,7 @@ barrier();
 
 #ifdef PREFIX_OUTPUT
   if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
-    macrotile_offsets_micro[gid] = prefix;
+    macrotile_n_segments_micro[gid] = prefix;
 #else 
   if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
     macrotile_n_segments_micro[gid] = prefix;

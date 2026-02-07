@@ -3,6 +3,7 @@
 #extension GL_KHR_shader_subgroup_basic  : enable
 #extension GL_KHR_shader_subgroup_ballot : enable
 #extension GL_KHR_shader_subgroup_vote : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 
 layout(local_size_x = 64) in;
 
@@ -11,15 +12,12 @@ struct Segment {
     vec2 p1;
 };
 
-layout(set = 0, binding = 11, std430) buffer macrotileNSegmentsMicro {
-    uint macrotile_n_segments_micro[];
-};
-layout(set = 0, binding = 13, std430) buffer TileCountsMacro {
-    uint tile_counts_micro[];
+layout(set = 0, binding = 5, std430) buffer TileNSegments {
+    uint tile_n_segments[];
 };
 
-layout(set = 0, binding = 6, std430) buffer TileCounts {
-    uint tile_counts[];
+layout(set = 0, binding = 6, std430) buffer MacrotileNSegmentsMicro {
+    uint macrotile_n_segments_micro[];
 };
 
 layout(push_constant) uniform push_constant {
@@ -34,7 +32,7 @@ layout(push_constant) uniform push_constant {
 } pc;
 
 
-shared uint tmp[64];
+shared uint subgroup_totals[2];
 
 void main() {
   if(gl_WorkGroupID.x >= pc.n_macrotiles_x ||
@@ -49,7 +47,6 @@ void main() {
 
   uint tile = lid;
 
-
   ivec2 macro_tile_base =
     ivec2(int(gl_WorkGroupID.x) * 8,
         int(gl_WorkGroupID.y) * 8);
@@ -59,21 +56,15 @@ void main() {
       
   uint global_tile_id = gy * pc.n_tiles_x + gx;
 
-  tmp[lid] = tile_counts[global_tile_id];
+  uint sum = subgroupAdd(tile_n_segments[global_tile_id]);
+
+  if (subgroupElect())
+    subgroup_totals[gl_SubgroupID] = sum;
 
   barrier();
 
-  if(lid < 64) {
-    for(uint offset = 32; offset > 0; offset >>= 1) {
-      if(lid < offset)
-        tmp[lid] += tmp[lid + offset];
-      barrier();
-    }
-  }
-
-  if(lid == 0)
-    macrotile_n_segments_micro[macro_id] = tmp[0];
-
-  
+  if (gl_SubgroupID == 0 && gl_SubgroupInvocationID == 0)
+    macrotile_n_segments_micro[macro_id] =
+      subgroup_totals[0] + subgroup_totals[1];
 }
 

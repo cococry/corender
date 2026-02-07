@@ -77,13 +77,13 @@ int main() {
     "VK_LAYER_KHRONOS_validation"
   };
   struct cr_context_init_info_t info = {
-    .enable_validation = true,
+    .enable_validation = false,
     .n_exts = n_exts,
     .exts = exts,
     .enable_time_measuring = false,
 
-    .layers = validation_layers,
-    .n_layers = 1,
+    .layers = NULL,
+    .n_layers = 0,
 
     .log_verbose = true, 
     .surface_create = _glfw_surface_create,
