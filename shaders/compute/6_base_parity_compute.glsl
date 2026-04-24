@@ -34,6 +34,8 @@ layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
   uint n_tiles_x, n_tiles_y;
   uint n_macrotiles_x, n_macrotiles_y;
+  uint n_seg_blocks;
+  uint n_bins;
   uint tile_size, macrotile_size;
 
   uint n_segments;
@@ -65,48 +67,62 @@ void main()
 
   uint sgSize = gl_SubgroupSize;
 
-  for (uint i = lane; i < count; i += sgSize)
+  uint left_mask = 0u;
+
+for (uint i = lane; i < count; i += sgSize)
+{
+  uint seg_id = tile_segments[base + i];
+  Segment s   = segments[seg_id];
+
+  float x0 = s.p0.x;
+  float y0 = s.p0.y;
+  float x1 = s.p1.x;
+  float y1 = s.p1.y;
+
+  if (y0 > y1)
   {
-    uint seg_id = tile_segments[base + i];
-    Segment s   = segments[seg_id];
-
-    float x0 = s.p0.x;
-    float y0 = s.p0.y;
-    float x1 = s.p1.x;
-    float y1 = s.p1.y;
-
-    if (y0 > y1)
-    {
-      float tmp;
-      tmp = y0; y0 = y1; y1 = tmp;
-      tmp = x0; x0 = x1; x1 = tmp;
-    }
-
-    float dy = y1 - y0;
-
-    if (y0 == y1) continue;
-
-    float slope = (x1 - x0) / dy;
-
-    for (int j = 0; j < 32; j++) {
-      float scan_y = tile_y0 + float(j) + 0.5;
-
-      if (scan_y < y0 || scan_y >= y1)
-        continue;
-
-      float x = x0 + (scan_y - y0) * slope;
-
-      if (x >= tile_x0 && x < tile_x1) {
-        mask ^= (1u << uint(j));
-      }
-    }
+    float tmp;
+    tmp = y0; y0 = y1; y1 = tmp;
+    tmp = x0; x0 = x1; x1 = tmp;
   }
 
-  uint final_mask = subgroupXor(mask);
+  float dy = y1 - y0;
+  if (y0 == y1) continue;
 
-  if (subgroupElect())
-  {
-    prefix_parity[tile_id] = final_mask;
+  float slope = (x1 - x0) / dy;
+
+  for (int j = 0; j < 32; j++) {
+    float scan_y = tile_y0 + float(j) + 0.5;
+
+    if (scan_y < y0 || scan_y >= y1)
+      continue;
+
+    float x = x0 + (scan_y - y0) * slope;
+
+    if (x < 0.0 && tile.x == 0u) {
+      left_mask ^= (1u << uint(j));
+    }
+
+    if (x >= tile_x0 && x < tile_x1) {
+      mask ^= (1u << uint(j));
+    }
   }
+}
+
+uint final_mask = subgroupXor(mask);
+uint final_left_mask = subgroupXor(left_mask);
+if (subgroupElect())
+{
+  uint row_base = tile.y * pc.n_tiles_x;
+
+  if (tile.x == 0u) {
+    prefix_parity[row_base] = final_left_mask;
+  }
+
+  if (tile.x + 1u < pc.n_tiles_x) {
+    prefix_parity[tile_id + 1u] = final_mask;
+  }
+}
+
 }
 

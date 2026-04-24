@@ -15,45 +15,37 @@ layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
   uint n_macrotiles_x, n_macrotiles_y;
+  uint n_seg_blocks;
+  uint n_bins;
   uint tile_size, macrotile_size;
-
   uint n_segments;
   uint n_paths;
-
   uint fill_rule;
 } pc;
 
 #define SG_SIZE 8
+#define SGS_PER_WG (64 / SG_SIZE)
 
-#define SGS_PER_WG 64 / SG_SIZE
-
-shared uint subgroup_totals[SGS_PER_WG]; 
+shared uint subgroup_totals[SGS_PER_WG];
 
 void main() {
   uint lid = gl_LocalInvocationID.x;
-  if(lid < SGS_PER_WG)
-    subgroup_totals[lid] = 0;
+  if (lid < SGS_PER_WG)
+    subgroup_totals[lid] = 0u;
   barrier();
 
-  uint gid = gl_GlobalInvocationID.x;
-  uint groupID = gl_WorkGroupID.x;
-
-  uint n_tiles  = pc.n_macrotiles_x * pc.n_macrotiles_y;
-  uint n_groups = (n_tiles + 63) / 64;
+  uint gid      = gl_GlobalInvocationID.x;
+  uint n_total  = pc.n_macrotiles_x * pc.n_macrotiles_y;
+  uint n_groups = (n_total + 63u) / 64u;
 
   bool is_active = gid < n_groups;
-
-  uint x = is_active ? subgroup_tmp[gid] : 0;
+  uint x = is_active ? subgroup_tmp[gid] : 0u;
 
 #ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
-#else 
-  uint prefix = subgroupExclusiveAdd(x);
-#endif
-
-#ifdef DO_XOR
   uint sg_sum = subgroupXor(x);
-#else 
+#else
+  uint prefix = subgroupExclusiveAdd(x);
   uint sg_sum = subgroupAdd(x);
 #endif
 
@@ -62,17 +54,15 @@ void main() {
 
   barrier();
 
-  uint sg_offset = 0;
+  uint sg_offset = 0u;
 
-  if (gl_SubgroupID == 0)
-  {
+  if (gl_SubgroupID == 0) {
     uint lane = gl_SubgroupInvocationID;
-
-    uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
+    uint val  = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0u;
 
 #ifdef DO_XOR
     uint off = subgroupExclusiveXor(val);
-#else 
+#else
     uint off = subgroupExclusiveAdd(val);
 #endif
 
@@ -86,11 +76,10 @@ void main() {
 
 #ifdef DO_XOR
   prefix ^= sg_offset;
-#else 
+#else
   prefix += sg_offset;
-#endif 
+#endif
 
-  if(is_active)
+  if (is_active)
     subgroup_tmp[gid] = prefix;
 }
-

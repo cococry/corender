@@ -73,7 +73,7 @@ set(PIPELINE_bin_macro_micro
 )
 
 set(PIPELINE_bin_fine
-    bin_macro_micro # name
+    bin_fine  # name
     tile_n_segments # input buffer
     5 # input buffer binding
     7 # output buffer binding
@@ -97,13 +97,39 @@ set(PIPELINE_parity
     n_tiles_x 
     n_tiles_y
 )
+set(PIPELINE_bin_macro_global
+    bin_macro_global
+    macrotile_offsets
+    2
+    -1
+    -1
+    1
+    0
+    0
+    n_bins
+    n_paths
+)
 
+set(PIPELINE_bin_macro_block
+    bin_macro_block
+    macro_block_counts
+    11
+    12
+    macro_block_offsets
+    0
+    1
+    0
+    n_seg_blocks
+    n_bins
+)
 
 set(PIPELINE_LIST
     PIPELINE_bin
     PIPELINE_bin_fine
     PIPELINE_bin_macro_micro
     PIPELINE_parity
+    PIPELINE_bin_macro_global
+    PIPELINE_bin_macro_block
 )
 
 file(GLOB PREFIX_TEMPLATES
@@ -276,7 +302,6 @@ foreach(example ${EXAMPLE_SRCS})
             OpenGL::GL
             Vulkan::Vulkan
             stdc++
-            glia
     )
 
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")

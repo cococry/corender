@@ -515,17 +515,27 @@ cr_compute_pipeline_init(
   uint macrotiles_x = DIV_UP(tiles_x, 8);
   uint macrotiles_y = DIV_UP(tiles_y, 8);
 
+  uint32_t max_segments = 8000; 
+
+  uint32_t max_macrotile_refs = max_segments * macrotiles_x * macrotiles_y;
+  uint32_t max_tile_refs      = max_segments * tiles_x * tiles_y;
+
+  uint32_t max_seg_blocks = DIV_UP(max_segments, 256);
+  uint32_t macro_block_counts  = (macrotiles_x * macrotiles_y) * max_seg_blocks;
+  uint32_t macro_block_offsets = (macrotiles_x * macrotiles_y) * max_seg_blocks;
   struct cr_compute_pipeline_layout_binding_t bindings[] = {
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_n_segments"  },  //  1
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_offsets"  },     //  2
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_segments"  },    //  3
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * max_macrotile_refs,        .name = "macrotile_segments"  },    //  3
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t),                                      .name = "bump_cursor"  },           //  4
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,                  .name = "tile_n_segments"  },       //  5
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_n_segments_micro"  },  //  6
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,                  .name = "tile_offsets"  },  //  7
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,                  .name = "subgroup_tmp"  },  //  8
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,                  .name = "tile_segments"  },  //  9
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * max_tile_refs ,                     .name = "tile_segments"  },  //  9
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,                  .name = "prefix_parity"  },  //  10
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macro_block_counts,                 .name = "macro_block_counts"  },  // 11
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macro_block_offsets,                .name = "macro_block_offsets" },  // 12
   };
 
   if(!_vk_pipeline_layout_init(ctx, pipeline, bindings, sizeof(bindings) / sizeof(bindings[0]))) {
@@ -733,17 +743,22 @@ cr_compute_pipeline_dispatch(
 
   uint32_t n_segments = pipeline->dynamic[swapchain_image_idx].n_segments;
 
+
+    uint32_t n_seg_blocks = DIV_UP(n_segments, 256);
+  uint32_t n_bins = n_macrotiles_x * n_macrotiles_y;
   struct cr_compute_pipeline_push_constant_t pc = {
     .tile_size = tile_size,
     .n_tiles_x = tiles_x,
     .n_tiles_y = tiles_y,
     .n_macrotiles_x = n_macrotiles_x,
     .n_macrotiles_y = n_macrotiles_y,
+    .n_bins = n_bins,
+    .n_seg_blocks = n_seg_blocks,
     .n_segments = n_segments,
     .fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD,
     .screen_w = screen_w,
     .screen_h = screen_h,
-    .n_paths = pipeline->dynamic[swapchain_image_idx].n_paths,
+    .n_paths = 1, 
     .macrotile_size = tile_size * 8, 
   };
 
@@ -779,21 +794,141 @@ cr_compute_pipeline_dispatch(
   vkCmdPipelineBarrier2(frame->cmd_buf, &dep_compute);
 
 
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_macro"), 
-                       swapchain_image_idx, &pc, DIV_UP(n_segments, 256), 1, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "macrotile_n_segments"),
-                       *_buffer_by_name(ctx, pipeline, "macrotile_segments"),
-                       *_buffer_by_name(ctx, pipeline, "macrotile_offsets"),
-                       *_buffer_by_name(ctx, pipeline, "bump_cursor"),
-                                        },
-                       4); 
+  /*
+   * A) Count references for each (macrotile bin, segment block).
+   *    Output:
+   *      - macro_block_counts[bin * n_seg_blocks + block]
+   */
+  _vk_dispatch_compute(
+    frame,
+    _kernel_by_name(ctx, pipeline, "bin_macro_count"),
+    swapchain_image_idx,
+    &pc,
+    n_seg_blocks,
+    n_bins,
+    1,
+    (struct cr_gpu_buffer_t[]){
+      *_buffer_by_name(ctx, pipeline, "macro_block_counts"),
+    },
+    1
+  );
 
-  _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_micro_count"),
-                       swapchain_image_idx, &pc, n_macrotiles_x, n_macrotiles_y, 1,
-                       (struct cr_gpu_buffer_t[]){
-                       *_buffer_by_name(ctx, pipeline, "tile_n_segments"),
-                         }, 1);
+  /*
+   * Prefix across segment blocks for each macrotile row.
+   * Input:
+   *   macro_block_counts
+   * Output:
+   *   macro_block_offsets
+   *
+   * This must be a 2D exclusive-add prefix over:
+   *   x = n_seg_blocks
+   *   rows = n_bins
+   */
+  cr_mem_clear_gpu_buffer(ctx, frame, _buffer_by_name(ctx, pipeline, "subgroup_tmp"));
+  _dispatch_prefix_sum_pass(
+    ctx,
+    pipeline,
+    frame,
+    swapchain_image_idx,
+    &pc,
+    true,                     /* two_dimensional */
+    n_seg_blocks,             /* n_elements_x */
+    n_bins,                   /* n_rows */
+    "bin_macro_block",        /* prefix shader family */
+    "subgroup_tmp",
+    "macro_block_offsets"
+  );
+
+  /*
+   * B) Finalize per-macrotile totals.
+   *    Reads:
+   *      - macro_block_counts
+   *      - macro_block_offsets
+   *    Writes:
+   *      - macrotile_n_segments[bin] = total refs in bin
+   *      - macrotile_offsets[bin]    = total refs in bin
+   *
+   * After this, we prefix macrotile_offsets globally across bins.
+   */
+  _vk_dispatch_compute(
+    frame,
+    _kernel_by_name(ctx, pipeline, "bin_macro_finalize"),
+    swapchain_image_idx,
+    &pc,
+    DIV_UP(n_bins, 64),
+    1,
+    1,
+    (struct cr_gpu_buffer_t[]){
+      *_buffer_by_name(ctx, pipeline, "macro_block_counts"),
+      *_buffer_by_name(ctx, pipeline, "macro_block_offsets"),
+      *_buffer_by_name(ctx, pipeline, "macrotile_n_segments"),
+      *_buffer_by_name(ctx, pipeline, "macrotile_offsets"),
+    },
+    4
+  );
+
+  /*
+   * Prefix total macrotile counts across bins.
+   * Input/output:
+   *   macrotile_offsets
+   *
+   * After this:
+   *   macrotile_offsets[bin] = global base of that bin in macrotile_segments
+   */
+  cr_mem_clear_gpu_buffer(ctx, frame, _buffer_by_name(ctx, pipeline, "subgroup_tmp"));
+  _dispatch_prefix_sum_pass(
+    ctx,
+    pipeline,
+    frame,
+    swapchain_image_idx,
+    &pc,
+    false,                    /* one_dimensional */
+    n_bins,                   /* n_elements_x */
+    1,                        /* n_rows */
+    "bin_macro_global",       /* prefix shader family */
+    "subgroup_tmp",
+    "macrotile_offsets"
+  );
+
+  /*
+   * C) Scatter segment ids into final macrotile segment lists.
+   *    Reads:
+   *      - macro_block_offsets
+   *      - macrotile_offsets
+   *    Writes:
+   *      - macrotile_segments
+   */
+  _vk_dispatch_compute(
+    frame,
+    _kernel_by_name(ctx, pipeline, "bin_macro_scatter"),
+    swapchain_image_idx,
+    &pc,
+    n_seg_blocks,
+    n_bins,
+    1,
+    (struct cr_gpu_buffer_t[]){
+      *_buffer_by_name(ctx, pipeline, "macro_block_offsets"),
+      *_buffer_by_name(ctx, pipeline, "macrotile_offsets"),
+      *_buffer_by_name(ctx, pipeline, "macrotile_segments"),
+    },
+    3
+  );
+
+    _vk_dispatch_compute(
+    frame,
+    _kernel_by_name(ctx, pipeline, "bin_micro_count"),
+    swapchain_image_idx,
+    &pc,
+    n_macrotiles_x,
+    n_macrotiles_y,
+    1,
+    (struct cr_gpu_buffer_t[]){
+      *_buffer_by_name(ctx, pipeline, "tile_n_segments"),
+    },
+    1
+  );
+
+
   
   _vk_dispatch_compute(frame, _kernel_by_name(ctx, pipeline, "bin_macro_count_micro"),
                        swapchain_image_idx, &pc, n_macrotiles_x, n_macrotiles_y, 1,

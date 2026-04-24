@@ -24,6 +24,8 @@ layout(push_constant) uniform push_constant {
     uint screen_w, screen_h;
     uint n_tiles_x, n_tiles_y;
     uint n_macrotiles_x, n_macrotiles_y;
+  uint n_seg_blocks;
+  uint n_bins;
     uint tile_size, macrotile_size;
 
     uint n_segments;
@@ -56,7 +58,13 @@ void main() {
       
   uint global_tile_id = gy * pc.n_tiles_x + gx;
 
-  uint sum = subgroupAdd(tile_n_segments[global_tile_id]);
+  uint v = 0u;
+  if (gx < pc.n_tiles_x && gy < pc.n_tiles_y) {
+      uint global_tile_id = gy * pc.n_tiles_x + gx;
+      v = tile_n_segments[global_tile_id];
+  }
+
+  uint sum = subgroupAdd(v);
 
   if (subgroupElect())
     subgroup_totals[gl_SubgroupID] = sum;

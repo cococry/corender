@@ -4,7 +4,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineSystem.cmake:12 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineSystem.cmake:12 (find_program)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_UNAME"
@@ -20,42 +20,35 @@ events:
     names:
       - "uname"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/uname"
       - "/usr/local/sbin/uname"
       - "/usr/local/bin/uname"
     found: "/usr/bin/uname"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineSystem.cmake:212 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineSystem.cmake:212 (message)"
       - "CMakeLists.txt:3 (project)"
     message: |
-      The system is: Linux - 6.17.7_1 - x86_64
+      The system is: Linux - 6.12.83_1 - x86_64
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeUnixFindMake.cmake:5 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeUnixFindMake.cmake:5 (find_program)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_MAKE_PROGRAM"
@@ -73,45 +66,35 @@ events:
       - "make"
       - "smake"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/gmake"
       - "/usr/local/sbin/gmake"
       - "/usr/local/bin/gmake"
       - "/usr/bin/gmake"
       - "/usr/sbin/gmake"
       - "/sbin/gmake"
       - "/bin/gmake"
-      - "/usr/lib/jvm/default-jdk/bin/gmake"
-      - "/usr/lib/jvm/default-jre/bin/gmake"
-      - "/home/luca/.local/share/nvim/mason/bin/make"
       - "/usr/local/sbin/make"
       - "/usr/local/bin/make"
     found: "/usr/bin/make"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompiler.cmake:73 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:64 (_cmake_find_compiler)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompiler.cmake:73 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:64 (_cmake_find_compiler)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_C_COMPILER"
@@ -133,39 +116,32 @@ events:
       - "icx"
       - "clang"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/cc"
       - "/usr/local/sbin/cc"
       - "/usr/local/bin/cc"
     found: "/usr/bin/cc"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:462 (find_file)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:500 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:462 (find_file)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:500 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
       - "CMakeLists.txt:3 (project)"
     mode: "file"
     variable: "src_in"
@@ -181,25 +157,22 @@ events:
     names:
       - "CMakeCCompilerId.c.in"
     candidate_directories:
-      - "/usr/share/cmake-4.1/Modules/"
-    found: "/usr/share/cmake-4.1/Modules/CMakeCCompilerId.c.in"
+      - "/usr/share/cmake-4.2/Modules/"
+    found: "/usr/share/cmake-4.2/Modules/CMakeCCompilerId.c.in"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
@@ -214,13 +187,13 @@ events:
       Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
       
       The C compiler identification is GNU, found in:
-        /home/luca/dev/corender/build/CMakeFiles/4.1.2/CompilerIdC/a.out
+        /home/luca/Dev/corender-new/build/CMakeFiles/4.2.2/CompilerIdC/a.out
       
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_AR"
@@ -237,31 +210,25 @@ events:
       - "ar"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/ar"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_RANLIB"
@@ -278,31 +245,25 @@ events:
       - "ranlib"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/ranlib"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_STRIP"
@@ -319,31 +280,25 @@ events:
       - "strip"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/strip"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_LINKER"
@@ -360,31 +315,25 @@ events:
       - "ld"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/ld"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_NM"
@@ -401,31 +350,25 @@ events:
       - "nm"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/nm"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_OBJDUMP"
@@ -442,31 +385,25 @@ events:
       - "objdump"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/objdump"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_OBJCOPY"
@@ -483,31 +420,25 @@ events:
       - "objcopy"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/objcopy"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_READELF"
@@ -524,31 +455,25 @@ events:
       - "readelf"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/readelf"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_DLLTOOL"
@@ -565,41 +490,32 @@ events:
       - "dlltool"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/dlltool"
-      - "/home/luca/.local/share/nvim/mason/bin/dlltool"
       - "/usr/local/sbin/dlltool"
       - "/usr/local/bin/dlltool"
       - "/usr/sbin/dlltool"
       - "/sbin/dlltool"
       - "/bin/dlltool"
-      - "/usr/lib/jvm/default-jdk/bin/dlltool"
-      - "/usr/lib/jvm/default-jre/bin/dlltool"
     found: false
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_ADDR2LINE"
@@ -616,31 +532,25 @@ events:
       - "addr2line"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     found: "/usr/bin/addr2line"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeFindBinUtils.cmake:238 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_TAPI"
@@ -657,41 +567,32 @@ events:
       - "tapi"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/tapi"
-      - "/home/luca/.local/share/nvim/mason/bin/tapi"
       - "/usr/local/sbin/tapi"
       - "/usr/local/bin/tapi"
       - "/usr/sbin/tapi"
       - "/sbin/tapi"
       - "/bin/tapi"
-      - "/usr/lib/jvm/default-jdk/bin/tapi"
-      - "/usr/lib/jvm/default-jre/bin/tapi"
     found: false
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/Compiler/GNU-FindBinUtils.cmake:18 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:201 (include)"
+      - "/usr/share/cmake-4.2/Modules/Compiler/GNU-FindBinUtils.cmake:18 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:201 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_C_COMPILER_AR"
@@ -711,59 +612,44 @@ events:
       - "gcc-ar"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ar-14.2"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14.2"
       - "/usr/local/sbin/gcc-ar-14.2"
       - "/usr/local/bin/gcc-ar-14.2"
       - "/usr/sbin/gcc-ar-14.2"
       - "/sbin/gcc-ar-14.2"
       - "/bin/gcc-ar-14.2"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14.2"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ar-14.2"
       - "/usr/bin/gcc-ar-14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14"
       - "/usr/local/sbin/gcc-ar-14"
       - "/usr/local/bin/gcc-ar-14"
       - "/usr/sbin/gcc-ar-14"
       - "/sbin/gcc-ar-14"
       - "/bin/gcc-ar-14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ar-14"
       - "/usr/bin/gcc-ar14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar14"
       - "/usr/local/sbin/gcc-ar14"
       - "/usr/local/bin/gcc-ar14"
       - "/usr/sbin/gcc-ar14"
       - "/sbin/gcc-ar14"
       - "/bin/gcc-ar14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ar14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ar14"
     found: "/usr/bin/gcc-ar"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/Compiler/GNU-FindBinUtils.cmake:30 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCCompiler.cmake:201 (include)"
+      - "/usr/share/cmake-4.2/Modules/Compiler/GNU-FindBinUtils.cmake:30 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCCompiler.cmake:201 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_C_COMPILER_RANLIB"
@@ -783,59 +669,44 @@ events:
       - "gcc-ranlib"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ranlib-14.2"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14.2"
       - "/usr/local/sbin/gcc-ranlib-14.2"
       - "/usr/local/bin/gcc-ranlib-14.2"
       - "/usr/sbin/gcc-ranlib-14.2"
       - "/sbin/gcc-ranlib-14.2"
       - "/bin/gcc-ranlib-14.2"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14.2"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14.2"
       - "/usr/bin/gcc-ranlib-14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14"
       - "/usr/local/sbin/gcc-ranlib-14"
       - "/usr/local/bin/gcc-ranlib-14"
       - "/usr/sbin/gcc-ranlib-14"
       - "/sbin/gcc-ranlib-14"
       - "/bin/gcc-ranlib-14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14"
       - "/usr/bin/gcc-ranlib14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib14"
       - "/usr/local/sbin/gcc-ranlib14"
       - "/usr/local/bin/gcc-ranlib14"
       - "/usr/sbin/gcc-ranlib14"
       - "/sbin/gcc-ranlib14"
       - "/bin/gcc-ranlib14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ranlib14"
     found: "/usr/bin/gcc-ranlib"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompiler.cmake:54 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:69 (_cmake_find_compiler)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompiler.cmake:54 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:69 (_cmake_find_compiler)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_CXX_COMPILER"
@@ -864,23 +735,20 @@ events:
     found: "/usr/bin/c++"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:462 (find_file)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:500 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:462 (find_file)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:500 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
       - "CMakeLists.txt:3 (project)"
     mode: "file"
     variable: "src_in"
@@ -896,25 +764,22 @@ events:
     names:
       - "CMakeCXXCompilerId.cpp.in"
     candidate_directories:
-      - "/usr/share/cmake-4.1/Modules/"
-    found: "/usr/share/cmake-4.1/Modules/CMakeCXXCompilerId.cpp.in"
+      - "/usr/share/cmake-4.2/Modules/"
+    found: "/usr/share/cmake-4.2/Modules/CMakeCXXCompilerId.cpp.in"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
@@ -929,13 +794,13 @@ events:
       Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
       
       The CXX compiler identification is GNU, found in:
-        /home/luca/dev/corender/build/CMakeFiles/4.1.2/CompilerIdCXX/a.out
+        /home/luca/Dev/corender-new/build/CMakeFiles/4.2.2/CompilerIdCXX/a.out
       
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/Compiler/GNU-FindBinUtils.cmake:18 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "/usr/share/cmake-4.2/Modules/Compiler/GNU-FindBinUtils.cmake:18 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_CXX_COMPILER_AR"
@@ -955,59 +820,44 @@ events:
       - "gcc-ar"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ar-14.2"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14.2"
       - "/usr/local/sbin/gcc-ar-14.2"
       - "/usr/local/bin/gcc-ar-14.2"
       - "/usr/sbin/gcc-ar-14.2"
       - "/sbin/gcc-ar-14.2"
       - "/bin/gcc-ar-14.2"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14.2"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ar-14.2"
       - "/usr/bin/gcc-ar-14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar-14"
       - "/usr/local/sbin/gcc-ar-14"
       - "/usr/local/bin/gcc-ar-14"
       - "/usr/sbin/gcc-ar-14"
       - "/sbin/gcc-ar-14"
       - "/bin/gcc-ar-14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ar-14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ar-14"
       - "/usr/bin/gcc-ar14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ar14"
       - "/usr/local/sbin/gcc-ar14"
       - "/usr/local/bin/gcc-ar14"
       - "/usr/sbin/gcc-ar14"
       - "/sbin/gcc-ar14"
       - "/bin/gcc-ar14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ar14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ar14"
     found: "/usr/bin/gcc-ar"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/Compiler/GNU-FindBinUtils.cmake:30 (find_program)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "/usr/share/cmake-4.2/Modules/Compiler/GNU-FindBinUtils.cmake:30 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
       - "CMakeLists.txt:3 (project)"
     mode: "program"
     variable: "CMAKE_CXX_COMPILER_RANLIB"
@@ -1027,65 +877,50 @@ events:
       - "gcc-ranlib"
     candidate_directories:
       - "/usr/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
     searched_directories:
       - "/usr/bin/gcc-ranlib-14.2"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14.2"
       - "/usr/local/sbin/gcc-ranlib-14.2"
       - "/usr/local/bin/gcc-ranlib-14.2"
       - "/usr/sbin/gcc-ranlib-14.2"
       - "/sbin/gcc-ranlib-14.2"
       - "/bin/gcc-ranlib-14.2"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14.2"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14.2"
       - "/usr/bin/gcc-ranlib-14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib-14"
       - "/usr/local/sbin/gcc-ranlib-14"
       - "/usr/local/bin/gcc-ranlib-14"
       - "/usr/sbin/gcc-ranlib-14"
       - "/sbin/gcc-ranlib-14"
       - "/bin/gcc-ranlib-14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib-14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ranlib-14"
       - "/usr/bin/gcc-ranlib14"
-      - "/home/luca/.local/share/nvim/mason/bin/gcc-ranlib14"
       - "/usr/local/sbin/gcc-ranlib14"
       - "/usr/local/bin/gcc-ranlib14"
       - "/usr/sbin/gcc-ranlib14"
       - "/sbin/gcc-ranlib14"
       - "/bin/gcc-ranlib14"
-      - "/usr/lib/jvm/default-jdk/bin/gcc-ranlib14"
-      - "/usr/lib/jvm/default-jre/bin/gcc-ranlib14"
     found: "/usr/bin/gcc-ranlib"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
   -
     kind: "try_compile-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4"
-      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4"
+      source: "/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-12E1tJ"
+      binary: "/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-12E1tJ"
     cmakeVariables:
       CMAKE_C_FLAGS: ""
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1094,22 +929,22 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4'
+        Change Dir: '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-12E1tJ'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_f6e41/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_f6e41.dir/build.make CMakeFiles/cmTC_f6e41.dir/build
-        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4'
-        Building C object CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o
-        /usr/bin/cc   -v -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_a01bf/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_a01bf.dir/build.make CMakeFiles/cmTC_a01bf.dir/build
+        make[1]: Entering directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-12E1tJ'
+        Building C object CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -v -o CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.2/Modules/CMakeCCompilerABI.c
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         Target: x86_64-unknown-linux-gnu
-        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,ada
+        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,d,ada
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20250405 (GCC) 
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_f6e41.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccyVIw9r.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_a01bf.dir/'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.2/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_a01bf.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccHtpq21.s
         GNU C17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)
         	compiled by GNU C version 14.2.1 20250405, GMP version 6.3.0, MPFR version 4.2.1, MPC version 1.3.1, isl version isl-0.26-GMP
         
@@ -1122,40 +957,40 @@ events:
          /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/include-fixed
          /usr/include
         End of search list.
-        Compiler executable checksum: d507a05d115bf3b5b90ff982a544bcc1
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/'
-         as -v --64 -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o /tmp/ccyVIw9r.s
+        Compiler executable checksum: 590ae76a91601c76e0291757def3bbb7
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_a01bf.dir/'
+         as -v --64 -o CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o /tmp/ccHtpq21.s
         GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.'
-        Linking C executable cmTC_f6e41
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f6e41.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.'
+        Linking C executable cmTC_a01bf
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a01bf.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper
         Target: x86_64-unknown-linux-gnu
-        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,ada
+        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,d,ada
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20250405 (GCC) 
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f6e41' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f6e41.'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_a01bf' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_a01bf.'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cce8eNJz.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_a01bf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         collect2 version 14.2.1 20250405
-        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cce8eNJz.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_a01bf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         GNU ld (GNU Binutils) 2.44
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f6e41' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f6e41.'
-        /usr/bin/cc  -v -Wl,-v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -o cmTC_f6e41
-        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4'
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_a01bf' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_a01bf.'
+        /usr/bin/cc  -v -Wl,-v CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o -o cmTC_a01bf
+        make[1]: Leaving directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-12E1tJ'
         
       exitCode: 0
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Parsed C implicit include dir info: rv=done
@@ -1176,29 +1011,29 @@ events:
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Parsed C implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
-        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4']
+        linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
+        ignore line: [Change Dir: '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-12E1tJ']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_f6e41/fast]
-        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_f6e41.dir/build.make CMakeFiles/cmTC_f6e41.dir/build]
-        ignore line: [make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-dKlnE4']
-        ignore line: [Building C object CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o]
-        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_a01bf/fast]
+        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_a01bf.dir/build.make CMakeFiles/cmTC_a01bf.dir/build]
+        ignore line: [make[1]: Entering directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-12E1tJ']
+        ignore line: [Building C object CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake-4.2/Modules/CMakeCCompilerABI.c]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [Target: x86_64-unknown-linux-gnu]
-        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go ada]
+        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go d ada]
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/']
-        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.1/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_f6e41.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccyVIw9r.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_a01bf.dir/']
+        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1 -quiet -v /usr/share/cmake-4.2/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_a01bf.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -version -o /tmp/ccHtpq21.s]
         ignore line: [GNU C17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)]
         ignore line: [	compiled by GNU C version 14.2.1 20250405  GMP version 6.3.0  MPFR version 4.2.1  MPC version 1.3.1  isl version isl-0.26-GMP]
         ignore line: []
@@ -1211,32 +1046,32 @@ events:
         ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/include-fixed]
         ignore line: [ /usr/include]
         ignore line: [End of search list.]
-        ignore line: [Compiler executable checksum: d507a05d115bf3b5b90ff982a544bcc1]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/']
-        ignore line: [ as -v --64 -o CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o /tmp/ccyVIw9r.s]
+        ignore line: [Compiler executable checksum: 590ae76a91601c76e0291757def3bbb7]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_a01bf.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o /tmp/ccHtpq21.s]
         ignore line: [GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.']
-        ignore line: [Linking C executable cmTC_f6e41]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f6e41.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.']
+        ignore line: [Linking C executable cmTC_a01bf]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a01bf.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper]
         ignore line: [Target: x86_64-unknown-linux-gnu]
-        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go ada]
+        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go d ada]
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_f6e41' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_f6e41.']
-        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_a01bf' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_a01bf.']
+        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cce8eNJz.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_a01bf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/cctqTSW7.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/cce8eNJz.res] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
           arg [-plugin-opt=-pass-through=-lc] ==> ignore
@@ -1251,7 +1086,7 @@ events:
           arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
           arg [-pie] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_f6e41] ==> ignore
+          arg [cmTC_a01bf] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o]
@@ -1261,7 +1096,7 @@ events:
           arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
           arg [-L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..] ==> dir [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..]
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o] ==> ignore
           arg [-lgcc] ==> lib [gcc]
           arg [--push-state] ==> ignore
           arg [--as-needed] ==> ignore
@@ -1276,7 +1111,7 @@ events:
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         ignore line: [collect2 version 14.2.1 20250405]
-        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cctqTSW7.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_f6e41 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_f6e41.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cce8eNJz.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_a01bf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_a01bf.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         linker tool for 'C': /usr/bin/ld
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> [/usr/lib64/Scrt1.o]
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
@@ -1295,9 +1130,9 @@ events:
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/Internal/CMakeDetermineLinkerId.cmake:36 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/Internal/CMakeDetermineLinkerId.cmake:38 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Running the C compiler's linker: "/usr/bin/ld" "-v"
@@ -1305,14 +1140,14 @@ events:
   -
     kind: "try_compile-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p"
-      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p"
+      source: "/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-lil4YJ"
+      binary: "/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-lil4YJ"
     cmakeVariables:
       CMAKE_CXX_FLAGS: ""
       CMAKE_CXX_FLAGS_DEBUG: "-g"
@@ -1322,22 +1157,22 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p'
+        Change Dir: '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-lil4YJ'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_6fdaf/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_6fdaf.dir/build.make CMakeFiles/cmTC_6fdaf.dir/build
-        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p'
-        Building CXX object CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o
-        /usr/bin/c++   -v -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_0c979/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_0c979.dir/build.make CMakeFiles/cmTC_0c979.dir/build
+        make[1]: Entering directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-lil4YJ'
+        Building CXX object CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -v -o CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp
         Using built-in specs.
         COLLECT_GCC=/usr/bin/c++
         Target: x86_64-unknown-linux-gnu
-        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,ada
+        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,d,ada
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20250405 (GCC) 
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_6fdaf.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/cc28UWNt.s
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_0c979.dir/'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_0c979.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/ccOmJoMh.s
         GNU C++17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)
         	compiled by GNU C version 14.2.1 20250405, GMP version 6.3.0, MPFR version 4.2.1, MPC version 1.3.1, isl version isl-0.26-GMP
         
@@ -1353,40 +1188,40 @@ events:
          /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/include-fixed
          /usr/include
         End of search list.
-        Compiler executable checksum: d91c39a812dad8e706eddcfd1b8404ee
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/'
-         as -v --64 -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o /tmp/cc28UWNt.s
+        Compiler executable checksum: 25b25b9618c35d50d8bc42a9a643504e
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_0c979.dir/'
+         as -v --64 -o CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccOmJoMh.s
         GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.'
-        Linking CXX executable cmTC_6fdaf
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6fdaf.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.'
+        Linking CXX executable cmTC_0c979
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0c979.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/usr/bin/c++
         COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper
         Target: x86_64-unknown-linux-gnu
-        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,ada
+        Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c,c++,objc,obj-c++,fortran,lto,go,d,ada
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 14.2.1 20250405 (GCC) 
         COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/
         LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6fdaf' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6fdaf.'
-         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0c979' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_0c979.'
+         /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccjTzRN3.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_0c979 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         collect2 version 14.2.1 20250405
-        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
+        /usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccjTzRN3.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_0c979 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o
         GNU ld (GNU Binutils) 2.44
-        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6fdaf' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6fdaf.'
-        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_6fdaf
-        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p'
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0c979' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_0c979.'
+        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_0c979
+        make[1]: Leaving directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-lil4YJ'
         
       exitCode: 0
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Parsed CXX implicit include dir info: rv=done
@@ -1413,29 +1248,29 @@ events:
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Parsed CXX implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
-        linker tool regex: [^[ 	]*(->|")?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p']
+        linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
+        ignore line: [Change Dir: '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-lil4YJ']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_6fdaf/fast]
-        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_6fdaf.dir/build.make CMakeFiles/cmTC_6fdaf.dir/build]
-        ignore line: [make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-51Xe0p']
-        ignore line: [Building CXX object CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o]
-        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_0c979/fast]
+        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_0c979.dir/build.make CMakeFiles/cmTC_0c979.dir/build]
+        ignore line: [make[1]: Entering directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-lil4YJ']
+        ignore line: [Building CXX object CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/c++]
         ignore line: [Target: x86_64-unknown-linux-gnu]
-        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go ada]
+        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go d ada]
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/']
-        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.1/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_6fdaf.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/cc28UWNt.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_0c979.dir/']
+        ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake-4.2/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_0c979.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -version -o /tmp/ccOmJoMh.s]
         ignore line: [GNU C++17 (GCC) version 14.2.1 20250405 (x86_64-unknown-linux-gnu)]
         ignore line: [	compiled by GNU C version 14.2.1 20250405  GMP version 6.3.0  MPFR version 4.2.1  MPC version 1.3.1  isl version isl-0.26-GMP]
         ignore line: []
@@ -1451,32 +1286,32 @@ events:
         ignore line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/include-fixed]
         ignore line: [ /usr/include]
         ignore line: [End of search list.]
-        ignore line: [Compiler executable checksum: d91c39a812dad8e706eddcfd1b8404ee]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/']
-        ignore line: [ as -v --64 -o CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o /tmp/cc28UWNt.s]
+        ignore line: [Compiler executable checksum: 25b25b9618c35d50d8bc42a9a643504e]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_0c979.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccOmJoMh.s]
         ignore line: [GNU assembler version 2.44 (x86_64-unknown-linux-gnu) using BFD version (GNU Binutils) 2.44]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.']
-        ignore line: [Linking CXX executable cmTC_6fdaf]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6fdaf.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [Linking CXX executable cmTC_0c979]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0c979.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/c++]
         ignore line: [COLLECT_LTO_WRAPPER=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper]
         ignore line: [Target: x86_64-unknown-linux-gnu]
-        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go ada]
+        ignore line: [Configured with: /builddir/gcc-14.2.1+20250405/configure --build=x86_64-unknown-linux-gnu --enable-gnu-unique-object --enable-vtable-verify --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --libexecdir=/usr/lib64 --libdir=/usr/lib64 --enable-threads=posix --enable-__cxa_atexit --disable-multilib --with-system-zlib --enable-shared --enable-lto --enable-plugins --enable-linker-build-id --disable-werror --disable-nls --enable-default-pie --enable-default-ssp --enable-checking=release --disable-libstdcxx-pch --with-isl --with-linker-hash-style=gnu --disable-sjlj-exceptions --disable-target-libiberty --disable-libssp --enable-languages=c c++ objc obj-c++ fortran lto go d ada]
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 14.2.1 20250405 (GCC) ]
         ignore line: [COMPILER_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_6fdaf' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_6fdaf.']
-        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_0c979' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_0c979.']
+        link line: [ /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2 -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccjTzRN3.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_0c979 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/ccrLeo94.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccjTzRN3.res] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
           arg [-plugin-opt=-pass-through=-lc] ==> ignore
@@ -1491,7 +1326,7 @@ events:
           arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
           arg [-pie] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_6fdaf] ==> ignore
+          arg [cmTC_0c979] ==> ignore
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o]
@@ -1501,7 +1336,7 @@ events:
           arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
           arg [-L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..] ==> dir [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../..]
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
           arg [-lstdc++] ==> lib [stdc++]
           arg [-lm] ==> lib [m]
           arg [-lgcc_s] ==> lib [gcc_s]
@@ -1512,7 +1347,7 @@ events:
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o]
           arg [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o] ==> obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         ignore line: [collect2 version 14.2.1 20250405]
-        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccrLeo94.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_6fdaf /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_6fdaf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
+        ignore line: [/usr/bin/ld -plugin /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/liblto_plugin.so -plugin-opt=/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/ccjTzRN3.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_0c979 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtbeginS.o -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../.. -v CMakeFiles/cmTC_0c979.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/crtendS.o /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o]
         linker tool for 'CXX': /usr/bin/ld
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o] ==> [/usr/lib64/Scrt1.o]
         collapse obj [/usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
@@ -1531,9 +1366,9 @@ events:
   -
     kind: "message-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/Internal/CMakeDetermineLinkerId.cmake:36 (message)"
-      - "/usr/share/cmake-4.1/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
-      - "/usr/share/cmake-4.1/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "/usr/share/cmake-4.2/Modules/Internal/CMakeDetermineLinkerId.cmake:38 (message)"
+      - "/usr/share/cmake-4.2/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "/usr/share/cmake-4.2/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
       - "CMakeLists.txt:3 (project)"
     message: |
       Running the CXX compiler's linker: "/usr/bin/ld" "-v"
@@ -1541,7 +1376,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindVulkan.cmake:387 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindVulkan.cmake:392 (find_path)"
       - "CMakeLists.txt:13 (find_package)"
     mode: "path"
     variable: "Vulkan_INCLUDE_DIR"
@@ -1558,15 +1393,12 @@ events:
       - "vulkan/vulkan.h"
     candidate_directories:
       - "/include/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -1581,29 +1413,23 @@ events:
       - "/usr/include/X11/"
     searched_directories:
       - "/include/vulkan/vulkan.h"
-      - "/home/luca/.local/share/nvim/mason/bin/vulkan/vulkan.h"
       - "/usr/local/sbin/vulkan/vulkan.h"
       - "/usr/local/bin/vulkan/vulkan.h"
       - "/usr/bin/vulkan/vulkan.h"
       - "/usr/sbin/vulkan/vulkan.h"
       - "/sbin/vulkan/vulkan.h"
       - "/bin/vulkan/vulkan.h"
-      - "/usr/lib/jvm/default-jdk/bin/vulkan/vulkan.h"
-      - "/usr/lib/jvm/default-jre/bin/vulkan/vulkan.h"
       - "/usr/local/include/vulkan/vulkan.h"
       - "/usr/local/vulkan/vulkan.h"
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -1619,7 +1445,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindVulkan.cmake:394 (find_library)"
+      - "/usr/share/cmake-4.2/Modules/FindVulkan.cmake:399 (find_library)"
       - "CMakeLists.txt:13 (find_package)"
     mode: "library"
     variable: "Vulkan_LIBRARY"
@@ -1636,15 +1462,12 @@ events:
       - "vulkan"
     candidate_directories:
       - "/lib/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -1655,15 +1478,12 @@ events:
     found: "/lib/libvulkan.so"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -1679,7 +1499,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindVulkan.cmake:402 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/FindVulkan.cmake:407 (find_program)"
       - "CMakeLists.txt:13 (find_package)"
     mode: "program"
     variable: "Vulkan_GLSLC_EXECUTABLE"
@@ -1696,14 +1516,11 @@ events:
       - "glslc"
     candidate_directories:
       - "/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/"
@@ -1724,15 +1541,12 @@ events:
     found: "/bin/glslc"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -1746,7 +1560,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindVulkan.cmake:410 (find_program)"
+      - "/usr/share/cmake-4.2/Modules/FindVulkan.cmake:415 (find_program)"
       - "CMakeLists.txt:13 (find_package)"
     mode: "program"
     variable: "Vulkan_GLSLANG_VALIDATOR_EXECUTABLE"
@@ -1763,14 +1577,11 @@ events:
       - "glslangValidator"
     candidate_directories:
       - "/bin/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/"
@@ -1791,15 +1602,12 @@ events:
     found: "/bin/glslangValidator"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -1813,7 +1621,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:289 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:408 (find_path)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "path"
     variable: "OPENGL_INCLUDE_DIR"
@@ -1829,15 +1637,12 @@ events:
     names:
       - "GL/gl.h"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -1854,29 +1659,23 @@ events:
       - "/usr/openwin/share/include/"
       - "/opt/graphics/OpenGL/include/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/GL/gl.h"
       - "/usr/local/sbin/GL/gl.h"
       - "/usr/local/bin/GL/gl.h"
       - "/usr/bin/GL/gl.h"
       - "/usr/sbin/GL/gl.h"
       - "/sbin/GL/gl.h"
       - "/bin/GL/gl.h"
-      - "/usr/lib/jvm/default-jdk/bin/GL/gl.h"
-      - "/usr/lib/jvm/default-jre/bin/GL/gl.h"
       - "/usr/local/include/GL/gl.h"
       - "/usr/local/GL/gl.h"
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -1892,7 +1691,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:295 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:414 (find_path)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "path"
     variable: "OPENGL_GLX_INCLUDE_DIR"
@@ -1908,15 +1707,12 @@ events:
     names:
       - "GL/glx.h"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -1930,29 +1726,23 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/GL/glx.h"
       - "/usr/local/sbin/GL/glx.h"
       - "/usr/local/bin/GL/glx.h"
       - "/usr/bin/GL/glx.h"
       - "/usr/sbin/GL/glx.h"
       - "/sbin/GL/glx.h"
       - "/bin/GL/glx.h"
-      - "/usr/lib/jvm/default-jdk/bin/GL/glx.h"
-      - "/usr/lib/jvm/default-jre/bin/GL/glx.h"
       - "/usr/local/include/GL/glx.h"
       - "/usr/local/GL/glx.h"
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -1968,7 +1758,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:296 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:415 (find_path)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "path"
     variable: "OPENGL_EGL_INCLUDE_DIR"
@@ -1984,15 +1774,12 @@ events:
     names:
       - "EGL/egl.h"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -2006,29 +1793,23 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/EGL/egl.h"
       - "/usr/local/sbin/EGL/egl.h"
       - "/usr/local/bin/EGL/egl.h"
       - "/usr/bin/EGL/egl.h"
       - "/usr/sbin/EGL/egl.h"
       - "/sbin/EGL/egl.h"
       - "/bin/EGL/egl.h"
-      - "/usr/lib/jvm/default-jdk/bin/EGL/egl.h"
-      - "/usr/lib/jvm/default-jre/bin/EGL/egl.h"
       - "/usr/local/include/EGL/egl.h"
       - "/usr/local/EGL/egl.h"
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2044,7 +1825,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:297 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:416 (find_path)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "path"
     variable: "OPENGL_GLES2_INCLUDE_DIR"
@@ -2060,15 +1841,12 @@ events:
     names:
       - "GLES2/gl2.h"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -2082,29 +1860,23 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/GLES2/gl2.h"
       - "/usr/local/sbin/GLES2/gl2.h"
       - "/usr/local/bin/GLES2/gl2.h"
       - "/usr/bin/GLES2/gl2.h"
       - "/usr/sbin/GLES2/gl2.h"
       - "/sbin/GLES2/gl2.h"
       - "/bin/GLES2/gl2.h"
-      - "/usr/lib/jvm/default-jdk/bin/GLES2/gl2.h"
-      - "/usr/lib/jvm/default-jre/bin/GLES2/gl2.h"
       - "/usr/local/include/GLES2/gl2.h"
       - "/usr/local/GLES2/gl2.h"
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2120,7 +1892,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:298 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:417 (find_path)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "path"
     variable: "OPENGL_GLES3_INCLUDE_DIR"
@@ -2136,15 +1908,12 @@ events:
     names:
       - "GLES3/gl3.h"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -2158,29 +1927,23 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/GLES3/gl3.h"
       - "/usr/local/sbin/GLES3/gl3.h"
       - "/usr/local/bin/GLES3/gl3.h"
       - "/usr/bin/GLES3/gl3.h"
       - "/usr/sbin/GLES3/gl3.h"
       - "/sbin/GLES3/gl3.h"
       - "/bin/GLES3/gl3.h"
-      - "/usr/lib/jvm/default-jdk/bin/GLES3/gl3.h"
-      - "/usr/lib/jvm/default-jre/bin/GLES3/gl3.h"
       - "/usr/local/include/GLES3/gl3.h"
       - "/usr/local/GLES3/gl3.h"
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2196,7 +1959,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:299 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:418 (find_path)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "path"
     variable: "OPENGL_xmesa_INCLUDE_DIR"
@@ -2212,15 +1975,12 @@ events:
     names:
       - "GL/xmesa.h"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -2237,15 +1997,12 @@ events:
       - "/usr/openwin/share/include/"
       - "/opt/graphics/OpenGL/include/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/GL/xmesa.h"
       - "/usr/local/sbin/GL/xmesa.h"
       - "/usr/local/bin/GL/xmesa.h"
       - "/usr/bin/GL/xmesa.h"
       - "/usr/sbin/GL/xmesa.h"
       - "/sbin/GL/xmesa.h"
       - "/bin/GL/xmesa.h"
-      - "/usr/lib/jvm/default-jdk/bin/GL/xmesa.h"
-      - "/usr/lib/jvm/default-jre/bin/GL/xmesa.h"
       - "/usr/local/include/GL/xmesa.h"
       - "/usr/local/GL/xmesa.h"
       - "/usr/include/GL/xmesa.h"
@@ -2264,15 +2021,12 @@ events:
     found: false
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2288,7 +2042,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:305 (find_path)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:424 (find_path)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "path"
     variable: "OPENGL_GLU_INCLUDE_DIR"
@@ -2304,15 +2058,12 @@ events:
     names:
       - "GL/glu.h"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jdk/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
       - "/usr/local/include/"
       - "/usr/local/"
       - "/usr/include/"
@@ -2326,29 +2077,23 @@ events:
       - "/opt/"
       - "/usr/include/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/GL/glu.h"
       - "/usr/local/sbin/GL/glu.h"
       - "/usr/local/bin/GL/glu.h"
       - "/usr/bin/GL/glu.h"
       - "/usr/sbin/GL/glu.h"
       - "/sbin/GL/glu.h"
       - "/bin/GL/glu.h"
-      - "/usr/lib/jvm/default-jdk/bin/GL/glu.h"
-      - "/usr/lib/jvm/default-jre/bin/GL/glu.h"
       - "/usr/local/include/GL/glu.h"
       - "/usr/local/GL/glu.h"
     found: "/usr/include/"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2364,7 +2109,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:319 (find_library)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:438 (find_library)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "library"
     variable: "OPENGL_opengl_LIBRARY"
@@ -2380,15 +2125,12 @@ events:
     names:
       - "OpenGL"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -2397,29 +2139,23 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
     found: "/usr/lib/libOpenGL.so"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2435,7 +2171,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:324 (find_library)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:443 (find_library)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "library"
     variable: "OPENGL_glx_LIBRARY"
@@ -2451,15 +2187,12 @@ events:
     names:
       - "GLX"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -2468,29 +2201,23 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
     found: "/usr/lib/libGLX.so"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2506,7 +2233,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:330 (find_library)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:449 (find_library)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "library"
     variable: "OPENGL_egl_LIBRARY"
@@ -2522,15 +2249,12 @@ events:
     names:
       - "EGL"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -2539,29 +2263,23 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
     found: "/usr/lib/libEGL.so"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2577,7 +2295,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:336 (find_library)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:455 (find_library)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "library"
     variable: "OPENGL_gles2_LIBRARY"
@@ -2593,15 +2311,12 @@ events:
     names:
       - "GLESv2"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -2610,29 +2325,23 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
     found: "/usr/lib/libGLESv2.so"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2648,7 +2357,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:341 (find_library)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:460 (find_library)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "library"
     variable: "OPENGL_gles3_LIBRARY"
@@ -2665,15 +2374,12 @@ events:
       - "GLESv3"
       - "GLESv2"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -2682,15 +2388,12 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -2698,29 +2401,23 @@ events:
       - "/lib/"
       - "/opt/"
       - "/usr/lib/X11/"
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
     found: "/usr/lib/libGLESv2.so"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2736,7 +2433,7 @@ events:
   -
     kind: "find-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/FindOpenGL.cmake:347 (find_library)"
+      - "/usr/share/cmake-4.2/Modules/FindOpenGL.cmake:466 (find_library)"
       - "CMakeLists.txt:14 (find_package)"
     mode: "library"
     variable: "OPENGL_glu_LIBRARY"
@@ -2753,15 +2450,12 @@ events:
       - "GLU"
       - "MesaGLU"
     candidate_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
       - "/usr/lib/"
@@ -2770,29 +2464,23 @@ events:
       - "/opt/"
       - "/usr/lib/X11/"
     searched_directories:
-      - "/home/luca/.local/share/nvim/mason/bin/"
       - "/usr/local/sbin/"
       - "/usr/local/bin/"
       - "/usr/bin/"
       - "/usr/sbin/"
       - "/sbin/"
       - "/bin/"
-      - "/usr/lib/jvm/default-jre/bin/"
-      - "/usr/local/lib64/"
       - "/usr/local/lib/"
       - "/usr/local/"
     found: "/usr/lib/libGLU.so"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"
@@ -2808,18 +2496,19 @@ events:
   -
     kind: "try_compile-v1"
     backtrace:
-      - "/usr/share/cmake-4.1/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
-      - "/usr/share/cmake-4.1/Modules/CheckCSourceCompiles.cmake:103 (cmake_check_source_compiles)"
-      - "/usr/share/cmake-4.1/Modules/FindThreads.cmake:97 (check_c_source_compiles)"
-      - "/usr/share/cmake-4.1/Modules/FindThreads.cmake:163 (_threads_check_libc)"
-      - "/usr/share/cmake-4.1/Modules/CMakeFindDependencyMacro.cmake:78 (find_package)"
+      - "/usr/share/cmake-4.2/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
+      - "/usr/share/cmake-4.2/Modules/CheckCSourceCompiles.cmake:103 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-4.2/Modules/FindThreads.cmake:160 (check_c_source_compiles)"
+      - "/usr/share/cmake-4.2/Modules/FindThreads.cmake:226 (_threads_check_libc)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindDependencyMacro.cmake:93 (find_package)"
+      - "/usr/share/cmake-4.2/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)"
       - "/usr/lib64/cmake/glfw3/glfw3Config.cmake:2 (find_dependency)"
       - "CMakeLists.txt:15 (find_package)"
     checks:
       - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
     directories:
-      source: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9"
-      binary: "/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9"
+      source: "/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-5mkyh1"
+      binary: "/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-5mkyh1"
     cmakeVariables:
       CMAKE_C_FLAGS: ""
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -2829,17 +2518,17 @@ events:
       variable: "CMAKE_HAVE_LIBC_PTHREAD"
       cached: true
       stdout: |
-        Change Dir: '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9'
+        Change Dir: '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-5mkyh1'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_e5be0/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_e5be0.dir/build.make CMakeFiles/cmTC_e5be0.dir/build
-        make[1]: Entering directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9'
-        Building C object CMakeFiles/cmTC_e5be0.dir/src.c.o
-        /usr/bin/cc -DCMAKE_HAVE_LIBC_PTHREAD  -std=gnu11 -fPIE -o CMakeFiles/cmTC_e5be0.dir/src.c.o -c /home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9/src.c
-        Linking C executable cmTC_e5be0
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e5be0.dir/link.txt --verbose=1
-        /usr/bin/cc CMakeFiles/cmTC_e5be0.dir/src.c.o -o cmTC_e5be0
-        make[1]: Leaving directory '/home/luca/dev/corender/build/CMakeFiles/CMakeScratch/TryCompile-O4CvV9'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_964da/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_964da.dir/build.make CMakeFiles/cmTC_964da.dir/build
+        make[1]: Entering directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-5mkyh1'
+        Building C object CMakeFiles/cmTC_964da.dir/src.c.o
+        /usr/bin/cc -DCMAKE_HAVE_LIBC_PTHREAD  -std=gnu11 -fPIE -o CMakeFiles/cmTC_964da.dir/src.c.o -c /home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-5mkyh1/src.c
+        Linking C executable cmTC_964da
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_964da.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_964da.dir/src.c.o -o cmTC_964da
+        make[1]: Leaving directory '/home/luca/Dev/corender-new/build/CMakeFiles/CMakeScratch/TryCompile-5mkyh1'
         
       exitCode: 0
   -
@@ -2878,19 +2567,11 @@ events:
         CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
     candidates:
       -
-        path: "/home/luca/dev/corender/build/CMakeFiles/pkgRedirects/glfw3Config.cmake"
+        path: "/home/luca/Dev/corender-new/build/CMakeFiles/pkgRedirects/glfw3Config.cmake"
         mode: "config"
         reason: "no_exist"
       -
-        path: "/home/luca/dev/corender/build/CMakeFiles/pkgRedirects/glfw3-config.cmake"
-        mode: "config"
-        reason: "no_exist"
-      -
-        path: "/home/luca/.local/share/nvim/mason/glfw3Config.cmake"
-        mode: "config"
-        reason: "no_exist"
-      -
-        path: "/home/luca/.local/share/nvim/mason/glfw3-config.cmake"
+        path: "/home/luca/Dev/corender-new/build/CMakeFiles/pkgRedirects/glfw3-config.cmake"
         mode: "config"
         reason: "no_exist"
       -
@@ -2915,15 +2596,12 @@ events:
       version: "3.4.0"
     search_context:
       ENV{PATH}:
-        - "/home/luca/.local/share/nvim/mason/bin"
         - "/usr/local/sbin"
         - "/usr/local/bin"
         - "/usr/bin"
         - "/usr/sbin"
         - "/sbin"
         - "/bin"
-        - "/usr/lib/jvm/default-jdk/bin"
-        - "/usr/lib/jvm/default-jre/bin"
       CMAKE_INSTALL_PREFIX: "/usr/local"
       CMAKE_SYSTEM_PREFIX_PATH:
         - "/usr/local"

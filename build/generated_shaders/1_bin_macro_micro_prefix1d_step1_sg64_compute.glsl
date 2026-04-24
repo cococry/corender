@@ -22,45 +22,40 @@ layout(set = 0, binding = 8, std430) buffer SubgroupTmpBinning {
     uint subgroup_tmp[];
 };
 
-
 layout(push_constant) uniform push_constant {
   uint screen_w,  screen_h;
   uint n_tiles_x, n_tiles_y;
   uint n_macrotiles_x, n_macrotiles_y;
+  uint n_seg_blocks;
+  uint n_bins;
   uint tile_size, macrotile_size;
-
   uint n_segments;
   uint n_paths;
-
   uint fill_rule;
 } pc;
 
 #define SG_SIZE 64
+#define SGS_PER_WG (64 / SG_SIZE)
 
-#define SGS_PER_WG 64 / SG_SIZE
-
-shared uint subgroup_totals[SGS_PER_WG]; 
+shared uint subgroup_totals[SGS_PER_WG];
 
 void main() {
   uint lid = gl_LocalInvocationID.x;
-  if(lid < SGS_PER_WG)
-    subgroup_totals[lid] = 0;
-barrier();
+  if (lid < SGS_PER_WG)
+    subgroup_totals[lid] = 0u;
+  barrier();
 
   uint group_id = gl_WorkGroupID.x;
-  uint gid = gl_GlobalInvocationID.x;
+  uint gid      = gl_GlobalInvocationID.x;
+  uint n_total  = pc.n_macrotiles_x * pc.n_macrotiles_y;
 
-  uint x = (gid < pc.n_macrotiles_x * pc.n_macrotiles_y) ? macrotile_n_segments_micro[gid] : 0;
+  uint x = (gid < n_total) ? macrotile_n_segments_micro[gid] : 0u;
 
 #ifdef DO_XOR
   uint prefix = subgroupExclusiveXor(x);
-#else 
-  uint prefix = subgroupExclusiveAdd(x);
-#endif
-
-#ifdef DO_XOR
   uint sg_sum = subgroupXor(x);
-#else 
+#else
+  uint prefix = subgroupExclusiveAdd(x);
   uint sg_sum = subgroupAdd(x);
 #endif
 
@@ -69,18 +64,17 @@ barrier();
 
   barrier();
 
-  uint sg_offset = 0;
+  uint sg_offset = 0u;
 
-  if (gl_SubgroupID == 0)
-  {
+  if (gl_SubgroupID == 0) {
     uint lane = gl_SubgroupInvocationID;
-    uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
+    uint val  = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0u;
 
 #ifdef DO_XOR
     uint off = subgroupExclusiveXor(val);
 #else
     uint off = subgroupExclusiveAdd(val);
-#endif 
+#endif
 
     if (lane < SGS_PER_WG)
       subgroup_totals[lane] = off;
@@ -92,27 +86,23 @@ barrier();
 
 #ifdef DO_XOR
   prefix ^= sg_offset;
-#else 
+#else
   prefix += sg_offset;
 #endif
 
 #ifdef PREFIX_OUTPUT
-  if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
+  if (gid < n_total)
     macrotile_n_segments_micro[gid] = prefix;
-#else 
-  if (gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
+#else
+  if (gid < n_total)
     macrotile_n_segments_micro[gid] = prefix;
-#endif 
+#endif
 
-
-  if(subgroupElect() && gl_SubgroupID == SGS_PER_WG - 1 && gid < pc.n_macrotiles_x * pc.n_macrotiles_y)
-  {
+  if (subgroupElect() && gl_SubgroupID == SGS_PER_WG - 1u && gid < n_total) {
 #ifdef DO_XOR
     subgroup_tmp[group_id] = sg_offset ^ sg_sum;
 #else
     subgroup_tmp[group_id] = sg_offset + sg_sum;
 #endif
   }
-
 }
-

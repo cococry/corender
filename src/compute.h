@@ -15,6 +15,8 @@ struct cr_compute_pipeline_push_constant_t {
   uint32_t screen_w,  screen_h;
   uint32_t n_tiles_x, n_tiles_y;
   uint32_t n_macrotiles_x, n_macrotiles_y;
+  uint32_t n_seg_blocks;
+  uint32_t n_bins;
   uint32_t tile_size, macrotile_size;
   
   uint32_t n_segments;
