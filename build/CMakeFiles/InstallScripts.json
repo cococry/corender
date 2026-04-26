@@ -1,7 +1,7 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/luca/Dev/corender-new/build/cmake_install.cmake"
+		"/home/luca/dev/corender-new-new/build/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

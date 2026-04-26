@@ -45,5 +45,5 @@ void main()
     }
 
     macrotile_n_segments[tid] = total;
-    macrotile_offsets[tid]    = total;   // counts for next prefix pass
+    macrotile_offsets[tid]    = total; 
 }

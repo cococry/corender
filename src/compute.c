@@ -795,7 +795,7 @@ cr_compute_pipeline_dispatch(
 
 
   /*
-   * A) Count references for each (macrotile bin, segment block).
+   * A) Count references for each (macrotile bin, segment block (256 segments) ).
    *    Output:
    *      - macro_block_counts[bin * n_seg_blocks + block]
    */
@@ -805,7 +805,7 @@ cr_compute_pipeline_dispatch(
     swapchain_image_idx,
     &pc,
     n_seg_blocks,
-    n_bins,
+    1,
     1,
     (struct cr_gpu_buffer_t[]){
       *_buffer_by_name(ctx, pipeline, "macro_block_counts"),

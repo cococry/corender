@@ -1,13 +1,14 @@
 #version 450
 #extension GL_KHR_shader_subgroup_basic      : enable
-#extension GL_KHR_shader_subgroup_ballot     : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
 layout(local_size_x = 256) in;
 
-#define WG_SIZE   256
-#define SG_SIZE   32
-#define N_WARPS   (WG_SIZE / SG_SIZE)
+#define WG_SIZE 256
+
+#define MAX_BINS 160 
+
+#define MAX_SUBGROUPS 8 
 
 struct Segment {
     vec2 p0;
@@ -23,39 +24,40 @@ layout(set = 0, binding = 11, std430) buffer MacroBlockCounts {
 };
 
 layout(push_constant) uniform push_constant {
-  uint screen_w,  screen_h;
-  uint n_tiles_x, n_tiles_y;
-  uint n_macrotiles_x, n_macrotiles_y;
-  uint n_seg_blocks;
-  uint n_bins;
+    uint screen_w, screen_h;
+    uint n_tiles_x, n_tiles_y;
+    uint n_macrotiles_x, n_macrotiles_y;
+    uint n_seg_blocks;
+    uint n_bins;
 
-  uint tile_size, macrotile_size;
+    uint tile_size, macrotile_size;
 
-  uint n_segments;
-  uint n_paths;
+    uint n_segments;
+    uint n_paths;
 
-  uint fill_rule;
+    uint fill_rule;
 } pc;
 
-
-shared uint warp_mask[N_WARPS];
+shared uint subgroup_counts[MAX_SUBGROUPS][MAX_BINS];
 
 void main()
 {
-    uint tid  = gl_LocalInvocationID.x;
-    uint lane = gl_SubgroupInvocationID;
-    uint warp = tid / SG_SIZE;
+    uint tid   = gl_LocalInvocationID.x;
+    uint block = gl_WorkGroupID.x;
 
-    uint n_bins = pc.n_macrotiles_x * pc.n_macrotiles_y;
-    uint block  = gl_WorkGroupID.x;
-    uint bin    = gl_WorkGroupID.y;
-    uint n_seg_blocks = (pc.n_segments + WG_SIZE - 1u) / WG_SIZE;
-
-    if (bin >= n_bins || block >= n_seg_blocks)
+    if (block >= pc.n_seg_blocks)
         return;
 
-    if (lane == 0u)
-        warp_mask[warp] = 0u;
+    uint n_subgroups =
+        (WG_SIZE + gl_SubgroupSize - 1u) / gl_SubgroupSize;
+
+    uint total_slots = n_subgroups * pc.n_bins;
+
+    for (uint i = tid; i < total_slots; i += WG_SIZE) {
+        uint sg  = i / pc.n_bins;
+        uint bin = i - sg * pc.n_bins;
+        subgroup_counts[sg][bin] = 0u;
+    }
 
     barrier();
 
@@ -73,26 +75,35 @@ void main()
         ivec2 t1 = ivec2(floor(mx / ms));
 
         t0 = clamp(t0, ivec2(0),
-                   ivec2(int(pc.n_macrotiles_x - 1u), int(pc.n_macrotiles_y - 1u)));
+                   ivec2(int(pc.n_macrotiles_x - 1u),
+                         int(pc.n_macrotiles_y - 1u)));
+
         t1 = clamp(t1, ivec2(0),
-                   ivec2(int(pc.n_macrotiles_x - 1u), int(pc.n_macrotiles_y - 1u)));
+                   ivec2(int(pc.n_macrotiles_x - 1u),
+                         int(pc.n_macrotiles_y - 1u)));
 
-        uint bin_x = bin % pc.n_macrotiles_x;
-        uint bin_y = bin / pc.n_macrotiles_x;
+        uint sg = gl_SubgroupID;
 
-        if (int(bin_x) >= t0.x && int(bin_x) <= t1.x &&
-            int(bin_y) >= t0.y && int(bin_y) <= t1.y) {
-            atomicOr(warp_mask[warp], 1u << lane);
+        for (int y = t0.y; y <= t1.y; ++y) {
+            uint row = uint(y) * pc.n_macrotiles_x;
+
+            for (int x = t0.x; x <= t1.x; ++x) {
+                uint bin = row + uint(x);
+
+                atomicAdd(subgroup_counts[sg][bin], 1u);
+            }
         }
     }
 
     barrier();
 
-    if (tid == 0u) {
+    for (uint bin = tid; bin < pc.n_bins; bin += WG_SIZE) {
         uint count = 0u;
-        for (uint w = 0u; w < N_WARPS; ++w)
-            count += bitCount(warp_mask[w]);
 
-        macro_block_counts[bin * n_seg_blocks + block] = count;
+        for (uint sg = 0u; sg < n_subgroups; ++sg) {
+            count += subgroup_counts[sg][bin];
+        }
+
+        macro_block_counts[bin * pc.n_seg_blocks + block] = count;
     }
 }
