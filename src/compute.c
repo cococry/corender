@@ -547,6 +547,9 @@ cr_compute_pipeline_init(
   uint32_t max_seg_blocks = DIV_UP(max_segments, 256);
   uint32_t macro_block_counts  = (macrotiles_x * macrotiles_y) * max_seg_blocks;
   uint32_t macro_block_offsets = (macrotiles_x * macrotiles_y) * max_seg_blocks;
+
+  uint32_t max_paths = 256;
+  uint32_t n_partitions = DIV_UP(max_paths, 256);
   struct cr_compute_pipeline_layout_binding_t bindings[] = {
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_n_segments"  },  //  1
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macrotiles_x * macrotiles_y,        .name = "macrotile_offsets"  },     //  2
@@ -561,9 +564,9 @@ cr_compute_pipeline_init(
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macro_block_counts,                 .name = "macro_block_counts"  },  // 11
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macro_block_offsets,                .name = "macro_block_offsets" },  // 12
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(struct cr_segment_range_t) * max_segments,      .name = "segment_macro_ranges" },  // 13
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * 256, .name = "binned_paths" },  // 14
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * max_paths, .name = "binned_paths" },  // 14
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t), .name = "bump" },  // 15
-    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(struct cr_compute_macrotile_metadata_t) * macrotiles_x * macrotiles_y, 
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(struct cr_compute_macrotile_metadata_t) * macrotiles_x * macrotiles_y * n_partitions,  
         .name = "macrotile_metas" },  // 16
   };
 
@@ -835,7 +838,7 @@ cr_compute_pipeline_dispatch(
   _kernel_by_name(ctx, pipeline, "binning"),
   swapchain_image_idx,
   &pc,
-  CR_MAX(n_macrotiles_x * n_macrotiles_y, pc.n_paths),
+  (pc.n_paths + 256 - 1) / 256,
   1,
   1,
   (struct cr_gpu_buffer_t[]){

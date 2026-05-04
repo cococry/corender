@@ -131,6 +131,7 @@ void main() {
     int macro_x = int(px / pc.macrotile_size);
     int macro_y = int(y / pc.macrotile_size);
 
+    // assuming partition 0
     if(macrotile_metas[macro_y * pc.n_macrotiles_x + macro_x].count > 0) {
         color = vec4(0.2, 0.3, 0.8, 1.0);
     }
