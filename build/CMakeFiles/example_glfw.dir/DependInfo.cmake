@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/luca/dev/corender-new-new/examples/glfw.c" "CMakeFiles/example_glfw.dir/examples/glfw.c.o" "gcc" "CMakeFiles/example_glfw.dir/examples/glfw.c.o.d"
+  "/home/luca/Dev/corender/examples/glfw.c" "CMakeFiles/example_glfw.dir/examples/glfw.c.o" "gcc" "CMakeFiles/example_glfw.dir/examples/glfw.c.o.d"
   "" "example_glfw" "gcc" "CMakeFiles/example_glfw.dir/link.d"
   )
 

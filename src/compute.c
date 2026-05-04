@@ -8,6 +8,7 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/types.h>
+#include <float.h>
 #include <vulkan/vulkan_core.h>
 
 #define _SUBSYS_NAME "COMPUTE"
@@ -344,13 +345,14 @@ _vk_pipeline_layout_init(
     .size = sizeof(struct cr_compute_pipeline_push_constant_t)
   };
 
-  VkDescriptorSetLayoutBinding set_bindings[n_bindings + 2]; // +1 for the storage image, +1 for the segment buffer
+  VkDescriptorSetLayoutBinding set_bindings[n_bindings + 3]; // +1 for the storage image, +1 for the segment buffer, +1 for the path data
   memset(set_bindings, 0, sizeof(set_bindings));
   for(uint32_t i = 0; i < n_bindings + 1; i++) {
     _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, i, set_bindings);
   }
 
   _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,  n_bindings + 1, set_bindings);
+  _vk_descriptor_layout_binding(VK_SHADER_STAGE_COMPUTE_BIT, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,  n_bindings + 2, set_bindings);
 
   VkDescriptorSetLayoutCreateInfo desc_layout_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -363,7 +365,7 @@ _vk_pipeline_layout_init(
   VkDescriptorPoolSize pool_sizes[2] = {
     {
       .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .descriptorCount = (n_bindings + 1) * ctx->swapchain.n_imgs 
+      .descriptorCount = (n_bindings + 2) * ctx->swapchain.n_imgs 
     },
     {
       .type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -422,12 +424,20 @@ _vk_pipeline_layout_init(
       CR_GPU_BUFFER_SSBO, 
       CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->dynamic[i].segment_buf);
 
+    pipeline->dynamic[i].path_data = cr_util_alloc(ctx, 256, sizeof(struct cr_compute_draw_path_t));
+    pipeline->dynamic[i].n_paths = 0; 
+    cr_mem_create_gpu_buffer(
+            ctx, 
+            sizeof(struct cr_compute_draw_path_t) * 256, 
+            CR_GPU_BUFFER_SSBO, 
+            CR_GPU_BUFFER_MEM_DEVICE_LOCAL, &pipeline->dynamic[i].path_buf);
 
-    VkWriteDescriptorSet writes[n_bindings + 2]; 
+
+    VkWriteDescriptorSet writes[n_bindings + 3]; 
     memset(writes, 0, sizeof(writes));
 
 
-    VkDescriptorBufferInfo infos[n_bindings + 1]; 
+    VkDescriptorBufferInfo infos[n_bindings + 2]; 
 
     infos[0] = (VkDescriptorBufferInfo){ 
       .buffer = pipeline->dynamic[i].segment_buf.buf,
@@ -470,6 +480,20 @@ _vk_pipeline_layout_init(
       .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
       .descriptorCount = 1,
       .pImageInfo = &image_info};
+
+
+    infos[n_bindings + 1] = (VkDescriptorBufferInfo){
+        .buffer = pipeline->dynamic[i].path_buf.buf,
+        .offset = 0,
+        .range  = VK_WHOLE_SIZE,
+    };
+    writes[n_bindings + 2] = (VkWriteDescriptorSet){
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = _global_sets[i],
+      .dstBinding = n_bindings + 2,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .descriptorCount = 1,
+      .pBufferInfo = &infos[n_bindings + 1]};
 
 
     vkUpdateDescriptorSets(ctx->logical_dev, sizeof(writes) / sizeof(writes[0]), writes, 0, NULL);
@@ -536,12 +560,18 @@ cr_compute_pipeline_init(
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * tiles_x * tiles_y,                  .name = "prefix_parity"  },  //  10
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macro_block_counts,                 .name = "macro_block_counts"  },  // 11
     (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * macro_block_offsets,                .name = "macro_block_offsets" },  // 12
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(struct cr_segment_range_t) * max_segments,      .name = "segment_macro_ranges" },  // 13
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t) * 256, .name = "binned_paths" },  // 14
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(uint32_t), .name = "bump" },  // 15
+    (struct cr_compute_pipeline_layout_binding_t){.buffer_size = sizeof(struct cr_compute_macrotile_metadata_t) * macrotiles_x * macrotiles_y, 
+        .name = "macrotile_metas" },  // 16
   };
 
   if(!_vk_pipeline_layout_init(ctx, pipeline, bindings, sizeof(bindings) / sizeof(bindings[0]))) {
     CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline layout."); 
     return false;
   }
+
 
   for (uint32_t i = 0; i < info->n_shaders; i++) {
     const char* path = info->shader_paths[i];
@@ -731,7 +761,13 @@ cr_compute_pipeline_dispatch(
                                                &pipeline->dynamic[swapchain_image_idx].segment_buf);
   }
 
-
+  if(pipeline->dynamic[swapchain_image_idx].n_paths > 0) {
+    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].path_data,
+                                               pipeline->dynamic[swapchain_image_idx].n_paths * 
+                                               sizeof(struct cr_compute_draw_path_t),
+                                               &pipeline->dynamic[swapchain_image_idx].path_buf);
+  }
+ 
   uint32_t screen_w = ctx->swapchain.dimensions.width;
   uint32_t screen_h = ctx->swapchain.dimensions.height;
   uint32_t tile_size = pipeline->info.tile_size;
@@ -758,7 +794,7 @@ cr_compute_pipeline_dispatch(
     .fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD,
     .screen_w = screen_w,
     .screen_h = screen_h,
-    .n_paths = 1, 
+    .n_paths =  pipeline->dynamic[swapchain_image_idx].n_paths, 
     .macrotile_size = tile_size * 8, 
   };
 
@@ -794,11 +830,39 @@ cr_compute_pipeline_dispatch(
   vkCmdPipelineBarrier2(frame->cmd_buf, &dep_compute);
 
 
-  /*
-   * A) Count references for each (macrotile bin, segment block (256 segments) ).
-   *    Output:
-   *      - macro_block_counts[bin * n_seg_blocks + block]
-   */
+  _vk_dispatch_compute(
+  frame,
+  _kernel_by_name(ctx, pipeline, "binning"),
+  swapchain_image_idx,
+  &pc,
+  CR_MAX(n_macrotiles_x * n_macrotiles_y, pc.n_paths),
+  1,
+  1,
+  (struct cr_gpu_buffer_t[]){
+    *_buffer_by_name(ctx, pipeline, "binned_paths"),
+    *_buffer_by_name(ctx, pipeline, "macrotile_metas"),
+  },
+  2
+);
+
+
+
+
+  _vk_dispatch_compute(
+  frame,
+  _kernel_by_name(ctx, pipeline, "precompute_segment_macro_ranges"),
+  swapchain_image_idx,
+  &pc,
+  DIV_UP(n_segments, 256),
+  1,
+  1,
+  (struct cr_gpu_buffer_t[]){
+    *_buffer_by_name(ctx, pipeline, "segment_macro_ranges"),
+  },
+  1
+);
+
+
   _vk_dispatch_compute(
     frame,
     _kernel_by_name(ctx, pipeline, "bin_macro_count"),
@@ -813,17 +877,6 @@ cr_compute_pipeline_dispatch(
     1
   );
 
-  /*
-   * Prefix across segment blocks for each macrotile row.
-   * Input:
-   *   macro_block_counts
-   * Output:
-   *   macro_block_offsets
-   *
-   * This must be a 2D exclusive-add prefix over:
-   *   x = n_seg_blocks
-   *   rows = n_bins
-   */
   cr_mem_clear_gpu_buffer(ctx, frame, _buffer_by_name(ctx, pipeline, "subgroup_tmp"));
   _dispatch_prefix_sum_pass(
     ctx,
@@ -839,17 +892,6 @@ cr_compute_pipeline_dispatch(
     "macro_block_offsets"
   );
 
-  /*
-   * B) Finalize per-macrotile totals.
-   *    Reads:
-   *      - macro_block_counts
-   *      - macro_block_offsets
-   *    Writes:
-   *      - macrotile_n_segments[bin] = total refs in bin
-   *      - macrotile_offsets[bin]    = total refs in bin
-   *
-   * After this, we prefix macrotile_offsets globally across bins.
-   */
   _vk_dispatch_compute(
     frame,
     _kernel_by_name(ctx, pipeline, "bin_macro_finalize"),
@@ -867,14 +909,6 @@ cr_compute_pipeline_dispatch(
     4
   );
 
-  /*
-   * Prefix total macrotile counts across bins.
-   * Input/output:
-   *   macrotile_offsets
-   *
-   * After this:
-   *   macrotile_offsets[bin] = global base of that bin in macrotile_segments
-   */
   cr_mem_clear_gpu_buffer(ctx, frame, _buffer_by_name(ctx, pipeline, "subgroup_tmp"));
   _dispatch_prefix_sum_pass(
     ctx,
@@ -890,29 +924,23 @@ cr_compute_pipeline_dispatch(
     "macrotile_offsets"
   );
 
-  /*
-   * C) Scatter segment ids into final macrotile segment lists.
-   *    Reads:
-   *      - macro_block_offsets
-   *      - macrotile_offsets
-   *    Writes:
-   *      - macrotile_segments
-   */
+
   _vk_dispatch_compute(
-    frame,
-    _kernel_by_name(ctx, pipeline, "bin_macro_scatter"),
-    swapchain_image_idx,
-    &pc,
-    n_seg_blocks,
-    n_bins,
-    1,
-    (struct cr_gpu_buffer_t[]){
-      *_buffer_by_name(ctx, pipeline, "macro_block_offsets"),
-      *_buffer_by_name(ctx, pipeline, "macrotile_offsets"),
-      *_buffer_by_name(ctx, pipeline, "macrotile_segments"),
-    },
-    3
-  );
+  frame,
+  _kernel_by_name(ctx, pipeline, "bin_macro_scatter"),
+  swapchain_image_idx,
+  &pc,
+  n_seg_blocks,
+  1,
+  1,
+  (struct cr_gpu_buffer_t[]){
+    *_buffer_by_name(ctx, pipeline, "macro_block_offsets"),
+    *_buffer_by_name(ctx, pipeline, "macrotile_offsets"),
+    *_buffer_by_name(ctx, pipeline, "macrotile_segments"),
+    *_buffer_by_name(ctx, pipeline, "segment_macro_ranges"),
+  },
+  4
+);
 
     _vk_dispatch_compute(
     frame,
@@ -974,6 +1002,7 @@ cr_compute_pipeline_dispatch(
   _vk_compute_present(ctx, frame, pipeline, swapchain_image_idx, screen_w, screen_h);
 
   pipeline->dynamic[swapchain_image_idx].n_segments = 0;
+  pipeline->dynamic[swapchain_image_idx].n_paths = 0;
   return true;
 }
 
@@ -1020,6 +1049,54 @@ bool
 cr_compute_pipeline_insert_segment(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
                                    struct cr_segment_t segment, uint32_t swapchain_idx) {
   pipeline->dynamic[swapchain_idx].segment_data[pipeline->dynamic[swapchain_idx].n_segments++] = segment;
+  pipeline->dynamic[swapchain_idx].n_segments_in_path++;
+
+  return true;
+}
+
+bool cr_compute_pipeline_insert_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
+    struct cr_compute_draw_path_t path, uint32_t swapchain_idx) {
+
+  pipeline->dynamic[swapchain_idx].path_data[pipeline->dynamic[swapchain_idx].n_paths++] = path;
+
+  return true;
+}
+
+
+bool 
+cr_compute_pipeline_begin_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx) {
+  pipeline->dynamic[swapchain_idx].n_segments_in_path = 0;
+
+  return true;
+}
+
+bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx) {
+  uint32_t count = pipeline->dynamic[swapchain_idx].n_segments_in_path;
+  uint32_t offset = pipeline->dynamic[swapchain_idx].n_segments - pipeline->dynamic[swapchain_idx].n_segments_in_path;
+
+  vec2 path_mn = {FLT_MAX, FLT_MAX}, path_mx = {FLT_MIN, FLT_MIN}; 
+  for(size_t i = 0; i < count; i++) {
+      const struct cr_segment_t* seg = &pipeline->dynamic[swapchain_idx].segment_data[i + offset];
+
+      path_mn[0] = CR_MIN(path_mn[0], (CR_MIN(seg->p0[0], seg->p1[0])));
+      path_mn[1] = CR_MIN(path_mn[1], (CR_MIN(seg->p0[1], seg->p1[1])));
+
+      path_mx[0] = CR_MAX(path_mx[0], (CR_MAX(seg->p0[0], seg->p1[0])));
+      path_mx[1] = CR_MAX(path_mx[1], (CR_MAX(seg->p0[1], seg->p1[1])));
+  }
+
+  
+  pipeline->dynamic[swapchain_idx].path_data[pipeline->dynamic[swapchain_idx].n_paths] = (struct cr_compute_draw_path_t){
+      .id = pipeline->dynamic[swapchain_idx].n_paths,
+      .segment_count = count,
+      .segment_offset = offset,
+      .min = {path_mn[0], path_mn[1]},
+      .max = {path_mx[0], path_mx[1]},
+  };
+
+  pipeline->dynamic[swapchain_idx].n_paths++;
+
+
 
   return true;
 }

@@ -37,13 +37,9 @@ example_glfw: \
   /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/crtn.o \
   /usr/lib64/ld-linux-x86-64.so.2 \
   /lib64/libGLdispatch.so.0 \
-  /usr/lib32/libX11.so.6 \
   /lib64/libX11.so.6 \
-  /usr/lib32/libxcb.so.1 \
   /lib64/libxcb.so.1 \
-  /usr/lib32/libXau.so.6 \
   /lib64/libXau.so.6 \
-  /usr/lib32/libXdmcp.so.6 \
   /lib64/libXdmcp.so.6
 
 /usr/lib64/gcc/x86_64-unknown-linux-gnu/14.2.1/../../../../lib64/Scrt1.o:
@@ -122,18 +118,10 @@ libcorender.a:
 
 /lib64/libGLdispatch.so.0:
 
-/usr/lib32/libX11.so.6:
-
 /lib64/libX11.so.6:
-
-/usr/lib32/libxcb.so.1:
 
 /lib64/libxcb.so.1:
 
-/usr/lib32/libXau.so.6:
-
 /lib64/libXau.so.6:
-
-/usr/lib32/libXdmcp.so.6:
 
 /lib64/libXdmcp.so.6:

@@ -11,6 +11,11 @@ struct cr_tile_header_t {
   uint32_t n_segments;
 };
 
+struct cr_segment_range_t {
+    uint min_xy; // x | y << 16
+    uint max_xy; // x | y << 16
+};
+
 struct cr_compute_pipeline_push_constant_t {
   uint32_t screen_w,  screen_h;
   uint32_t n_tiles_x, n_tiles_y;
@@ -30,6 +35,19 @@ enum cr_compute_pipeline_fill_rule_t {
   CR_COMPUTE_FILL_RULE_NON_ZERO
 };
 
+struct cr_compute_macrotile_metadata_t {
+    uint32_t offset, count;
+};
+
+struct cr_compute_draw_path_t {
+    uint32_t segment_offset;
+    uint32_t segment_count;
+
+    vec2 min, max;
+
+    uint32_t id;
+};
+
 struct cr_compute_pipeline_init_info_t {
   uint32_t tile_size;
 
@@ -45,10 +63,13 @@ struct cr_compute_pipeline_init_info_t {
 };
 
 struct cr_compute_pipeline_dynamic_state_t {
-  struct cr_gpu_buffer_t segment_buf; 
+  struct cr_gpu_buffer_t segment_buf, path_buf; 
   uint32_t n_segments, n_paths;
 
   struct cr_segment_t* segment_data;
+  struct cr_compute_draw_path_t* path_data;
+
+  size_t n_segments_in_path;
 };
 
 struct cr_compute_kernel_t {
@@ -91,3 +112,7 @@ bool cr_compute_pipeline_get_internal_shader_paths(struct cr_context_t* ctx, con
 
 bool cr_compute_pipeline_insert_segment(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
     struct cr_segment_t segment, uint32_t swapchain_idx);
+
+bool cr_compute_pipeline_begin_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx);
+
+bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx);

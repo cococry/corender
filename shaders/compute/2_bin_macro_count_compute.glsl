@@ -23,6 +23,16 @@ layout(set = 0, binding = 11, std430) buffer MacroBlockCounts {
     uint macro_block_counts[];
 };
 
+
+struct SegmentMacroRange {
+    uint min_xy;
+    uint max_xy;
+};
+
+layout(set = 0, binding = 13, std430) buffer SegmentMacroRanges {
+    SegmentMacroRange segment_macro_ranges[];
+};
+
 layout(push_constant) uniform push_constant {
     uint screen_w, screen_h;
     uint n_tiles_x, n_tiles_y;
@@ -66,30 +76,21 @@ void main()
     if (seg_id < pc.n_segments) {
         Segment s = segments[seg_id];
 
-        vec2 mn = min(s.p0, s.p1);
-        vec2 mx = max(s.p0, s.p1);
 
-        float ms = float(pc.macrotile_size);
+        SegmentMacroRange r = segment_macro_ranges[seg_id];
 
-        ivec2 t0 = ivec2(floor(mn / ms));
-        ivec2 t1 = ivec2(floor(mx / ms));
-
-        t0 = clamp(t0, ivec2(0),
-                   ivec2(int(pc.n_macrotiles_x - 1u),
-                         int(pc.n_macrotiles_y - 1u)));
-
-        t1 = clamp(t1, ivec2(0),
-                   ivec2(int(pc.n_macrotiles_x - 1u),
-                         int(pc.n_macrotiles_y - 1u)));
+        uint x0 = r.min_xy & 0xffffu;
+        uint y0 = r.min_xy >> 16u;
+        uint x1 = r.max_xy & 0xffffu;
+        uint y1 = r.max_xy >> 16u;
 
         uint sg = gl_SubgroupID;
 
-        for (int y = t0.y; y <= t1.y; ++y) {
-            uint row = uint(y) * pc.n_macrotiles_x;
+        for (uint y = y0; y <= y1; ++y) {
+            uint row = y * pc.n_macrotiles_x;
 
-            for (int x = t0.x; x <= t1.x; ++x) {
-                uint bin = row + uint(x);
-
+            for (uint x = x0; x <= x1; ++x) {
+                uint bin = row + x;
                 atomicAdd(subgroup_counts[sg][bin], 1u);
             }
         }

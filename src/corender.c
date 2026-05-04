@@ -178,6 +178,17 @@ static inline const char* _vk_ver_to_string(uint32_t version, char* out, size_t 
   return out;
 }
 
+VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_message_callback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT             messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+    void                                       *pUserData)
+{
+    struct cr_context_t* ctx = (struct cr_context_t*)pUserData;
+    printf("%s", pCallbackData->pMessage); 
+	return VK_FALSE;
+}
+
 bool
 _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   if(!ctx || !info) _PARAM_CHECK_FAIL();
@@ -197,16 +208,50 @@ _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* 
   };
 
 
+  VkValidationFeatureEnableEXT validation_feature_enables[] = {
+      VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT
+  };
+
+  VkValidationFeaturesEXT validation_features = {0};
+  validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+  validation_features.enabledValidationFeatureCount = 1;
+  validation_features.pEnabledValidationFeatures    = validation_feature_enables;
+
+
   VkInstanceCreateInfo create_info = {
     .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
     .pApplicationInfo = &app_info,
     .enabledExtensionCount = info->n_exts,
     .ppEnabledExtensionNames = info->exts,
+    .pNext = &validation_features,
     .enabledLayerCount = info->enable_validation ?  info->n_layers : 0,
     .ppEnabledLayerNames = info->enable_validation ? info->layers : NULL,
   };
 
   _VK_CHECK(ctx, vkCreateInstance(&create_info, NULL, &ctx->instance)); 
+
+
+  VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info = {0};
+
+  debug_utils_messenger_create_info.sType =  VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  debug_utils_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+  debug_utils_messenger_create_info.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+  debug_utils_messenger_create_info.pfnUserCallback = debug_utils_message_callback;
+  debug_utils_messenger_create_info.pUserData = ctx; 
+
+  VkDebugUtilsMessengerEXT debug_utils_messenger;
+
+  PFN_vkCreateDebugUtilsMessengerEXT func =
+      (PFN_vkCreateDebugUtilsMessengerEXT)
+      vkGetInstanceProcAddr(ctx->instance, "vkCreateDebugUtilsMessengerEXT");
+
+  if(func == NULL) {
+      CR_ERROR(ctx->log, "Extension vkCreateDebugUtilsMessengerEXT not available.");
+      exit(1);
+  }
+
+  _VK_CHECK(ctx, func(ctx->instance, &debug_utils_messenger_create_info, NULL, &debug_utils_messenger));
+  printf("worked till here.\n");
 
   if(ctx->log.verbose) {
     char ver_buf[32];
@@ -1347,6 +1392,19 @@ cr_draw_vertex(struct cr_context_t* ctx, vec2 pos, vec4 color) {
   if(!cr_raster_pipeline_batching_write_to_batch(ctx, &vertex_raster_pipeline, &vertex, ctx->frameloop.frame_idx)) {
 
   }
+}
+
+bool 
+cr_draw_begin_path(struct cr_context_t* ctx) {
+  cr_compute_pipeline_begin_path(ctx, &compute_pipeline, ctx->_swapchain_img_idx);
+
+  return true;
+}
+bool 
+cr_draw_end_path(struct cr_context_t* ctx) {
+  cr_compute_pipeline_end_path(ctx, &compute_pipeline, ctx->_swapchain_img_idx);
+
+  return true;
 }
 
 bool 

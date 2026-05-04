@@ -159,6 +159,8 @@ void cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color);
 bool cr_draw_begin(struct cr_context_t* ctx);
 void cr_draw_rect(struct cr_context_t* ctx, vec2 pos, vec2 size, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void cr_draw_vertex(struct cr_context_t* ctx, vec2 pos, vec4 color);
+bool cr_draw_begin_path(struct cr_context_t* ctx);
+bool cr_draw_end_path(struct cr_context_t* ctx);
 bool cr_draw_segment(struct cr_context_t* ctx, struct cr_segment_t segment);
 bool cr_draw_end(struct cr_context_t* ctx);
 

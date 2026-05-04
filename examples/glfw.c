@@ -355,7 +355,13 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window, _glfw_resize);
 
     uint32_t n_exts = 0;
-    const char** exts = glfwGetRequiredInstanceExtensions(&n_exts);
+    const char** glfw_exts = glfwGetRequiredInstanceExtensions(&n_exts);
+    const char** exts = malloc(sizeof(char*) * (n_exts + 1));
+    for (uint32_t i = 0; i < n_exts; i++) {
+        exts[i] = glfw_exts[i];
+    }
+    exts[n_exts] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+    n_exts += 1;
 
 
 
@@ -405,19 +411,21 @@ int main(void) {
         float min_size = 30.0f;
         float max_size = 50.0f;
         float pulse01 = 0.5f + 0.5f * sinf(t * 1.7f);
-        float size = min_size + (max_size - min_size) * pulse01;
+        float size = 30;
 
         cr_draw_begin(&ctx);
 
-        for (int i = 0; i < N_STARS; ++i) {
+        for (int i = 0; i < 1; ++i) {
+        cr_draw_begin_path(&ctx);
             draw_star(
-                    star_x[i],
-                    star_y[i],
+                    500,
+                    500,
                     5,
                     size * 0.45f,   /* inner radius */
                     size,           /* outer radius */
                     t * 0.8f
                     );
+        cr_draw_end_path(&ctx);
         }
 
         cr_draw_end(&ctx);

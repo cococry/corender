@@ -255,6 +255,7 @@ function(compile_shader_group SHADER_LIST OUT_SUBDIR OUT_VAR)
             OUTPUT ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_BIN_DIR}/${OUT_SUBDIR}
             COMMAND glslc
+                -O0
                 -fshader-stage=${STAGE}
                 --target-env=vulkan1.1
                 ${GLSL}

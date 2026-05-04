@@ -1,5 +1,5 @@
 #version 450
-layout(local_size_x = 32, local_size_y = 32) in;
+layout(local_size_x = 32) in;
 
 #extension GL_KHR_shader_subgroup_basic      : enable
 struct Segment {
@@ -26,7 +26,15 @@ layout(set = 0, binding = 9, std430) buffer TileSegments {
 layout(set = 0, binding = 10, std430) buffer PrefixParity {
   uint prefix_parity[];
 };
-layout(set = 0, binding = 13, rgba8) uniform image2D outImage;
+layout(set = 0, binding = 17, rgba8) uniform image2D outImage;
+
+struct MacrotileMetadata {
+    uint off;
+    uint count;
+};
+layout(set = 0, binding = 16, std430) readonly buffer MacrotileMeta {
+    MacrotileMetadata macrotile_metas[];
+};
 
 
 layout(push_constant) uniform push_constant {
@@ -50,7 +58,7 @@ const uint MAX_SUBGROUPS = 32;
 
 void main() {
   uvec2 tile = gl_WorkGroupID.xy;
-  uint scan  = gl_LocalInvocationID.y;
+  uint scan = gl_LocalInvocationID.x;
 
   int y = int(tile.y * pc.tile_size + scan);
   if (y < 0 || y >= int(pc.screen_h))
@@ -118,6 +126,13 @@ void main() {
 
     if (parity == 1) {
       color = vec4(1.0, 0.0, 0.0, 1.0);     // fill
+    }
+
+    int macro_x = int(px / pc.macrotile_size);
+    int macro_y = int(y / pc.macrotile_size);
+
+    if(macrotile_metas[macro_y * pc.n_macrotiles_x + macro_x].count > 0) {
+        color = vec4(0.2, 0.3, 0.8, 1.0);
     }
 
     /* microtile grid: every tile_size pixels */
