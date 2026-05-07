@@ -113,4 +113,5 @@ CMakeFiles/corender.dir/src/corender.c.o: \
  /usr/include/cglm/curve.h /usr/include/cglm/bezier.h \
  /usr/include/cglm/ray.h /usr/include/cglm/affine2d.h \
  /home/luca/Dev/corender/src/compute.h /home/luca/Dev/corender/src/mem.h \
- /home/luca/Dev/corender/src/raster.h /home/luca/Dev/corender/src/util.h
+ /home/luca/Dev/corender/src/raster.h /home/luca/Dev/corender/src/util.h \
+ /home/luca/Dev/corender/src/profiler.h

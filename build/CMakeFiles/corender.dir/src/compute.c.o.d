@@ -105,7 +105,8 @@ CMakeFiles/corender.dir/src/compute.c.o: \
  /home/luca/Dev/corender/src/mem.h \
  /home/luca/Dev/corender/src/../vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
- /home/luca/Dev/corender/src/util.h /usr/include/errno.h \
+ /home/luca/Dev/corender/src/util.h \
+ /home/luca/Dev/corender/src/profiler.h /usr/include/errno.h \
  /usr/include/bits/errno.h /usr/include/linux/errno.h \
  /usr/include/asm/errno.h /usr/include/asm-generic/errno.h \
  /usr/include/asm-generic/errno-base.h /usr/include/linux/limits.h \

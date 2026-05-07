@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vulkan/vulkan_core.h>
+#include  "profiler.h"
+#include  "../include/corender/corender.h"
 
 #define _CR_BRAND_NAME "corender"  
 #define _CR_VERSION "alpha 0.1"
@@ -30,6 +32,7 @@ enum cr_log_level_t {
   CR_LL_FATAL,
   CR_LL_COUNT
 };
+
 
 #define CR_TRACE(logstate, ...)                                                     \
   if (!(logstate).quiet) {                                                          \
@@ -154,3 +157,6 @@ uint32_t cr_util_djb2_hash(char *str);
 
 uint32_t cr_util_djb2_hash(char *str);
 
+bool cr_util_global_gpu_profiler_init(struct cr_context_t* ctx);
+
+struct cr_gpu_profiler_t* cr_util_global_gpu_profiler_get();

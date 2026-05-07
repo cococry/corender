@@ -5,6 +5,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/corender.dir/src/corender.c.o.d"
   "CMakeFiles/corender.dir/src/mem.c.o"
   "CMakeFiles/corender.dir/src/mem.c.o.d"
+  "CMakeFiles/corender.dir/src/profiler.c.o"
+  "CMakeFiles/corender.dir/src/profiler.c.o.d"
   "CMakeFiles/corender.dir/src/raster.c.o"
   "CMakeFiles/corender.dir/src/raster.c.o.d"
   "CMakeFiles/corender.dir/src/util.c.o"

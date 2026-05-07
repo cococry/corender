@@ -1,98 +1,122 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "../../shared/pc.glsl"
+
+#cmakedefine DO_XOR
+#cmakedefine PREFIX_SIGNED
 
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
-layout(local_size_x = 64) in;
+layout(local_size_x = 256) in;
 
-#cmakedefine DO_XOR 
+#if defined(DO_XOR) && defined(PREFIX_SIGNED)
+#error "DO_XOR and PREFIX_SIGNED cannot be used together"
+#endif
 
-layout(set = 0, binding = 8, std430) buffer SubgroupTmp {
-    uint subgroup_tmp[];
-};
-layout(push_constant) uniform push_constant {
-  uint screen_w,  screen_h;
-  uint n_tiles_x, n_tiles_y;
-  uint n_macrotiles_x, n_macrotiles_y;
-  uint n_seg_blocks;
-  uint n_bins;
+#ifdef PREFIX_SIGNED
+#define T int
+#else
+#define T uint
+#endif
 
-  uint tile_size, macrotile_size;
-
-  uint n_segments;
-  uint n_paths;
-
-  uint fill_rule;
-} pc;
-
-
-
+#define WG_SIZE 256u
 #define SG_SIZE @SUBGROUP_SIZE@
+#define SGS_PER_WG (WG_SIZE / SG_SIZE)
 
-#define SGS_PER_WG 64 / SG_SIZE
+layout(set = 0, binding = SUBGROUP_TMP_BINDING, std430) buffer SubgroupTmp {
+    T subgroup_tmp[];
+};
 
-shared uint subgroup_totals[SGS_PER_WG]; 
+shared T subgroup_totals[SGS_PER_WG];
 
-void main() {
-  uint lane  = gl_LocalInvocationID.x;
-  if(lane < SGS_PER_WG)
-    subgroup_totals[lane] = 0;
-  barrier();
-  uint row   = gl_WorkGroupID.y;
-
-  uint blocks_per_row = (pc.@DIM_X@ + 63) / 64;
-  uint gid = row * blocks_per_row + lane;
-
-  bool is_active = (row < pc.@DIM_Y@) && (lane < blocks_per_row);
-
-  uint x = is_active ? subgroup_tmp[gid] : 0;
-
+T op_identity() {
 #ifdef DO_XOR
-  uint prefix = subgroupExclusiveXor(x);
-#else 
-  uint prefix = subgroupExclusiveAdd(x);
+    return 0u;
+#else
+    return T(0);
 #endif
-
-#ifdef DO_XOR
-  uint sg_sum = subgroupXor(x);
-#else 
-  uint sg_sum = subgroupAdd(x);
-#endif 
-
-  if (subgroupElect())
-    subgroup_totals[gl_SubgroupID] = sg_sum;
-
-  barrier();
-
-  uint sg_offset = 0;
-
-  if (gl_SubgroupID == 0) {
-    uint lane = gl_SubgroupInvocationID;
-
-    uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
-
-#ifdef DO_XOR
-    uint off = subgroupExclusiveXor(val);
-#else 
-    uint off = subgroupExclusiveAdd(val);
-#endif 
-
-    if (lane < SGS_PER_WG)
-      subgroup_totals[lane] = off;
-  }
-
-  barrier();
-
-  sg_offset = subgroup_totals[gl_SubgroupID];
-
-#ifdef DO_XOR
-  prefix ^= sg_offset;
-#else 
-  prefix += sg_offset;
-#endif
-
-  if(is_active)
-    subgroup_tmp[gid] = prefix;
-
 }
 
+T op_apply(T a, T b) {
+#ifdef DO_XOR
+    return a ^ b;
+#else
+    return a + b;
+#endif
+}
+
+T subgroup_exclusive_op(T v) {
+#ifdef DO_XOR
+    return subgroupExclusiveXor(v);
+#else
+    return subgroupExclusiveAdd(v);
+#endif
+}
+
+T subgroup_reduce_op(T v) {
+#ifdef DO_XOR
+    return subgroupXor(v);
+#else
+    return subgroupAdd(v);
+#endif
+}
+
+void main() {
+    if (bump.failed != 0u) return;
+    uint lid = gl_LocalInvocationID.x;
+    uint row = gl_WorkGroupID.y;
+
+    if (row >= pc.@DIM_Y@) {
+        return;
+    }
+
+    uint dim_x = pc.@DIM_X@;
+    uint blocks_per_row = (dim_x + WG_SIZE - 1u) / WG_SIZE;
+
+    bool is_active = lid < blocks_per_row;
+
+    T v = op_identity();
+
+    if (is_active) {
+        v = subgroup_tmp[row * blocks_per_row + lid];
+    }
+
+    T sg_excl = subgroup_exclusive_op(v);
+    T sg_total = subgroup_reduce_op(v);
+
+    if (subgroupElect()) {
+        subgroup_totals[gl_SubgroupID] = sg_total;
+    }
+
+    barrier();
+
+    if (gl_SubgroupID == 0u) {
+        uint sg_lane = gl_SubgroupInvocationID;
+
+        T val = op_identity();
+        if (sg_lane < SGS_PER_WG) {
+            val = subgroup_totals[sg_lane];
+        }
+
+        T off = subgroup_exclusive_op(val);
+
+        if (sg_lane < SGS_PER_WG) {
+            subgroup_totals[sg_lane] = off;
+        }
+    }
+
+    barrier();
+
+    T sg_offset = subgroup_totals[gl_SubgroupID];
+    T block_offset = op_apply(sg_offset, sg_excl);
+
+    if (is_active) {
+        subgroup_tmp[row * blocks_per_row + lid] = block_offset;
+    }
+}
+
+#undef T
+#undef WG_SIZE
+#undef SG_SIZE
+#undef SGS_PER_WG

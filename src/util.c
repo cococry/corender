@@ -13,6 +13,8 @@
 
 #define _SUBSYS_NAME "UTIL"
 
+struct cr_gpu_profiler_t global_profiler;
+
 char* cr_util_get_state_folder(void) {
   const char* state_home = getenv("XDG_STATE_HOME");
   const char* home = getenv("HOME");
@@ -195,4 +197,23 @@ uint32_t cr_util_djb2_hash(char *str) {
   return hash;
 
 }
+
+bool cr_util_global_gpu_profiler_init(struct cr_context_t* ctx) {
+    bool ok = cr_gpu_profiler_init(
+            &global_profiler,
+            ctx->phys_dev,
+            ctx->logical_dev,
+            ctx->graphics_queue_family, 
+            CR_FRAME_COUNT,
+            128,                                  // max scopes per frame
+            60                                    // print every 60 collected frames
+            );
+
+    return ok;
+}
+
+struct cr_gpu_profiler_t* cr_util_global_gpu_profiler_get() {
+    return &global_profiler;
+}
+
 

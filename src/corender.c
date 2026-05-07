@@ -161,6 +161,10 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
     return false;
   }
 
+  if(!cr_util_global_gpu_profiler_init(ctx)) {
+    CR_WARN(ctx->log, "GPU profiler cannot be enabled.");
+  }
+
   cr_draw_set_clear_color(ctx, (vec4){0.1f, 0.1f, 0.1f, 1.0f});
 
   return true;
@@ -178,15 +182,22 @@ static inline const char* _vk_ver_to_string(uint32_t version, char* out, size_t 
   return out;
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_message_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT      messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT             messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-    void                                       *pUserData)
-{
-    struct cr_context_t* ctx = (struct cr_context_t*)pUserData;
-    printf("%s", pCallbackData->pMessage); 
-	return VK_FALSE;
+
+VKAPI_ATTR VkBool32 VKAPI_CALL
+debug_utils_message_callback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData
+) {
+    const char* msg = "(null validation message)";
+
+    if (pCallbackData && pCallbackData->pMessage) {
+        msg = pCallbackData->pMessage;
+    }
+
+    fprintf(stderr, "Validation: %s\n", msg);
+    return VK_FALSE;
 }
 
 bool
@@ -234,24 +245,26 @@ _create_instance(struct cr_context_t* ctx, const struct cr_context_init_info_t* 
   VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info = {0};
 
   debug_utils_messenger_create_info.sType =  VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  debug_utils_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+  debug_utils_messenger_create_info.messageSeverity =
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
   debug_utils_messenger_create_info.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
   debug_utils_messenger_create_info.pfnUserCallback = debug_utils_message_callback;
   debug_utils_messenger_create_info.pUserData = ctx; 
 
-  VkDebugUtilsMessengerEXT debug_utils_messenger;
+  VkDebugUtilsMessengerEXT debug_utils_messenger = VK_NULL_HANDLE;
 
   PFN_vkCreateDebugUtilsMessengerEXT func =
       (PFN_vkCreateDebugUtilsMessengerEXT)
       vkGetInstanceProcAddr(ctx->instance, "vkCreateDebugUtilsMessengerEXT");
 
   if(func == NULL) {
-      CR_ERROR(ctx->log, "Extension vkCreateDebugUtilsMessengerEXT not available.");
-      exit(1);
+      CR_WARN(ctx->log, "Extension vkCreateDebugUtilsMessengerEXT not available.");
+  } else {
+      _VK_CHECK(ctx, func(ctx->instance, &debug_utils_messenger_create_info, NULL, &debug_utils_messenger));
   }
-
-  _VK_CHECK(ctx, func(ctx->instance, &debug_utils_messenger_create_info, NULL, &debug_utils_messenger));
-  printf("worked till here.\n");
 
   if(ctx->log.verbose) {
     char ver_buf[32];
@@ -1274,7 +1287,26 @@ cr_draw_begin(struct cr_context_t* ctx) {
     }
   }
   struct cr_frame_t* frame = &ctx->frameloop.frames[ctx->frameloop.frame_idx];
-  vkWaitForFences(ctx->logical_dev, 1, &frame->in_flight_fence, VK_TRUE, UINT64_MAX);
+
+  VkResult wait_res = vkWaitForFences(
+          ctx->logical_dev,
+          1,
+          &frame->in_flight_fence,
+          VK_TRUE,
+          UINT64_MAX
+          );
+
+  if (wait_res != VK_SUCCESS) {
+      CR_ERROR(ctx->log, "vkWaitForFences failed");
+      goto err;
+  }
+
+  /* GPU has finished all work previously submitted for this frame slot.
+     Safe to read timestamp query results for this frame_idx. */
+  cr_gpu_profiler_collect_frame(
+          cr_util_global_gpu_profiler_get(),
+          ctx->frameloop.frame_idx
+          );
 
   if(ctx->enable_time_measuring) {
     uint64_t timestamps[2];
@@ -1458,6 +1490,12 @@ cr_draw_end(struct cr_context_t* ctx) {
   };
 
   _VK_CHECK(ctx, vkBeginCommandBuffer(frame->cmd_buf, &begin_info));
+
+  cr_gpu_profiler_begin_frame(
+          cr_util_global_gpu_profiler_get(),
+          ctx->frameloop.frame_idx,
+          frame->cmd_buf
+          );
 
   //cr_raster_pipeline_batching_commit(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
   cr_compute_pipeline_dispatch(ctx, &compute_pipeline, ctx->frameloop.frame_idx, ctx->_swapchain_img_idx);

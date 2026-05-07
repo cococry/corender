@@ -23,7 +23,7 @@ add_library(corender STATIC
 
 target_include_directories(corender
     PUBLIC
-        ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/include
 )
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -46,90 +46,23 @@ set(SHADER_BIN_DIR ${CMAKE_BINARY_DIR}/bin/shaders)
 
 set(SUBGROUP_SIZES 4 8 16 32 64)
 
-set(PIPELINE_bin
-    bin # name
-    macrotile_n_segments # input buffer
-    1 # input buffer binding
-    2 # output buffer binding
-    macrotile_offsets # output buffer
-    1 # enable 1d
-    0 # enable 2d
-    0 # if the prefix pass is Xor (else we just add)
-    n_macrotiles_x
-    n_macrotiles_y
-)
-
-set(PIPELINE_bin_macro_micro
-    bin_macro_micro # name
-    macrotile_n_segments_micro # input buffer
-    6 # input buffer binding
-    -1 # output buffer binding (no output, write to input)
-    -1 # output buffer (no output, write to input)
-    1 # enable 1d
-    0 # enable 2d
-    0 # if the prefix pass is Xor (else we just add) 
-    n_macrotiles_x 
-    n_macrotiles_y
-)
-
-set(PIPELINE_bin_fine
-    bin_fine  # name
-    tile_n_segments # input buffer
-    5 # input buffer binding
-    7 # output buffer binding
-    tile_offsets # output buffer
-    1 # enable 1d
-    0 # enable 2d
-    0 # if the prefix pass is Xor (else we just add) 
-    n_tiles_x 
+set(PIPELINE_tile_events
+    tile_events # input buffer
+    tile_events # output buffer, in-place 
+    6 # binding location for input buffer 
+    -1 # binding location for output buffer (no output buffer) 
+    -1 # prefixed output (same as INPUT) 
+    0 # enable 1d prefix sum
+    1 # enable 2d prefix sum
+    0 # DO_XOR
+    1 # PREFIX_INCLUSIVE
+    1 # PREFIX_SIGNED
+    n_tiles_x
     n_tiles_y
-)
-
-set(PIPELINE_parity
-    parity
-    prefix_parity
-    10
-    -1
-    -1
-    0
-    1
-    1
-    n_tiles_x 
-    n_tiles_y
-)
-set(PIPELINE_bin_macro_global
-    bin_macro_global
-    macrotile_offsets
-    2
-    -1
-    -1
-    1
-    0
-    0
-    n_bins
-    n_paths
-)
-
-set(PIPELINE_bin_macro_block
-    bin_macro_block
-    macro_block_counts
-    11
-    12
-    macro_block_offsets
-    0
-    1
-    0
-    n_seg_blocks
-    n_bins
 )
 
 set(PIPELINE_LIST
-    PIPELINE_bin
-    PIPELINE_bin_fine
-    PIPELINE_bin_macro_micro
-    PIPELINE_parity
-    PIPELINE_bin_macro_global
-    PIPELINE_bin_macro_block
+    PIPELINE_tile_events
 )
 
 file(GLOB PREFIX_TEMPLATES
@@ -163,9 +96,11 @@ foreach(TEMPLATE IN LISTS PREFIX_TEMPLATES)
         list(GET PIPELINE 4 PREFIXED_OUTPUT)
         list(GET PIPELINE 5 ENABLE_1D)
         list(GET PIPELINE 6 ENABLE_2D)
-        list(GET PIPELINE 7 DO_XOR)
-        list(GET PIPELINE 8 DIM_X)
-        list(GET PIPELINE 9 DIM_Y)
+        list(GET PIPELINE 7 DO_XOR_VALUE)
+        list(GET PIPELINE 8 PREFIX_INCLUSIVE_VALUE)
+        list(GET PIPELINE 9 PREFIX_SIGNED_VALUE)
+        list(GET PIPELINE 10 DIM_X)
+        list(GET PIPELINE 11 DIM_Y)
 
         if(PREFIX_DIM STREQUAL "prefix1d" AND NOT ENABLE_1D)
             continue()
@@ -183,10 +118,22 @@ foreach(TEMPLATE IN LISTS PREFIX_TEMPLATES)
             set(PREFIX_OUTPUT ON)
         endif()
 
-        if(DO_XOR)
-            set(DO_XOR_DEFINE ON)
+        if(DO_XOR_VALUE)
+            set(DO_XOR ON)
         else()
-            unset(DO_XOR_DEFINE)
+            unset(DO_XOR)
+        endif()
+
+        if(PREFIX_INCLUSIVE_VALUE)
+            set(PREFIX_INCLUSIVE ON)
+        else()
+            unset(PREFIX_INCLUSIVE)
+        endif()
+
+        if(PREFIX_SIGNED_VALUE)
+            set(PREFIX_SIGNED ON)
+        else()
+            unset(PREFIX_SIGNED)
         endif()
 
         foreach(SG IN LISTS SUBGROUP_SIZES)
@@ -255,11 +202,11 @@ function(compile_shader_group SHADER_LIST OUT_SUBDIR OUT_VAR)
             OUTPUT ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${SHADER_BIN_DIR}/${OUT_SUBDIR}
             COMMAND glslc
-                -O0
-                -fshader-stage=${STAGE}
-                --target-env=vulkan1.1
-                ${GLSL}
-                -o ${SPIRV}
+            ${SHADER_OPT_FLAGS}
+            -fshader-stage=${STAGE}
+            --target-env=vulkan1.1
+            ${GLSL}
+            -o ${SPIRV}
             DEPENDS ${GLSL}
             VERBATIM
         )
@@ -284,8 +231,8 @@ add_custom_target(shaders ALL
     COMMAND ${CMAKE_COMMAND} -E rm -rf $ENV{HOME}/.local/state/corender/shaders
     COMMAND ${CMAKE_COMMAND} -E make_directory $ENV{HOME}/.local/state/corender/shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${SHADER_BIN_DIR}
-        $ENV{HOME}/.local/state/corender/shaders
+    ${SHADER_BIN_DIR}
+    $ENV{HOME}/.local/state/corender/shaders
 )
 
 file(GLOB EXAMPLE_SRCS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/examples/*.c)
@@ -298,15 +245,16 @@ foreach(example ${EXAMPLE_SRCS})
 
     target_link_libraries(${target_name}
         PRIVATE
-            corender
-            glfw
-            OpenGL::GL
-            Vulkan::Vulkan
-            stdc++
+        corender
+        glfw
+        OpenGL::GL
+        Vulkan::Vulkan
+        stdc++
     )
 
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         target_compile_options(${target_name} PRIVATE -g -O0 -DDEBUG)
+        set(SHADER_OPT_FLAGS -O0 -g)
     else()
         target_compile_options(${target_name} PRIVATE
             -O3 -DNDEBUG
@@ -317,6 +265,7 @@ foreach(example ${EXAMPLE_SRCS})
             -fstrict-aliasing
         )
         target_link_options(${target_name} PRIVATE -flto)
+        set(SHADER_OPT_FLAGS -O -g0)
     endif()
 endforeach()
 

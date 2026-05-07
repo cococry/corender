@@ -11,6 +11,7 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/luca/Dev/corender/src/compute.c" "CMakeFiles/corender.dir/src/compute.c.o" "gcc" "CMakeFiles/corender.dir/src/compute.c.o.d"
   "/home/luca/Dev/corender/src/corender.c" "CMakeFiles/corender.dir/src/corender.c.o" "gcc" "CMakeFiles/corender.dir/src/corender.c.o.d"
   "/home/luca/Dev/corender/src/mem.c" "CMakeFiles/corender.dir/src/mem.c.o" "gcc" "CMakeFiles/corender.dir/src/mem.c.o.d"
+  "/home/luca/Dev/corender/src/profiler.c" "CMakeFiles/corender.dir/src/profiler.c.o" "gcc" "CMakeFiles/corender.dir/src/profiler.c.o.d"
   "/home/luca/Dev/corender/src/raster.c" "CMakeFiles/corender.dir/src/raster.c.o" "gcc" "CMakeFiles/corender.dir/src/raster.c.o.d"
   "/home/luca/Dev/corender/src/util.c" "CMakeFiles/corender.dir/src/util.c.o" "gcc" "CMakeFiles/corender.dir/src/util.c.o.d"
   "/home/luca/Dev/corender/vendor/vma/vma_impl.cpp" "CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o" "gcc" "CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o.d"

@@ -354,14 +354,19 @@ int main(void) {
 
     glfwSetFramebufferSizeCallback(window, _glfw_resize);
 
-    uint32_t n_exts = 0;
-    const char** glfw_exts = glfwGetRequiredInstanceExtensions(&n_exts);
-    const char** exts = malloc(sizeof(char*) * (n_exts + 1));
-    for (uint32_t i = 0; i < n_exts; i++) {
+
+    uint32_t n_glfw_exts = 0;
+    const char** glfw_exts = glfwGetRequiredInstanceExtensions(&n_glfw_exts);
+
+    uint32_t n_exts = n_glfw_exts /*+ 1*/;
+
+    const char** exts = malloc(sizeof(char*) * n_exts);
+
+    for (uint32_t i = 0; i < n_glfw_exts; i++) {
         exts[i] = glfw_exts[i];
     }
-    exts[n_exts] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-    n_exts += 1;
+
+    //exts[n_glfw_exts] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 
 
 
@@ -375,8 +380,8 @@ int main(void) {
         .exts = exts,
         .enable_time_measuring = false,
 
-        .layers = validation_layers,
-        .n_layers = 1,
+        .layers = NULL,
+        .n_layers = 0,
 
         .log_verbose = true,
         .surface_create = _glfw_surface_create,
@@ -387,7 +392,7 @@ int main(void) {
 
     double start_time = glfwGetTime();
 
-#define N_STARS 200 
+#define N_STARS 1000 
 
     float star_x[N_STARS];
     float star_y[N_STARS];
@@ -415,12 +420,12 @@ int main(void) {
 
         cr_draw_begin(&ctx);
 
-        for (int i = 0; i < 1; ++i) {
+        for (int i = 0; i < N_STARS; ++i) {
         cr_draw_begin_path(&ctx);
             draw_star(
-                    500,
-                    500,
-                    5,
+                    star_x[i],
+                    star_y[i],
+                    3,
                     size * 0.45f,   /* inner radius */
                     size,           /* outer radius */
                     t * 0.8f

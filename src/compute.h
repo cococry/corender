@@ -21,7 +21,9 @@ struct cr_compute_pipeline_push_constant_t {
   uint32_t n_tiles_x, n_tiles_y;
   uint32_t n_macrotiles_x, n_macrotiles_y;
   uint32_t n_seg_blocks;
+  uint32_t n_path_partitions;
   uint32_t n_bins;
+
   uint32_t tile_size, macrotile_size;
   
   uint32_t n_segments;
@@ -29,6 +31,25 @@ struct cr_compute_pipeline_push_constant_t {
 
   uint32_t fill_rule;
 };
+
+struct cr_compute_bump_t {
+    uint32_t n_touches;
+    uint32_t n_active_tiles;
+    uint32_t n_tile_segment_slots;
+
+};
+
+struct cr_compute_tile_touch_record_t {
+    uint32_t seg_id;
+    uint32_t pack;
+};
+
+struct cr_compute_indirect_dispatch_cmd_t {
+    uint32_t dispatch_x;
+    uint32_t dispatch_y;
+    uint32_t dispatch_z;
+};
+
 
 enum cr_compute_pipeline_fill_rule_t {
   CR_COMPUTE_FILL_RULE_EVEN_ODD = 0,
@@ -63,11 +84,12 @@ struct cr_compute_pipeline_init_info_t {
 };
 
 struct cr_compute_pipeline_dynamic_state_t {
-  struct cr_gpu_buffer_t segment_buf, path_buf; 
+  struct cr_gpu_buffer_t segment_buf, path_buf, indirect_buf; 
   uint32_t n_segments, n_paths;
 
   struct cr_segment_t* segment_data;
   struct cr_compute_draw_path_t* path_data;
+  struct cr_compute_indirect_dispatch_cmd_t* indirect_data;
 
   size_t n_segments_in_path;
 };

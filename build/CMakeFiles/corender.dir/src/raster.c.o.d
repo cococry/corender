@@ -51,8 +51,9 @@ CMakeFiles/corender.dir/src/raster.c.o: \
  /usr/include/bits/pthreadtypes-arch.h \
  /usr/include/bits/atomic_wide_counter.h /usr/include/bits/struct_mutex.h \
  /usr/include/bits/struct_rwlock.h /usr/include/alloca.h \
- /usr/include/bits/stdlib-float.h /home/luca/Dev/corender/src/mem.h \
+ /usr/include/bits/stdlib-float.h /home/luca/Dev/corender/src/profiler.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdbool.h \
+ /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
  /home/luca/Dev/corender/src/../include/corender/corender.h \
  /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
@@ -102,8 +103,8 @@ CMakeFiles/corender.dir/src/raster.c.o: \
  /usr/include/cglm/sphere.h /usr/include/cglm/ease.h \
  /usr/include/cglm/curve.h /usr/include/cglm/bezier.h \
  /usr/include/cglm/ray.h /usr/include/cglm/affine2d.h \
+ /home/luca/Dev/corender/src/mem.h \
  /home/luca/Dev/corender/src/../vendor/vma/vk_mem_alloc.h \
- /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
  /usr/include/string.h /usr/include/bits/types/locale_t.h \
  /usr/include/bits/types/__locale_t.h /usr/include/strings.h \
  /usr/include/linux/limits.h

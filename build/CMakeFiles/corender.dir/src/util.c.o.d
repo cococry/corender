@@ -53,6 +53,8 @@ CMakeFiles/corender.dir/src/util.c.o: /home/luca/Dev/corender/src/util.c \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std_decode.h \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h \
+ /home/luca/Dev/corender/src/profiler.h /usr/include/vulkan/vulkan.h \
+ /usr/include/vulkan/vulkan_core.h \
  /home/luca/Dev/corender/src/../include/corender/corender.h \
  /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \

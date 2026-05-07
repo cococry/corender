@@ -297,6 +297,30 @@ src/mem.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/mem.c.s
 .PHONY : src/mem.c.s
 
+src/profiler.o: src/profiler.c.o
+.PHONY : src/profiler.o
+
+# target to build an object file
+src/profiler.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/profiler.c.o
+.PHONY : src/profiler.c.o
+
+src/profiler.i: src/profiler.c.i
+.PHONY : src/profiler.i
+
+# target to preprocess a source file
+src/profiler.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/profiler.c.i
+.PHONY : src/profiler.c.i
+
+src/profiler.s: src/profiler.c.s
+.PHONY : src/profiler.s
+
+# target to generate assembly for a file
+src/profiler.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/profiler.c.s
+.PHONY : src/profiler.c.s
+
 src/raster.o: src/raster.c.o
 .PHONY : src/raster.o
 
@@ -396,6 +420,9 @@ help:
 	@echo "... src/mem.o"
 	@echo "... src/mem.i"
 	@echo "... src/mem.s"
+	@echo "... src/profiler.o"
+	@echo "... src/profiler.i"
+	@echo "... src/profiler.s"
 	@echo "... src/raster.o"
 	@echo "... src/raster.i"
 	@echo "... src/raster.s"

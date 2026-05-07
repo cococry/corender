@@ -1,123 +1,160 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+#include "../../shared/pc.glsl"
 
 #cmakedefine PREFIX_OUTPUT
-
-#cmakedefine DO_XOR 
+#cmakedefine DO_XOR
+#cmakedefine PREFIX_INCLUSIVE
+#cmakedefine PREFIX_SIGNED
 
 #extension GL_KHR_shader_subgroup_basic      : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 
-layout(local_size_x = 64) in;
+layout(local_size_x = 256) in;
+
+#if defined(DO_XOR) && defined(PREFIX_SIGNED)
+#error "DO_XOR and PREFIX_SIGNED cannot be used together"
+#endif
+
+#ifdef PREFIX_SIGNED
+#define T int
+#else
+#define T uint
+#endif
+
+#define WG_SIZE 256u
+#define SG_SIZE @SUBGROUP_SIZE@
+#define SGS_PER_WG (WG_SIZE / SG_SIZE)
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = @OUTPUT_BINDING@, std430) buffer TileOffsets {
-    uint @PREFIXED_OUTPUT@[];
+layout(set = 0, binding = @OUTPUT_BINDING@, std430) buffer PrefixOutput {
+    T @PREFIXED_OUTPUT@[];
 };
 #endif
 
-layout(set = 0, binding = @INPUT_BINDING@, std430) buffer TileNSegments {
-    uint @INPUT@[];
+layout(set = 0, binding = @INPUT_BINDING@, std430) buffer PrefixInput {
+    T @INPUT@[];
 };
 
-layout(set = 0, binding = 8, std430) buffer SubgroupTmp {
-    uint subgroup_tmp[];
+layout(set = 0, binding = SUBGROUP_TMP_BINDING, std430) buffer SubgroupTmp {
+    T subgroup_tmp[];
 };
 
-layout(push_constant) uniform push_constant {
-  uint screen_w,  screen_h;
-  uint n_tiles_x, n_tiles_y;
-  uint n_macrotiles_x, n_macrotiles_y;
-  uint n_seg_blocks;
-  uint n_bins;
+shared T subgroup_totals[SGS_PER_WG];
 
-  uint tile_size, macrotile_size;
-
-  uint n_segments;
-  uint n_paths;
-
-  uint fill_rule;
-} pc;
-
-
-#define SG_SIZE @SUBGROUP_SIZE@
-
-#define SGS_PER_WG 64 / SG_SIZE
-
-shared uint subgroup_totals[SGS_PER_WG]; 
-
-void main() {
-  uint lid = gl_LocalInvocationID.x;
-  uint block = gl_WorkGroupID.x;
-  uint row = gl_WorkGroupID.y;
-
-  uint x = block * 64+ lid;
-  uint blocks_per_row = (pc.@DIM_X@ + 63) / 64;
-  
-  uint gid = row * pc.@DIM_X@ + x; 
-
-  uint prefix_val = 0u;
-  if (x < pc.@DIM_X@)
-    prefix_val = @INPUT@[gid];
-
+T op_identity() {
 #ifdef DO_XOR
-  uint prefix = subgroupInclusiveXor(prefix_val);
-#else 
-  uint prefix = subgroupExclusiveAdd(prefix_val);
-#endif
-
-#ifdef DO_XOR
-  uint sg_sum = subgroupXor(prefix_val);
+    return 0u;
 #else
-  uint sg_sum = subgroupAdd(prefix_val);
+    return T(0);
 #endif
-
-  if (subgroupElect())
-    subgroup_totals[gl_SubgroupID] = sg_sum;
-
-  barrier();
-
-  uint sg_offset = 0;
-
-  if (gl_SubgroupID == 0)
-  {
-    uint lane = gl_SubgroupInvocationID;
-    uint val = (lane < SGS_PER_WG) ? subgroup_totals[lane] : 0;
-
-#ifdef DO_XOR
-    uint off = subgroupExclusiveXor(val);
-#else 
-    uint off = subgroupExclusiveAdd(val);
-#endif
-
-    if (lane < SGS_PER_WG)
-      subgroup_totals[lane] = off;
-  }
-
-  barrier();
-
-  sg_offset = subgroup_totals[gl_SubgroupID];
-
-#ifdef DO_XOR
-  prefix ^= sg_offset;
-#else 
-  prefix += sg_offset;
-#endif
-
-#ifdef PREFIX_OUTPUT 
-  if (x < pc.@DIM_X@)
-    @PREFIXED_OUTPUT@[gid] = prefix;
-#else 
-  if (x < pc.@DIM_X@)
-    @INPUT@[gid] = prefix;
-#endif 
-
-  if(block < blocks_per_row && (lid == 63 || x == pc.@DIM_X@ - 1))
-  {
-#ifdef DO_XOR 
-    subgroup_tmp[row * blocks_per_row + block] = prefix ^ prefix_val;
-#else 
-    subgroup_tmp[row * blocks_per_row + block] = prefix + prefix_val;
-#endif
-  }
 }
 
+T op_apply(T a, T b) {
+#ifdef DO_XOR
+    return a ^ b;
+#else
+    return a + b;
+#endif
+}
+
+T subgroup_exclusive_op(T v) {
+#ifdef DO_XOR
+    return subgroupExclusiveXor(v);
+#else
+    return subgroupExclusiveAdd(v);
+#endif
+}
+
+T subgroup_reduce_op(T v) {
+#ifdef DO_XOR
+    return subgroupXor(v);
+#else
+    return subgroupAdd(v);
+#endif
+}
+
+void main() {
+    if (bump.failed != 0u) return;
+    uint lid = gl_LocalInvocationID.x;
+    uint block = gl_WorkGroupID.x;
+    uint row = gl_WorkGroupID.y;
+
+    if (row >= pc.@DIM_Y@) {
+        return;
+    }
+
+    uint dim_x = pc.@DIM_X@;
+    uint blocks_per_row = (dim_x + WG_SIZE - 1u) / WG_SIZE;
+
+    uint x = block * WG_SIZE + lid;
+    uint gid = row * dim_x + x;
+
+    T v = op_identity();
+
+    if (x < dim_x) {
+        v = @INPUT@[gid];
+    }
+
+    // Prefix inside each subgroup.
+    T sg_excl = subgroup_exclusive_op(v);
+    T sg_total = subgroup_reduce_op(v);
+
+    if (subgroupElect()) {
+        subgroup_totals[gl_SubgroupID] = sg_total;
+    }
+
+    barrier();
+
+    // Prefix the subgroup totals using subgroup 0.
+    if (gl_SubgroupID == 0u) {
+        uint sg_lane = gl_SubgroupInvocationID;
+
+        T val = op_identity();
+        if (sg_lane < SGS_PER_WG) {
+            val = subgroup_totals[sg_lane];
+        }
+
+        T off = subgroup_exclusive_op(val);
+
+        if (sg_lane < SGS_PER_WG) {
+            subgroup_totals[sg_lane] = off;
+        }
+    }
+
+    barrier();
+
+    T sg_offset = subgroup_totals[gl_SubgroupID];
+
+    T local_excl = op_apply(sg_offset, sg_excl);
+    T local_incl = op_apply(local_excl, v);
+
+#ifdef PREFIX_INCLUSIVE
+    T out_v = local_incl;
+#else
+    T out_v = local_excl;
+#endif
+
+#ifdef PREFIX_OUTPUT
+    if (x < dim_x) {
+        @PREFIXED_OUTPUT@[gid] = out_v;
+    }
+#else
+    if (x < dim_x) {
+        @INPUT@[gid] = out_v;
+    }
+#endif
+
+    bool is_last_active =
+        (x < dim_x) &&
+        ((lid == WG_SIZE - 1u) || (x + 1u == dim_x));
+
+    if (block < blocks_per_row && is_last_active) {
+        subgroup_tmp[row * blocks_per_row + block] = local_incl;
+    }
+}
+
+#undef T
+#undef WG_SIZE
+#undef SG_SIZE
+#undef SGS_PER_WG

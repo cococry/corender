@@ -103,6 +103,7 @@ CMakeFiles/corender.dir/src/mem.c.o: /home/luca/Dev/corender/src/mem.c \
  /usr/include/cglm/ray.h /usr/include/cglm/affine2d.h \
  /home/luca/Dev/corender/src/../vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
- /home/luca/Dev/corender/src/util.h /usr/include/string.h \
+ /home/luca/Dev/corender/src/util.h \
+ /home/luca/Dev/corender/src/profiler.h /usr/include/string.h \
  /usr/include/bits/types/locale_t.h /usr/include/bits/types/__locale_t.h \
  /usr/include/strings.h
