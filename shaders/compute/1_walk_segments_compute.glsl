@@ -29,6 +29,7 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 2, std430) buffer TileEve
 
 const float EPS = 1e-6;
 const float TILE_BOUNDARY_EPS = 1e-6;
+const float DDA_CORNER_EPS = 1e-6;
 
 void visit_tile(ivec2 tile, uint seg_id, uint local_idx, uint max_touches) {
     if (
@@ -346,10 +347,12 @@ void walk_segment_global_tiles(vec2 p0_in, vec2 p1_in, uint seg_id, uint max_tou
 
         ivec2 prev_tile = tile;
 
-        if (t_max_x < t_max_y) {
+        float corner_eps = DDA_CORNER_EPS * max(max(abs(t_max_x), abs(t_max_y)), 1.0);
+
+        if (t_max_x + corner_eps < t_max_y) {
             tile.x += step_x;
             t_max_x += t_delta_x;
-        } else if (t_max_y < t_max_x) {
+        } else if (t_max_y + corner_eps < t_max_x) {
             float t_cross = t_max_y;
 
             tile.y += step_y;
@@ -367,7 +370,7 @@ void walk_segment_global_tiles(vec2 p0_in, vec2 p1_in, uint seg_id, uint max_tou
                 );
             }
         } else {
-            float t_cross = t_max_y;
+            float t_cross = min(t_max_x, t_max_y);
 
             tile.x += step_x;
             tile.y += step_y;
