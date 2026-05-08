@@ -19,6 +19,8 @@ file(REMOVE_RECURSE
   "bin/shaders/compute/2_build_scatter_indirect_compute.spv"
   "bin/shaders/compute/3_allocate_tiles_compute.spv"
   "bin/shaders/compute/4_scatter_touches_compute.spv"
+  "bin/shaders/compute/5_build_active_tiles_indirect_compute.spv"
+  "bin/shaders/compute/6_fine_eval_compute.spv"
   "bin/shaders/default/basic_frag.spv"
   "bin/shaders/default/basic_vert.spv"
   "bin/shaders/instanced/basic_frag.spv"

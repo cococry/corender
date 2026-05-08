@@ -18,25 +18,35 @@ struct cr_segment_range_t {
 
 struct cr_compute_pipeline_push_constant_t {
   uint32_t screen_w,  screen_h;
-  uint32_t n_tiles_x, n_tiles_y;
-  uint32_t n_macrotiles_x, n_macrotiles_y;
-  uint32_t n_seg_blocks;
-  uint32_t n_path_partitions;
-  uint32_t n_bins;
+  uint32_t n_tiles_x, n_tiles_y, n_tiles;
 
-  uint32_t tile_size, macrotile_size;
+  uint32_t tile_size; 
+
+  uint32_t max_tile_storage;
   
   uint32_t n_segments;
   uint32_t n_paths;
-
-  uint32_t fill_rule;
 };
 
 struct cr_compute_bump_t {
     uint32_t n_touches;
     uint32_t n_active_tiles;
     uint32_t n_tile_segment_slots;
+    uint32_t failed;
+};
 
+struct cr_compute_tile_info_t {
+    uint32_t base;
+    uint32_t count;
+    int32_t winding;
+    uint32_t flags;
+};
+
+struct cr_compute_tile_edge_t {
+    uint32_t p0;   // x: low 16, y: high 16, tile-local 8.8 fixed
+    uint32_t p1;   // x: low 16, y: high 16, tile-local 8.8 fixed
+    uint32_t meta; // bit 0 valid, bit 1 negative winding delta
+    uint32_t y_edge;
 };
 
 struct cr_compute_tile_touch_record_t {
@@ -83,6 +93,18 @@ struct cr_compute_pipeline_init_info_t {
   uint32_t n_layout_bindings;
 };
 
+struct cr_compute_pipeline_layout_binding_t {
+  const char* name;
+  size_t buffer_size;
+};
+
+struct cr_compute_pipeline_layout_buffer_t {
+  const char* name;
+  uint32_t hash;
+  size_t buffer_size;
+  struct cr_gpu_buffer_t buf;
+};
+
 struct cr_compute_pipeline_dynamic_state_t {
   struct cr_gpu_buffer_t segment_buf, path_buf, indirect_buf; 
   uint32_t n_segments, n_paths;
@@ -91,23 +113,19 @@ struct cr_compute_pipeline_dynamic_state_t {
   struct cr_compute_draw_path_t* path_data;
   struct cr_compute_indirect_dispatch_cmd_t* indirect_data;
 
+  size_t segment_capacity;
+  size_t path_capacity;
+
   size_t n_segments_in_path;
+
+  struct cr_compute_pipeline_layout_buffer_t* buffers;
+  uint32_t n_buffers;
 };
 
 struct cr_compute_kernel_t {
   char* shader_path;
   uint32_t hash;
   VkPipeline kernel_pipeline;
-};
-
-struct cr_compute_pipeline_layout_binding_t {
-  const char* name;
-  size_t buffer_size;
-};
-
-struct cr_compute_pipeline_layout_buffer_t {
-  uint32_t hash;
-  struct cr_gpu_buffer_t buf;
 };
 
 struct cr_compute_pipeline_t {
@@ -119,7 +137,8 @@ struct cr_compute_pipeline_t {
 
   struct cr_storage_image_t storage_img;
 
-  struct cr_compute_pipeline_layout_buffer_t* buffers;
+  VkDescriptorPool descriptor_pool;
+
   uint32_t n_buffers;
 };
 
@@ -134,6 +153,9 @@ bool cr_compute_pipeline_get_internal_shader_paths(struct cr_context_t* ctx, con
 
 bool cr_compute_pipeline_insert_segment(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
     struct cr_segment_t segment, uint32_t swapchain_idx);
+
+bool cr_compute_pipeline_insert_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
+    struct cr_compute_draw_path_t path, uint32_t swapchain_idx);
 
 bool cr_compute_pipeline_begin_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx);
 

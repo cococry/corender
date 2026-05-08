@@ -74,6 +74,8 @@ CMakeFiles/shaders: bin/shaders/compute/1_walk_segments_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/2_build_scatter_indirect_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/3_allocate_tiles_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/4_scatter_touches_compute.spv
+CMakeFiles/shaders: bin/shaders/compute/5_build_active_tiles_indirect_compute.spv
+CMakeFiles/shaders: bin/shaders/compute/6_fine_eval_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv
@@ -188,23 +190,33 @@ bin/shaders/compute/4_scatter_touches_compute.spv: /home/luca/Dev/corender/shade
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
 	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/4_scatter_touches_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/4_scatter_touches_compute.spv
 
+bin/shaders/compute/5_build_active_tiles_indirect_compute.spv: /home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Generating bin/shaders/compute/5_build_active_tiles_indirect_compute.spv"
+	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
+	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/5_build_active_tiles_indirect_compute.spv
+
+bin/shaders/compute/6_fine_eval_compute.spv: /home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Generating bin/shaders/compute/6_fine_eval_compute.spv"
+	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
+	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/6_fine_eval_compute.spv
+
 bin/shaders/default/basic_frag.spv: /home/luca/Dev/corender/shaders/default/basic_frag.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Generating bin/shaders/default/basic_frag.spv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Generating bin/shaders/default/basic_frag.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/default
 	glslc -fshader-stage=fragment --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/default/basic_frag.glsl -o /home/luca/Dev/corender/build/bin/shaders/default/basic_frag.spv
 
 bin/shaders/default/basic_vert.spv: /home/luca/Dev/corender/shaders/default/basic_vert.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Generating bin/shaders/default/basic_vert.spv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Generating bin/shaders/default/basic_vert.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/default
 	glslc -fshader-stage=vertex --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/default/basic_vert.glsl -o /home/luca/Dev/corender/build/bin/shaders/default/basic_vert.spv
 
 bin/shaders/instanced/basic_frag.spv: /home/luca/Dev/corender/shaders/instanced/basic_frag.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Generating bin/shaders/instanced/basic_frag.spv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Generating bin/shaders/instanced/basic_frag.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/instanced
 	glslc -fshader-stage=fragment --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/instanced/basic_frag.glsl -o /home/luca/Dev/corender/build/bin/shaders/instanced/basic_frag.spv
 
 bin/shaders/instanced/basic_vert.spv: /home/luca/Dev/corender/shaders/instanced/basic_vert.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Generating bin/shaders/instanced/basic_vert.spv"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Generating bin/shaders/instanced/basic_vert.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/instanced
 	glslc -fshader-stage=vertex --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/instanced/basic_vert.glsl -o /home/luca/Dev/corender/build/bin/shaders/instanced/basic_vert.spv
 
@@ -231,6 +243,8 @@ shaders: bin/shaders/compute/1_walk_segments_compute.spv
 shaders: bin/shaders/compute/2_build_scatter_indirect_compute.spv
 shaders: bin/shaders/compute/3_allocate_tiles_compute.spv
 shaders: bin/shaders/compute/4_scatter_touches_compute.spv
+shaders: bin/shaders/compute/5_build_active_tiles_indirect_compute.spv
+shaders: bin/shaders/compute/6_fine_eval_compute.spv
 shaders: bin/shaders/default/basic_frag.spv
 shaders: bin/shaders/default/basic_vert.spv
 shaders: bin/shaders/instanced/basic_frag.spv

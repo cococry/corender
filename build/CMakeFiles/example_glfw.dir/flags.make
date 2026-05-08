@@ -6,5 +6,5 @@ C_DEFINES =
 
 C_INCLUDES = -I/home/luca/Dev/corender/include
 
-C_FLAGS = -g -std=gnu11 -fPIE -g -O0 -DDEBUG
+C_FLAGS = -O3 -DNDEBUG -std=gnu11 -fPIE -O3 -DNDEBUG -march=native -flto -fno-plt -fomit-frame-pointer -fstrict-aliasing
 

@@ -15,6 +15,14 @@
 
 #define DIV_UP(x, y) (((x) + (y) - 1) / (y))
 
+enum {
+  CR_BINDING_SEGMENTS      = 0,
+  CR_BINDING_PATHS         = 1,
+  CR_BINDING_STORAGE_IMAGE = 2,
+  CR_BINDING_INDIRECT      = 3,
+  CR_FIRST_USER_BINDING    = 4
+};
+
 static VkPipelineLayout _compute_pipeline_layout;
 static VkDescriptorSetLayout _set_layout;
 static VkDescriptorSet* _global_sets;
@@ -28,7 +36,7 @@ static bool _extract_kernel_name(
   size_t out_size);
 
 static VkPipeline               _kernel_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, const char* kernel_name);
-static struct cr_gpu_buffer_t*  _buffer_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, const char* buffer_name);
+static struct cr_gpu_buffer_t*  _buffer_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swap_idx, const char* buffer_name);
 
 static void _vk_dispatch_compute(
   struct cr_frame_t* frame, VkPipeline pipeline, 
@@ -37,6 +45,34 @@ static void _vk_dispatch_compute(
 
 static void _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
                                 uint32_t screen_w, uint32_t screen_h);
+
+static bool _vk_update_descriptors_for_frame(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  uint32_t swap_idx);
+
+static bool _compute_binding_size(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  const char* name,
+  uint32_t w,
+  uint32_t h,
+  size_t fallback_size,
+  size_t* o_size);
+
+static bool _ensure_segment_capacity(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  uint32_t swap_idx,
+  size_t capacity);
+
+static bool _ensure_path_capacity(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  uint32_t swap_idx,
+  size_t capacity);
+
+static const uint avg_touch_capacity_per_tile = 100;
 
 bool 
 _create_shader_module(struct 
@@ -150,10 +186,12 @@ VkPipeline _kernel_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_
 }
 
 struct cr_gpu_buffer_t* 
-_buffer_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, const char* buffer_name) {
+_buffer_by_name(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swap_idx, const char* buffer_name) {
   uint32_t name_hash = cr_util_djb2_hash((char*)buffer_name);
-  for(uint32_t i = 0; i < pipeline->n_buffers; i++) {
-    if(pipeline->buffers[i].hash == name_hash) return &pipeline->buffers[i].buf;
+  struct cr_compute_pipeline_dynamic_state_t* dyn = &pipeline->dynamic[swap_idx];
+
+  for(uint32_t i = 0; i < dyn->n_buffers; i++) {
+    if(dyn->buffers[i].hash == name_hash) return &dyn->buffers[i].buf;
   }
   CR_ERROR(ctx->log, "Buffer name '%s' did not match any bindings.", buffer_name);
   return NULL; 
@@ -200,7 +238,7 @@ _vk_dispatch_compute(
         .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
         .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT, 
         .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-        .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT, 
+        .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT, 
         .buffer        = barrier_buffers[i].buf,
         .offset        = 0,
         .size          = VK_WHOLE_SIZE
@@ -215,6 +253,70 @@ _vk_dispatch_compute(
 
     vkCmdPipelineBarrier2(frame->cmd_buf, &dep_shader);
   }
+}
+
+static void
+_barrier_compute_write_to_indirect_read(
+    VkCommandBuffer cmd,
+    VkBuffer indirect_buf,
+    VkDeviceSize indirect_offset
+) {
+    VkBufferMemoryBarrier2 barrier = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+
+        .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+
+        .dstStageMask  = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+        .dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT,
+
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+
+        .buffer = indirect_buf,
+        .offset = indirect_offset,
+        .size   = sizeof(VkDispatchIndirectCommand),
+    };
+
+    VkDependencyInfo dep = {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .bufferMemoryBarrierCount = 1,
+        .pBufferMemoryBarriers = &barrier,
+    };
+
+    vkCmdPipelineBarrier2(cmd, &dep);
+}
+
+static void
+_barrier_indirect_read_to_compute_write(
+    VkCommandBuffer cmd,
+    VkBuffer indirect_buf,
+    VkDeviceSize indirect_offset
+) {
+    VkBufferMemoryBarrier2 b = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+
+        .srcStageMask  = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+        .srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT,
+
+        .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+
+        .buffer = indirect_buf,
+        .offset = indirect_offset,
+        .size   = sizeof(VkDispatchIndirectCommand),
+    };
+
+    VkDependencyInfo dep = {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .bufferMemoryBarrierCount = 1,
+        .pBufferMemoryBarriers = &b,
+    };
+
+    vkCmdPipelineBarrier2(cmd, &dep);
 }
 
 static void
@@ -250,25 +352,12 @@ _vk_dispatch_compute_indirect(
         pc
     );
 
-    // Barrier for reading the indirect dispatch command.
-    VkBufferMemoryBarrier2 indirect_barrier = {
-        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-        .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-        .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
-        .dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT,
-        .buffer = indirect_buf->buf,
-        .offset = indirect_offset,
-        .size = sizeof(VkDispatchIndirectCommand),
-    };
+    _barrier_compute_write_to_indirect_read(
+            frame->cmd_buf,
+            indirect_buf->buf,
+            indirect_offset
+            );
 
-    VkDependencyInfo indirect_dep = {
-        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-        .bufferMemoryBarrierCount = 1,
-        .pBufferMemoryBarriers = &indirect_barrier,
-    };
-
-    vkCmdPipelineBarrier2(frame->cmd_buf, &indirect_dep);
 
     vkCmdDispatchIndirect(
         frame->cmd_buf,
@@ -285,7 +374,8 @@ _vk_dispatch_compute_indirect(
                 .srcStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
                 .dstStageMask  = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+                .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
+
                 .buffer        = barrier_buffers[i].buf,
                 .offset        = 0,
                 .size          = VK_WHOLE_SIZE,
@@ -304,25 +394,25 @@ _vk_dispatch_compute_indirect(
 
 void 
 _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
-                                uint32_t screen_w, uint32_t screen_h) {
-  // Barrier to prevent hazard of COMPUTE/WRITE -> TRANSFER/READ in the storage image.
-  // Because the image storage data needs to  be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL 
-  // for vkCmdBlitImage(), we need to also prevent the layout hazard from 
-  // VK_IMAGE_LAYOUT_GENERAL/WRITE ->  VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL/READ.
-  VkImageMemoryBarrier2 storage_to_src = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-    .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-    .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
-    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    .image = pipeline->storage_img.image,
-    .subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .levelCount = 1,
-      .layerCount = 1
-    }
+        uint32_t screen_w, uint32_t screen_h) {
+    // Barrier to prevent hazard of COMPUTE/WRITE -> TRANSFER/READ in the storage image.
+    // Because the image storage data needs to  be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL 
+    // for vkCmdBlitImage(), we need to also prevent the layout hazard from 
+    // VK_IMAGE_LAYOUT_GENERAL/WRITE ->  VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL/READ.
+    VkImageMemoryBarrier2 storage_to_src = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+        .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+        .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        .image = pipeline->storage_img.image,
+        .subresourceRange = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .levelCount = 1,
+            .layerCount = 1
+        }
   };
 
   VkImageMemoryBarrier2 swapchain_to_dst = {
@@ -418,20 +508,201 @@ _vk_descriptor_layout_binding(VkShaderStageFlagBits stage, VkDescriptorType type
 }
 
 bool
+_compute_binding_size(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  const char* name,
+  uint32_t w,
+  uint32_t h,
+  size_t fallback_size,
+  size_t* o_size
+) {
+  uint32_t tile_size = pipeline->info.tile_size;
+  uint32_t tiles_x = (w + tile_size - 1) / tile_size;
+  uint32_t tiles_y = (h + tile_size - 1) / tile_size;
+  size_t n_tiles = (size_t)tiles_x * (size_t)tiles_y;
+
+  if(!strcmp(name, "bump")) {
+    *o_size = sizeof(struct cr_compute_bump_t);
+    return true;
+  }
+
+  if(!strcmp(name, "tile_touch_records")) {
+    *o_size = sizeof(struct cr_compute_tile_touch_record_t) * n_tiles * avg_touch_capacity_per_tile;
+    return true;
+  }
+
+  if(!strcmp(name, "tile_events")) {
+    *o_size = sizeof(int32_t) * n_tiles;
+    return true;
+  }
+
+  if(!strcmp(name, "subgroup_tmp")) {
+    *o_size = sizeof(int32_t) * n_tiles;
+    return true;
+  }
+
+  if(!strcmp(name, "tile_n_segments")) {
+    *o_size = sizeof(uint32_t) * n_tiles;
+    return true;
+  }
+
+  if(!strcmp(name, "tile_infos")) {
+    *o_size = sizeof(struct cr_compute_tile_info_t) * n_tiles;
+    return true;
+  }
+
+  if(!strcmp(name, "active_tiles")) {
+    *o_size = sizeof(uint32_t) * n_tiles;
+    return true;
+  }
+
+  if(!strcmp(name, "tile_edges")) {
+    *o_size = sizeof(struct cr_compute_tile_edge_t) * n_tiles * avg_touch_capacity_per_tile;
+    return true;
+  }
+
+  *o_size = fallback_size;
+  return true;
+}
+
+bool
+_vk_update_descriptors_for_frame(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  uint32_t swap_idx
+) {
+  uint32_t n_set_bindings =
+    CR_FIRST_USER_BINDING + pipeline->n_buffers;
+
+  struct cr_compute_pipeline_dynamic_state_t* dyn =
+    &pipeline->dynamic[swap_idx];
+
+  VkWriteDescriptorSet* writes =
+    calloc(n_set_bindings, sizeof(*writes));
+
+  VkDescriptorBufferInfo* buffer_infos =
+    calloc(n_set_bindings, sizeof(*buffer_infos));
+
+  VkDescriptorImageInfo* image_infos =
+    calloc(n_set_bindings, sizeof(*image_infos));
+
+  if (!writes || !buffer_infos || !image_infos) {
+    free(writes);
+    free(buffer_infos);
+    free(image_infos);
+    goto err;
+  }
+
+  buffer_infos[CR_BINDING_SEGMENTS] = (VkDescriptorBufferInfo) {
+    .buffer = dyn->segment_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_SEGMENTS] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_SEGMENTS,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_SEGMENTS]
+  };
+
+  buffer_infos[CR_BINDING_PATHS] = (VkDescriptorBufferInfo) {
+    .buffer = dyn->path_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_PATHS] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_PATHS,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_PATHS]
+  };
+
+  image_infos[CR_BINDING_STORAGE_IMAGE] = (VkDescriptorImageInfo) {
+    .sampler = VK_NULL_HANDLE,
+    .imageView = pipeline->storage_img.view,
+    .imageLayout = VK_IMAGE_LAYOUT_GENERAL
+  };
+
+  writes[CR_BINDING_STORAGE_IMAGE] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_STORAGE_IMAGE,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+    .pImageInfo = &image_infos[CR_BINDING_STORAGE_IMAGE]
+  };
+
+  buffer_infos[CR_BINDING_INDIRECT] = (VkDescriptorBufferInfo) {
+    .buffer = dyn->indirect_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_INDIRECT] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_INDIRECT,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_INDIRECT]
+  };
+
+  for (uint32_t j = 0; j < pipeline->n_buffers; j++) {
+    uint32_t binding = CR_FIRST_USER_BINDING + j;
+
+    buffer_infos[binding] = (VkDescriptorBufferInfo) {
+      .buffer = dyn->buffers[j].buf.buf,
+      .offset = 0,
+      .range = VK_WHOLE_SIZE
+    };
+
+    writes[binding] = (VkWriteDescriptorSet) {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = _global_sets[swap_idx],
+      .dstBinding = binding,
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+      .pBufferInfo = &buffer_infos[binding]
+    };
+  }
+
+  vkUpdateDescriptorSets(
+    ctx->logical_dev,
+    n_set_bindings,
+    writes,
+    0,
+    NULL
+  );
+
+  free(image_infos);
+  free(buffer_infos);
+  free(writes);
+
+  return true;
+
+err:
+  return false;
+}
+
+bool
 _vk_pipeline_layout_init(
   struct cr_context_t* ctx,
   struct cr_compute_pipeline_t* pipeline,
   struct cr_compute_pipeline_layout_binding_t* bindings,
   uint32_t n_bindings
 ) {
-  enum {
-    CR_BINDING_SEGMENTS      = 0,
-    CR_BINDING_PATHS         = 1,
-    CR_BINDING_STORAGE_IMAGE = 2,
-    CR_BINDING_INDIRECT      = 3,
-    CR_FIRST_USER_BINDING    = 4
-  };
-
   const uint32_t n_set_bindings =
     CR_FIRST_USER_BINDING + n_bindings;
 
@@ -497,13 +768,11 @@ _vk_pipeline_layout_init(
     .pPoolSizes = pool_sizes
   };
 
-  VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
-
   res = vkCreateDescriptorPool(
     ctx->logical_dev,
     &pool_info,
     NULL,
-    &descriptor_pool
+    &pipeline->descriptor_pool
   );
 
   if (res != VK_SUCCESS)
@@ -520,7 +789,7 @@ _vk_pipeline_layout_init(
 
   VkDescriptorSetAllocateInfo alloc_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .descriptorPool = descriptor_pool,
+    .descriptorPool = pipeline->descriptor_pool,
     .descriptorSetCount = ctx->swapchain.n_imgs,
     .pSetLayouts = layouts
   };
@@ -537,43 +806,7 @@ _vk_pipeline_layout_init(
   if (res != VK_SUCCESS)
     goto err;
 
-  pipeline->buffers =
-    cr_util_alloc(ctx, n_bindings, sizeof(*pipeline->buffers));
-
-  if (!pipeline->buffers && n_bindings > 0)
-    goto err;
-
   pipeline->n_buffers = n_bindings;
-
-  for (uint32_t i = 0; i < n_bindings; i++) {
-    struct cr_compute_pipeline_layout_buffer_t* buf =
-      &pipeline->buffers[i];
-
-    CR_TRACE(
-      ctx->log,
-      "Created buffer '%s' with size %lu, binding at location: %u in layout.",
-      bindings[i].name,
-      bindings[i].buffer_size,
-      i + CR_FIRST_USER_BINDING
-    );
-
-    buf->hash = cr_util_djb2_hash((char*)bindings[i].name);
-
-    cr_mem_create_gpu_buffer(
-      ctx,
-      bindings[i].buffer_size,
-      CR_GPU_BUFFER_SSBO,
-      CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
-      &buf->buf
-    );
-  }
-
-  cr_compute_pipeline_resize(
-    ctx,
-    pipeline,
-    ctx->swapchain.dimensions.width,
-    ctx->swapchain.dimensions.height
-  );
 
   pipeline->dynamic =
     cr_util_alloc(
@@ -591,22 +824,24 @@ _vk_pipeline_layout_init(
 
     memset(dyn, 0, sizeof(*dyn));
 
+    dyn->segment_capacity = 50000;
     dyn->segment_data =
-      cr_util_alloc(ctx, 8000, sizeof(*dyn->segment_data));
+      cr_util_alloc(ctx, dyn->segment_capacity, sizeof(*dyn->segment_data));
 
     if (!dyn->segment_data)
       goto err;
 
     cr_mem_create_gpu_buffer(
       ctx,
-      sizeof(*dyn->segment_data) * 8000,
+      sizeof(*dyn->segment_data) * dyn->segment_capacity,
       CR_GPU_BUFFER_SSBO,
       CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
       &dyn->segment_buf
     );
 
+    dyn->path_capacity = 5000;
     dyn->path_data =
-      cr_util_alloc(ctx, 1600, sizeof(*dyn->path_data));
+      cr_util_alloc(ctx, dyn->path_capacity, sizeof(*dyn->path_data));
 
     if (!dyn->path_data)
       goto err;
@@ -615,7 +850,7 @@ _vk_pipeline_layout_init(
 
     cr_mem_create_gpu_buffer(
       ctx,
-      sizeof(*dyn->path_data) * 1600,
+      sizeof(*dyn->path_data) * dyn->path_capacity,
       CR_GPU_BUFFER_SSBO,
       CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
       &dyn->path_buf
@@ -635,118 +870,39 @@ _vk_pipeline_layout_init(
       &dyn->indirect_buf
     );
 
-    VkWriteDescriptorSet* writes =
-      calloc(n_set_bindings, sizeof(*writes));
+    dyn->buffers =
+      cr_util_alloc(ctx, n_bindings, sizeof(*dyn->buffers));
 
-    VkDescriptorBufferInfo* buffer_infos =
-      calloc(n_set_bindings, sizeof(*buffer_infos));
-
-    VkDescriptorImageInfo* image_infos =
-      calloc(n_set_bindings, sizeof(*image_infos));
-
-    if (!writes || !buffer_infos || !image_infos) {
-      free(writes);
-      free(buffer_infos);
-      free(image_infos);
+    if (!dyn->buffers && n_bindings > 0)
       goto err;
-    }
 
-    buffer_infos[CR_BINDING_SEGMENTS] = (VkDescriptorBufferInfo) {
-      .buffer = dyn->segment_buf.buf,
-      .offset = 0,
-      .range = VK_WHOLE_SIZE
-    };
-
-    writes[CR_BINDING_SEGMENTS] = (VkWriteDescriptorSet) {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = _global_sets[i],
-      .dstBinding = CR_BINDING_SEGMENTS,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .pBufferInfo = &buffer_infos[CR_BINDING_SEGMENTS]
-    };
-
-    buffer_infos[CR_BINDING_PATHS] = (VkDescriptorBufferInfo) {
-      .buffer = dyn->path_buf.buf,
-      .offset = 0,
-      .range = VK_WHOLE_SIZE
-    };
-
-    writes[CR_BINDING_PATHS] = (VkWriteDescriptorSet) {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = _global_sets[i],
-      .dstBinding = CR_BINDING_PATHS,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .pBufferInfo = &buffer_infos[CR_BINDING_PATHS]
-    };
-
-    image_infos[CR_BINDING_STORAGE_IMAGE] = (VkDescriptorImageInfo) {
-      .sampler = VK_NULL_HANDLE,
-      .imageView = pipeline->storage_img.view,
-      .imageLayout = VK_IMAGE_LAYOUT_GENERAL
-    };
-
-    writes[CR_BINDING_STORAGE_IMAGE] = (VkWriteDescriptorSet) {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = _global_sets[i],
-      .dstBinding = CR_BINDING_STORAGE_IMAGE,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-      .pImageInfo = &image_infos[CR_BINDING_STORAGE_IMAGE]
-    };
-
-    buffer_infos[CR_BINDING_INDIRECT] = (VkDescriptorBufferInfo) {
-      .buffer = dyn->indirect_buf.buf,
-      .offset = 0,
-      .range = VK_WHOLE_SIZE
-    };
-
-    writes[CR_BINDING_INDIRECT] = (VkWriteDescriptorSet) {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = _global_sets[i],
-      .dstBinding = CR_BINDING_INDIRECT,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-      .pBufferInfo = &buffer_infos[CR_BINDING_INDIRECT]
-    };
+    dyn->n_buffers = n_bindings;
 
     for (uint32_t j = 0; j < n_bindings; j++) {
-      uint32_t binding = CR_FIRST_USER_BINDING + j;
+      struct cr_compute_pipeline_layout_buffer_t* buf =
+        &dyn->buffers[j];
 
-      buffer_infos[binding] = (VkDescriptorBufferInfo) {
-        .buffer = pipeline->buffers[j].buf.buf,
-        .offset = 0,
-        .range = VK_WHOLE_SIZE
-      };
+      CR_TRACE(
+        ctx->log,
+        "Created buffer '%s' with size %lu, binding at location: %u in layout.",
+        bindings[j].name,
+        bindings[j].buffer_size,
+        j + CR_FIRST_USER_BINDING
+      );
 
-      writes[binding] = (VkWriteDescriptorSet) {
-        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = _global_sets[i],
-        .dstBinding = binding,
-        .dstArrayElement = 0,
-        .descriptorCount = 1,
-        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .pBufferInfo = &buffer_infos[binding]
-      };
+      buf->name = bindings[j].name;
+      buf->hash = cr_util_djb2_hash((char*)bindings[j].name);
+      buf->buffer_size = bindings[j].buffer_size;
     }
-
-    vkUpdateDescriptorSets(
-      ctx->logical_dev,
-      n_set_bindings,
-      writes,
-      0,
-      NULL
-    );
-
-    free(image_infos);
-    free(buffer_infos);
-    free(writes);
   }
+
+  if (!cr_compute_pipeline_resize(
+    ctx,
+    pipeline,
+    ctx->swapchain.dimensions.width,
+    ctx->swapchain.dimensions.height
+  ))
+    goto err;
 
   VkPushConstantRange pc_range = {
     .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
@@ -794,6 +950,9 @@ cr_compute_pipeline_init(
   _global_sets = cr_util_alloc(ctx, ctx->swapchain.n_imgs, sizeof(VkDescriptorSet));
   pipeline->kernels = cr_util_alloc(ctx, info->n_shaders, sizeof(struct cr_compute_kernel_t));
 
+  if(!_global_sets || !pipeline->kernels)
+    return false;
+
 
   uint32_t screen_w = info->screen_w; 
   uint32_t screen_h = info->screen_h; 
@@ -805,7 +964,6 @@ cr_compute_pipeline_init(
   uint macrotiles_x = DIV_UP(tiles_x, 8);
   uint macrotiles_y = DIV_UP(tiles_y, 8);
 
-  uint avg_touch_capacity_per_tile = 100;
   struct cr_compute_pipeline_layout_binding_t bindings[] = {
       (struct cr_compute_pipeline_layout_binding_t) {
           .buffer_size = sizeof(struct cr_compute_bump_t), 
@@ -824,14 +982,25 @@ cr_compute_pipeline_init(
           .name = "subgroup_tmp"  
       },
       (struct cr_compute_pipeline_layout_binding_t) {
-          .buffer_size = (sizeof(uint32_t) * tiles_x * tiles_y) + (sizeof(uint32_t) * tiles_x * tiles_y * avg_touch_capacity_per_tile), 
-          .name = "tile_segments"  
+          .buffer_size = sizeof(uint32_t) * tiles_x * tiles_y, 
+          .name = "tile_n_segments"  
+      },
+      (struct cr_compute_pipeline_layout_binding_t){
+          .buffer_size = sizeof(struct cr_compute_tile_info_t) * tiles_x * tiles_y, 
+          .name = "tile_infos"  
       },
       (struct cr_compute_pipeline_layout_binding_t) {
           .buffer_size = sizeof(uint32_t) * tiles_x * tiles_y, 
           .name = "active_tiles"  
       },
+      (struct cr_compute_pipeline_layout_binding_t) {
+          .buffer_size = sizeof(struct cr_compute_tile_edge_t) * tiles_x * tiles_y * avg_touch_capacity_per_tile, 
+          .name = "tile_edges"  
+      },
   };
+
+  (void)macrotiles_x;
+  (void)macrotiles_y;
 
   if(!_vk_pipeline_layout_init(ctx, pipeline, bindings, sizeof(bindings) / sizeof(bindings[0]))) {
     CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline layout."); 
@@ -877,9 +1046,7 @@ cr_compute_pipeline_resize(
   uint32_t w,
   uint32_t h
 ) {
-  enum {
-    CR_BINDING_STORAGE_IMAGE = 2
-  };
+  vkDeviceWaitIdle(ctx->logical_dev);
 
   if (pipeline->storage_img.image != VK_NULL_HANDLE) {
     cr_mem_destroy_storage_image(ctx, &pipeline->storage_img);
@@ -887,33 +1054,51 @@ cr_compute_pipeline_resize(
 
   cr_mem_create_storage_image(ctx, w, h, &pipeline->storage_img);
 
-  VkDescriptorImageInfo img_info = {
-    .sampler = VK_NULL_HANDLE,
-    .imageView = pipeline->storage_img.view,
-    .imageLayout = VK_IMAGE_LAYOUT_GENERAL
-  };
-
   for (uint32_t i = 0; i < ctx->swapchain.n_imgs; ++i) {
-    VkWriteDescriptorSet write = {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = _global_sets[i],
-      .dstBinding = CR_BINDING_STORAGE_IMAGE,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-      .pImageInfo = &img_info
-    };
+    struct cr_compute_pipeline_dynamic_state_t* dyn =
+      &pipeline->dynamic[i];
 
-    vkUpdateDescriptorSets(
-      ctx->logical_dev,
-      1,
-      &write,
-      0,
-      NULL
-    );
+    for (uint32_t j = 0; j < dyn->n_buffers; j++) {
+      struct cr_compute_pipeline_layout_buffer_t* buf =
+        &dyn->buffers[j];
+
+      size_t buffer_size = 0;
+
+      if (!_compute_binding_size(
+            ctx,
+            pipeline,
+            buf->name,
+            w,
+            h,
+            buf->buffer_size,
+            &buffer_size))
+        goto err;
+
+      if (buf->buf.buf != VK_NULL_HANDLE && buf->buffer_size != buffer_size) {
+        cr_mem_destroy_gpu_buffer(ctx, &buf->buf);
+      }
+
+      if (buf->buf.buf == VK_NULL_HANDLE) {
+        cr_mem_create_gpu_buffer(
+          ctx,
+          buffer_size,
+          CR_GPU_BUFFER_SSBO,
+          CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+          &buf->buf
+        );
+      }
+
+      buf->buffer_size = buffer_size;
+    }
+
+    if (!_vk_update_descriptors_for_frame(ctx, pipeline, i))
+      goto err;
   }
 
   return true;
+
+err:
+  return false;
 }
 
 struct _vk_access_masks {
@@ -950,8 +1135,8 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
             n_rows,
             1,
             (struct cr_gpu_buffer_t[]){
-            *_buffer_by_name(ctx, pipeline, output_name),
-            *_buffer_by_name(ctx, pipeline, tmp_name),
+            *_buffer_by_name(ctx, pipeline, swapchain_image_idx, output_name),
+            *_buffer_by_name(ctx, pipeline, swapchain_image_idx, tmp_name),
             },
             2
             );
@@ -971,7 +1156,7 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
                 n_rows,
                 1,
                 (struct cr_gpu_buffer_t[]){
-                *_buffer_by_name(ctx, pipeline, tmp_name),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, tmp_name),
                 },
                 1
                 );
@@ -985,8 +1170,8 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
                 n_rows,
                 1,
                 (struct cr_gpu_buffer_t[]){
-                *_buffer_by_name(ctx, pipeline, output_name),
-                *_buffer_by_name(ctx, pipeline, tmp_name),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, output_name),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, tmp_name),
                 },
                 2
                 );
@@ -1023,43 +1208,35 @@ cr_compute_pipeline_dispatch(
 
   uint32_t tiles_x = (screen_w + tile_size - 1) / tile_size;
   uint32_t tiles_y = (screen_h + tile_size - 1) / tile_size;
-  uint32_t n_macrotiles_x = DIV_UP(tiles_x, 8);
-  uint32_t n_macrotiles_y =  DIV_UP(tiles_y, 8);
 
   uint32_t n_segments = pipeline->dynamic[swapchain_image_idx].n_segments;
 
-
-    uint32_t n_seg_blocks = DIV_UP(n_segments, 256);
   struct cr_compute_pipeline_push_constant_t pc = {
     .tile_size = tile_size,
     .n_tiles_x = tiles_x,
     .n_tiles_y = tiles_y,
-    .n_macrotiles_x = n_macrotiles_x,
-    .n_macrotiles_y = n_macrotiles_y,
-    .n_seg_blocks = n_seg_blocks,
+    .n_tiles = tiles_x * tiles_y,
     .n_segments = n_segments,
-    .fill_rule = CR_COMPUTE_FILL_RULE_EVEN_ODD,
     .screen_w = screen_w,
     .screen_h = screen_h,
-    .n_bins = n_macrotiles_x * n_macrotiles_y,
+    .max_tile_storage = tiles_x * tiles_y * avg_touch_capacity_per_tile,
     .n_paths =  pipeline->dynamic[swapchain_image_idx].n_paths, 
-    .n_path_partitions = (pipeline->dynamic[swapchain_image_idx].n_paths + 256 - 1) / 256, 
-    .macrotile_size = tile_size * 8, 
   };
 
-  for(uint32_t i = 0; i < pipeline->n_buffers; i++) {
-    cr_mem_clear_gpu_buffer(ctx, frame, &pipeline->buffers[i].buf);
+  for(uint32_t i = 0; i < pipeline->dynamic[swapchain_image_idx].n_buffers; i++) {
+    cr_mem_clear_gpu_buffer(ctx, frame, &pipeline->dynamic[swapchain_image_idx].buffers[i].buf);
   }
 
-  cr_mem_clear_storage_image_color(ctx, frame, &pipeline->storage_img, (float[4]){0.1f, 0.1f, 0.1f, 1.0f});
+  cr_mem_clear_storage_image_color(ctx, frame, &pipeline->storage_img,
+    (float[4]){0.0f, 0.0f, 0.0f, 1.0f});
 
   VkImageMemoryBarrier2 to_compute = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
     .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
     .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
     .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT |
-    VK_ACCESS_2_SHADER_READ_BIT,
+    .dstAccessMask = 
+    VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT,
     .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     .newLayout = VK_IMAGE_LAYOUT_GENERAL,
     .image = pipeline->storage_img.image, 
@@ -1078,90 +1255,142 @@ cr_compute_pipeline_dispatch(
 
   vkCmdPipelineBarrier2(frame->cmd_buf, &dep_compute);
 
-
   {
-    uint32_t prof = cr_gpu_profiler_begin(
-        cr_util_global_gpu_profiler_get(),
-        frame_idx,
-        frame->cmd_buf,
-        "compute_pipeline_total"
-    );
+    {
+   
+        _vk_dispatch_compute(
+            frame,
+            _kernel_by_name(ctx, pipeline, "walk_segments"),
+            swapchain_image_idx,
+            &pc,
+            DIV_UP(pc.n_segments, 256),
+            1,
+            1,
+            (struct cr_gpu_buffer_t[]){
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "bump"),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_n_segments"),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_touch_records"),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_events"),
+            },
+            4
+        );
 
-    _vk_dispatch_compute(
-        frame,
-        _kernel_by_name(ctx, pipeline, "walk_segments"),
-        swapchain_image_idx,
-        &pc,
-        DIV_UP(pc.n_segments, 256),
-        1,
-        1,
-        (struct cr_gpu_buffer_t[]){
-            *_buffer_by_name(ctx, pipeline, "bump"),
-            *_buffer_by_name(ctx, pipeline, "tile_segments"),
-            *_buffer_by_name(ctx, pipeline, "tile_touch_records"),
-            *_buffer_by_name(ctx, pipeline, "tile_events"),
-        },
-        4
-    );
+    }
 
-    _dispatch_prefix_sum_pass(
-        ctx,
-        pipeline,
-        frame,
-        swapchain_image_idx,
-        &pc,
-        pc.n_tiles_x,
-        pc.n_tiles_y,
-        "tile_events",
-        "subgroup_tmp",
-        "tile_events"
-    );
+    {
+     
+        _dispatch_prefix_sum_pass(
+            ctx,
+            pipeline,
+            frame,
+            swapchain_image_idx,
+            &pc,
+            pc.n_tiles_x,
+            pc.n_tiles_y,
+            "tile_events",
+            "subgroup_tmp",
+            "tile_events"
+        );
 
-    _vk_dispatch_compute(
-        frame,
-        _kernel_by_name(ctx, pipeline, "allocate_tiles"),
-        swapchain_image_idx,
-        &pc,
-        DIV_UP(pc.n_tiles_x * pc.n_tiles_y, 256),
-        1,
-        1,
-        (struct cr_gpu_buffer_t[]){
-            *_buffer_by_name(ctx, pipeline, "bump"),
-            *_buffer_by_name(ctx, pipeline, "tile_segments"),
-            *_buffer_by_name(ctx, pipeline, "active_tiles"),
-        },
-        3
-    );
+    }
 
-    _vk_dispatch_compute(
-        frame,
-        _kernel_by_name(ctx, pipeline, "build_scatter_indirect"),
-        swapchain_image_idx,
-        &pc,
-        1, 1, 1,
-        NULL,
-        0
-    );
+    {
 
-    _vk_dispatch_compute_indirect(
-        frame,
-        _kernel_by_name(ctx, pipeline, "scatter_touches"),
-        swapchain_image_idx,
-        &pc,
-        &pipeline->dynamic[swapchain_image_idx].indirect_buf,
-        0,
-        (struct cr_gpu_buffer_t[]){
-            *_buffer_by_name(ctx, pipeline, "tile_segments"),
-        },
-        1
-    );
+        _vk_dispatch_compute(
+            frame,
+            _kernel_by_name(ctx, pipeline, "allocate_tiles"),
+            swapchain_image_idx,
+            &pc,
+            DIV_UP(pc.n_tiles_x * pc.n_tiles_y, 256),
+            1,
+            1,
+            (struct cr_gpu_buffer_t[]){
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "bump"),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_n_segments"),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "active_tiles"),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_infos"),
+            },
+            4
+        );
 
-    cr_gpu_profiler_end(
-        cr_util_global_gpu_profiler_get(),
-        frame_idx,
-        frame->cmd_buf,
-        prof
-    );
+    }
+
+    {
+    
+        _vk_dispatch_compute(
+            frame,
+            _kernel_by_name(ctx, pipeline, "build_scatter_indirect"),
+            swapchain_image_idx,
+            &pc,
+            1, 1, 1,
+            NULL,
+            0
+        );
+    }
+    /* Same indirect buffer is about to be written by build_active_tiles_indirect */
+    _barrier_indirect_read_to_compute_write(
+            frame->cmd_buf,
+            pipeline->dynamic[swapchain_image_idx].indirect_buf.buf,
+            0
+            );
+
+    {
+             _vk_dispatch_compute_indirect(
+            frame,
+            _kernel_by_name(ctx, pipeline, "scatter_touches"),
+            swapchain_image_idx,
+            &pc,
+            &pipeline->dynamic[swapchain_image_idx].indirect_buf,
+            0,
+            (struct cr_gpu_buffer_t[]){
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "bump"),
+                *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_edges"),
+            },
+            2
+        );
+
+    }
+
+    
+
+    /* Same indirect buffer is about to be written by build_active_tiles_indirect */
+    _barrier_indirect_read_to_compute_write(
+            frame->cmd_buf,
+            pipeline->dynamic[swapchain_image_idx].indirect_buf.buf,
+            0
+            );
+
+    {
+    
+        _vk_dispatch_compute(
+            frame,
+            _kernel_by_name(ctx, pipeline, "build_active_tiles_indirect"),
+            swapchain_image_idx,
+            &pc,
+            1, 1, 1,
+            NULL,
+            0
+        );
+
+    }
+
+    {
+     
+
+        _vk_dispatch_compute_indirect(
+            frame,
+            _kernel_by_name(ctx, pipeline, "fine_eval"),
+            swapchain_image_idx,
+            &pc,
+            &pipeline->dynamic[swapchain_image_idx].indirect_buf,
+            0,
+            NULL,
+            0
+        );
+
+    }
+
+
 }
 
 
@@ -1194,8 +1423,8 @@ bool cr_compute_pipeline_get_internal_shader_paths(struct cr_context_t* ctx, con
   int i = 0;
   uint32_t final_n = n;
   for (int j = 0; j < n; j++) {
-    if(strcmp(namelist[j]->d_name, ".") == 0) {final_n--; continue;}
-    if(strcmp(namelist[j]->d_name, "..") == 0) {final_n--; continue;}
+    if(strcmp(namelist[j]->d_name, ".") == 0) {final_n--; free(namelist[j]); continue;}
+    if(strcmp(namelist[j]->d_name, "..") == 0) {final_n--; free(namelist[j]); continue;}
     char fullpath[PATH_MAX];
     snprintf(fullpath, sizeof(fullpath),
              "%s/%s", shader_dir, namelist[j]->d_name);
@@ -1211,9 +1440,94 @@ bool cr_compute_pipeline_get_internal_shader_paths(struct cr_context_t* ctx, con
 
 }
 
+bool
+_ensure_segment_capacity(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  uint32_t swap_idx,
+  size_t capacity
+) {
+  struct cr_compute_pipeline_dynamic_state_t* dyn =
+    &pipeline->dynamic[swap_idx];
+
+  if (capacity <= dyn->segment_capacity)
+    return true;
+
+  size_t new_capacity = dyn->segment_capacity ? dyn->segment_capacity : 1;
+
+  while (new_capacity < capacity)
+    new_capacity *= 2;
+
+  struct cr_segment_t* segment_data =
+    realloc(dyn->segment_data, sizeof(*dyn->segment_data) * new_capacity);
+
+  if (!segment_data)
+    return false;
+
+  dyn->segment_data = segment_data;
+  dyn->segment_capacity = new_capacity;
+
+  if (dyn->segment_buf.buf != VK_NULL_HANDLE)
+    cr_mem_destroy_gpu_buffer(ctx, &dyn->segment_buf);
+
+  cr_mem_create_gpu_buffer(
+    ctx,
+    sizeof(*dyn->segment_data) * dyn->segment_capacity,
+    CR_GPU_BUFFER_SSBO,
+    CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+    &dyn->segment_buf
+  );
+
+  return _vk_update_descriptors_for_frame(ctx, pipeline, swap_idx);
+}
+
+bool
+_ensure_path_capacity(
+  struct cr_context_t* ctx,
+  struct cr_compute_pipeline_t* pipeline,
+  uint32_t swap_idx,
+  size_t capacity
+) {
+  struct cr_compute_pipeline_dynamic_state_t* dyn =
+    &pipeline->dynamic[swap_idx];
+
+  if (capacity <= dyn->path_capacity)
+    return true;
+
+  size_t new_capacity = dyn->path_capacity ? dyn->path_capacity : 1;
+
+  while (new_capacity < capacity)
+    new_capacity *= 2;
+
+  struct cr_compute_draw_path_t* path_data =
+    realloc(dyn->path_data, sizeof(*dyn->path_data) * new_capacity);
+
+  if (!path_data)
+    return false;
+
+  dyn->path_data = path_data;
+  dyn->path_capacity = new_capacity;
+
+  if (dyn->path_buf.buf != VK_NULL_HANDLE)
+    cr_mem_destroy_gpu_buffer(ctx, &dyn->path_buf);
+
+  cr_mem_create_gpu_buffer(
+    ctx,
+    sizeof(*dyn->path_data) * dyn->path_capacity,
+    CR_GPU_BUFFER_SSBO,
+    CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+    &dyn->path_buf
+  );
+
+  return _vk_update_descriptors_for_frame(ctx, pipeline, swap_idx);
+}
+
 bool 
 cr_compute_pipeline_insert_segment(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
                                    struct cr_segment_t segment, uint32_t swapchain_idx) {
+  if(!_ensure_segment_capacity(ctx, pipeline, swapchain_idx, pipeline->dynamic[swapchain_idx].n_segments + 1))
+    return false;
+
   pipeline->dynamic[swapchain_idx].segment_data[pipeline->dynamic[swapchain_idx].n_segments++] = segment;
   pipeline->dynamic[swapchain_idx].n_segments_in_path++;
 
@@ -1222,6 +1536,9 @@ cr_compute_pipeline_insert_segment(struct cr_context_t* ctx, struct cr_compute_p
 
 bool cr_compute_pipeline_insert_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
     struct cr_compute_draw_path_t path, uint32_t swapchain_idx) {
+
+  if(!_ensure_path_capacity(ctx, pipeline, swapchain_idx, pipeline->dynamic[swapchain_idx].n_paths + 1))
+    return false;
 
   pipeline->dynamic[swapchain_idx].path_data[pipeline->dynamic[swapchain_idx].n_paths++] = path;
 
@@ -1239,6 +1556,9 @@ cr_compute_pipeline_begin_path(struct cr_context_t* ctx, struct cr_compute_pipel
 bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx) {
   uint32_t count = pipeline->dynamic[swapchain_idx].n_segments_in_path;
   uint32_t offset = pipeline->dynamic[swapchain_idx].n_segments - pipeline->dynamic[swapchain_idx].n_segments_in_path;
+
+  if(!_ensure_path_capacity(ctx, pipeline, swapchain_idx, pipeline->dynamic[swapchain_idx].n_paths + 1))
+    return false;
 
   vec2 path_mn = {FLT_MAX, FLT_MAX}, path_mx = {FLT_MIN, FLT_MIN}; 
   for(size_t i = 0; i < count; i++) {

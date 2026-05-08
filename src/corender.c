@@ -367,6 +367,46 @@ _create_logical_device(struct cr_context_t* ctx) {
 err:
   return false;
 }
+
+
+static VkFormat
+_pick_depth_format(VkPhysicalDevice phys_dev) {
+    VkFormat candidates[] = {
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT,
+        VK_FORMAT_D16_UNORM,
+    };
+
+    for (uint32_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(phys_dev, candidates[i], &props);
+
+        if (props.optimalTilingFeatures &
+            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+            return candidates[i];
+        }
+    }
+
+    return VK_FORMAT_UNDEFINED;
+}
+
+static VkImageAspectFlags
+_depth_aspect_mask(VkFormat fmt) {
+    switch (fmt) {
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+        case VK_FORMAT_D32_SFLOAT:
+        case VK_FORMAT_D16_UNORM:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        default:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+    }
+}
+
 bool 
 _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain, uint32_t w, uint32_t h) {
   if(!ctx || !o_swapchain) _PARAM_CHECK_FAIL();
@@ -414,17 +454,20 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
     .clipped = VK_TRUE
   };
 
-  uint32_t families[2] = { ctx->graphics_queue_family, ctx->present_queue_family };
+  uint32_t families[2] = {
+    ctx->graphics_queue_family,
+    ctx->present_queue_family
+};
 
-  if (ctx->graphics_queue_family != ctx->present_queue_family) {
-    create_info.imageSharingMode = VK_QUEUE_FAMILY_IGNORED;
+if (ctx->graphics_queue_family != ctx->present_queue_family) {
+    create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     create_info.queueFamilyIndexCount = 2;
     create_info.pQueueFamilyIndices = families;
-  } else {
+} else {
     create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     create_info.queueFamilyIndexCount = 0;
     create_info.pQueueFamilyIndices = NULL;
-  }
+}
 
   _VK_CHECK(ctx, vkCreateSwapchainKHR(ctx->logical_dev, &create_info, NULL, &o_swapchain->swapchain_handle));
 
@@ -446,12 +489,19 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
   o_swapchain->dimensions = extent;
   o_swapchain->logical_dev = ctx->logical_dev;
 
+  VkFormat depth_format = _pick_depth_format(ctx->phys_dev);
+  o_swapchain->depth_format = depth_format;
 
-  for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
-  VkImageCreateInfo depth_image_info = {
-    .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-    .imageType = VK_IMAGE_TYPE_2D,
-    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+  if (depth_format == VK_FORMAT_UNDEFINED) {
+      CR_FATAL(ctx->log, "No supported depth format found.");
+  }
+
+
+for(uint32_t i = 0; i < o_swapchain->n_imgs; i++) {
+    VkImageCreateInfo depth_image_info = {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+    .format = depth_format,
     .extent = {
       .width  = o_swapchain->dimensions.width,
       .height = o_swapchain->dimensions.height,
@@ -482,11 +532,9 @@ _create_swapchain(struct cr_context_t* ctx,  struct cr_swapchain_t* o_swapchain,
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
     .image = o_swapchain->depth_images[i],
     .viewType = VK_IMAGE_VIEW_TYPE_2D,
-    .format = VK_FORMAT_D24_UNORM_S8_UINT,
+    .format = depth_format,
     .subresourceRange = {
-      .aspectMask =
-      VK_IMAGE_ASPECT_DEPTH_BIT |
-      VK_IMAGE_ASPECT_STENCIL_BIT,
+        .aspectMask = _depth_aspect_mask(depth_format),
       .baseMipLevel = 0,
       .levelCount = 1,
       .baseArrayLayer = 0,
@@ -612,11 +660,8 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
     .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL 
   };
 
-  VkFormat depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
-
-
   VkAttachmentDescription depth_attachment = {
-    .format = depth_format,
+    .format = ctx->swapchain.depth_format,
     .samples = VK_SAMPLE_COUNT_1_BIT,
     .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -856,7 +901,7 @@ _create_render_compute_pipeline(struct cr_context_t* ctx) {
   struct cr_compute_pipeline_init_info_t info = {0};
   info.screen_w = ctx->swapchain.dimensions.width;
   info.screen_h = ctx->swapchain.dimensions.height;
-  info.tile_size = 32;
+  info.tile_size = 16;
   info.shader_paths = shader_stage_paths;
   info.n_shaders = n_shaders;
 
@@ -1506,7 +1551,7 @@ cr_draw_end(struct cr_context_t* ctx) {
   _VK_CHECK(ctx, vkEndCommandBuffer(frame->cmd_buf));
 
   VkPipelineStageFlags wait_stage =
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
 VkSubmitInfo submit_info = {
     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -1529,6 +1574,7 @@ _VK_CHECK(ctx,
 );
 
 
+vkQueueWaitIdle(ctx->graphics_queue);
   VkPresentInfoKHR present_info = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,

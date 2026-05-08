@@ -100,14 +100,15 @@ static void draw_rect_outline(float x, float y, float w, float h) {
     draw_line(x + w, y + h, x,     y + h);
     draw_line(x,     y + h, x,     y);
 }
-
-static void draw_triangle_outline(
-        float cx, float cy,
-        float size,
+static void draw_right_triangle_outline(
+        float x,
+        float y,
+        float w,
+        float h,
         float angle) {
-    struct cr_point_t p0 = transform_point(cx, cy,  0.0f,     -size, angle, 1.0f, 1.0f);
-    struct cr_point_t p1 = transform_point(cx, cy, -0.866f*size, 0.5f*size, angle, 1.0f, 1.0f);
-    struct cr_point_t p2 = transform_point(cx, cy,  0.866f*size, 0.5f*size, angle, 1.0f, 1.0f);
+    struct cr_point_t p0 = transform_point(x, y, 0.0f, 0.0f, angle, 1.0f, 1.0f);
+    struct cr_point_t p1 = transform_point(x, y, w,    0.0f, angle, 1.0f, 1.0f);
+    struct cr_point_t p2 = transform_point(x, y, 0.0f, h,    angle, 1.0f, 1.0f);
 
     draw_line(p0.x, p0.y, p1.x, p1.y);
     draw_line(p1.x, p1.y, p2.x, p2.y);
@@ -278,6 +279,20 @@ static void draw_grid_region(
     }
 }
 
+static void draw_triangle3(
+    float ax, float ay,
+    float bx, float by,
+    float cx, float cy
+) {
+    cr_draw_begin_path(&ctx);
+
+    draw_line(ax, ay, bx, by);
+    draw_line(bx, by, cx, cy);
+    draw_line(cx, cy, ax, ay);
+
+    cr_draw_end_path(&ctx);
+}
+
 static void draw_radial_burst(
         float cx,
         float cy,
@@ -337,6 +352,130 @@ static void draw_lissajous(
     }
 }
 
+
+static float hash01_u32(uint32_t x) {
+    x ^= x >> 16;
+    x *= 0x7feb352dU;
+    x ^= x >> 15;
+    x *= 0x846ca68bU;
+    x ^= x >> 16;
+    return (float)(x & 0x00ffffffu) / (float)0x01000000u;
+}
+
+static float lerpf(float a, float b, float t) {
+    return a + (b - a) * t;
+}
+
+static float smoothstep01(float t) {
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    return t * t * (3.0f - 2.0f * t);
+}
+
+
+void draw_many_boundary_crossing_triangles(float t) {
+    const float tile = 16.0f;
+
+    // Base triangle box before scaling.
+    const float tri_w = 8.0f * tile;
+    const float tri_h = 8.0f * tile;
+
+    // Smooth scale animation.
+    // 1.0 = original size
+    // Range: 0.65x -> 1.35x
+    float scale = 1.0f + 0.35f * sinf(t * 1.25f);
+
+    const float margin = 32.0f;
+
+    int fbw = 1280;
+    int fbh = 720;
+
+    // Account for max scale so it stays mostly onscreen.
+    const float max_scale = 1.35f;
+
+    const float max_tri_w = tri_w * max_scale;
+    const float max_tri_h = tri_h * max_scale;
+
+    const float segment_duration = 2.0f;
+
+    int seg0 = (int)floorf(t / segment_duration);
+    int seg1 = seg0 + 1;
+
+    float local_t = (t / segment_duration) - floorf(t / segment_duration);
+    float u = smoothstep01(local_t);
+
+    float max_x = (float)fbw - max_tri_w - margin;
+    float max_y = (float)fbh - max_tri_h - margin;
+
+    float min_x = margin;
+    float min_y = margin;
+
+    float ox0 = lerpf(min_x, max_x, hash01_u32((uint32_t)(seg0 * 2 + 0)));
+    float oy0 = lerpf(min_y, max_y, hash01_u32((uint32_t)(seg0 * 2 + 1)));
+
+    float ox1 = lerpf(min_x, max_x, hash01_u32((uint32_t)(seg1 * 2 + 0)));
+    float oy1 = lerpf(min_y, max_y, hash01_u32((uint32_t)(seg1 * 2 + 1)));
+
+    float ox = lerpf(ox0, ox1, u);
+    float oy = lerpf(oy0, oy1, u);
+
+    // Cycle through exact-corner-crossing direction cases every 1 second.
+    int stage = ((int)floorf(t)) % 4;
+    if (stage < 0) stage += 4;
+
+    // Local unscaled points.
+    float lax, lay;
+    float lbx, lby;
+    float lcx, lcy;
+
+    switch (stage) {
+        default:
+        case 0:
+            // d = (+,+)
+            lax = 2.0f * tile; lay = 2.0f * tile;
+            lbx = 8.0f * tile; lby = 8.0f * tile;
+            lcx = 2.0f * tile; lcy = 8.0f * tile;
+            break;
+
+        case 1:
+            // d = (-,+)
+            lax = 8.0f * tile; lay = 2.0f * tile;
+            lbx = 2.0f * tile; lby = 8.0f * tile;
+            lcx = 8.0f * tile; lcy = 8.0f * tile;
+            break;
+
+        case 2:
+            // d = (+,-)
+            lax = 2.0f * tile; lay = 8.0f * tile;
+            lbx = 8.0f * tile; lby = 2.0f * tile;
+            lcx = 2.0f * tile; lcy = 2.0f * tile;
+            break;
+
+        case 3:
+            // d = (-,-)
+            lax = 8.0f * tile; lay = 8.0f * tile;
+            lbx = 2.0f * tile; lby = 2.0f * tile;
+            lcx = 8.0f * tile; lcy = 2.0f * tile;
+            break;
+    }
+
+    // Scale around the center of the original 8x8 tile box.
+    float pivot_x = 5.0f * tile;
+    float pivot_y = 5.0f * tile;
+
+    float ax = ox + pivot_x + (lax - pivot_x) * scale;
+    float ay = oy + pivot_y + (lay - pivot_y) * scale;
+
+    float bx = ox + pivot_x + (lbx - pivot_x) * scale;
+    float by = oy + pivot_y + (lby - pivot_y) * scale;
+
+    float cx = ox + pivot_x + (lcx - pivot_x) * scale;
+    float cy = oy + pivot_y + (lcy - pivot_y) * scale;
+
+    draw_triangle3(ax, ay, bx, by, cx, cy);
+}
+
+
 int main(void) {
     GLFWwindow* window;
 
@@ -358,7 +497,7 @@ int main(void) {
     uint32_t n_glfw_exts = 0;
     const char** glfw_exts = glfwGetRequiredInstanceExtensions(&n_glfw_exts);
 
-    uint32_t n_exts = n_glfw_exts /*+ 1*/;
+    uint32_t n_exts = n_glfw_exts /* + 1 */;
 
     const char** exts = malloc(sizeof(char*) * n_exts);
 
@@ -380,8 +519,8 @@ int main(void) {
         .exts = exts,
         .enable_time_measuring = false,
 
-        .layers = NULL,
-        .n_layers = 0,
+        .layers = validation_layers, 
+        .n_layers = 1,
 
         .log_verbose = true,
         .surface_create = _glfw_surface_create,
@@ -392,7 +531,7 @@ int main(void) {
 
     double start_time = glfwGetTime();
 
-#define N_STARS 1000 
+#define N_STARS 1 
 
     float star_x[N_STARS];
     float star_y[N_STARS];
@@ -410,28 +549,25 @@ int main(void) {
 
     while (!glfwWindowShouldClose(window)) {
         glfwGetFramebufferSize(window, &fbw, &fbh);
-        float t = (float)(glfwGetTime() - start_time);
+        float t = glfwGetTime() - start_time; 
 
         /* pulse size from 100 -> 513 */
         float min_size = 30.0f;
         float max_size = 50.0f;
         float pulse01 = 0.5f + 0.5f * sinf(t * 1.7f);
-        float size = 30;
+        float size = 50;
 
         cr_draw_begin(&ctx);
 
-        for (int i = 0; i < N_STARS; ++i) {
+
         cr_draw_begin_path(&ctx);
-            draw_star(
-                    star_x[i],
-                    star_y[i],
-                    3,
-                    size * 0.45f,   /* inner radius */
-                    size,           /* outer radius */
-                    t * 0.8f
-                    );
-        cr_draw_end_path(&ctx);
-        }
+
+
+        draw_line(30, 30, 200 * t * 0.2, 30);
+        draw_line(200 * t * 0.2, 30, 200 * t * 0.2, 200 * t * 0.2);
+        draw_line(200 * t * 0.2, 200 * t * 0.2, 30, 30); 
+
+cr_draw_end_path(&ctx);
 
         cr_draw_end(&ctx);
         glfwPollEvents();

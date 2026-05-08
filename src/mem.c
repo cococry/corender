@@ -134,7 +134,7 @@ cr_mem_create_gpu_buffer(
   switch(type) {
     case CR_GPU_BUFFER_INDEX: usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT; break;
     case CR_GPU_BUFFER_VERTEX: usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; break;
-    case CR_GPU_BUFFER_INDIRECT: usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT; break;
+    case CR_GPU_BUFFER_INDIRECT: usage |= (VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT); break;
     case CR_GPU_BUFFER_SSBO: usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; break;
     case CR_GPU_BUFFER_NO_TYPE: break;
     default: {
@@ -557,7 +557,7 @@ cr_mem_staging_ring_alloc(struct cr_staging_ring_t* ring, size_t n, size_t align
   size_t wrapped_head = 0;
 
   if (size > ring->tail) {
-    return 0; 
+    return 0;
   }
 
   ring->head = size;

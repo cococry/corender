@@ -7,11 +7,11 @@ C_DEFINES =
 
 C_INCLUDES = -I/home/luca/Dev/corender/include
 
-C_FLAGS = -g -std=gnu11 -fPIC -g -O0 -DDEBUG
+C_FLAGS = -O3 -DNDEBUG -std=gnu11 -fPIC -O3 -DNDEBUG -march=native -flto -fno-plt -fomit-frame-pointer -fstrict-aliasing
 
 CXX_DEFINES = 
 
 CXX_INCLUDES = -I/home/luca/Dev/corender/include
 
-CXX_FLAGS = -g -std=gnu++17 -fPIC -g -O0 -DDEBUG
+CXX_FLAGS = -O3 -DNDEBUG -std=gnu++17 -fPIC -O3 -DNDEBUG -march=native -flto -fno-plt -fomit-frame-pointer -fstrict-aliasing
 
