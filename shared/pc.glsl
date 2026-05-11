@@ -18,6 +18,60 @@
 #define FAIL_FINE_OOB 1u << 10 
 #define AVG_TOUCHES_PER_TILE        100
 
+#ifndef CR_ENABLE_GPU_STATS
+#define CR_ENABLE_GPU_STATS 0
+#endif
+
+#define STATS_BINDING (COMP_PIPELINE_BINDING_BASE + 8)
+#define STATS_HIST_BINS 32u
+
+struct GpuStats {
+    uint n_tiles_seen;
+
+    uint empty_tiles;
+    uint solid_tiles;
+    uint fine_tiles;
+    uint active_tiles;
+
+    uint total_tile_segments;
+    uint total_fine_segments;
+
+    uint max_tile_segments;
+    uint max_fine_segments;
+
+    uint max_abs_winding;
+
+    uint contention_tiles;
+    uint contended_tile_segments;
+    uint excess_tile_segments;
+    uint tile_atomic_pair_pressure;
+
+    uint valid_edges;
+    uint invalid_edges;
+    uint y_edge_edges;
+    uint horizontal_edges;
+    uint zero_length_edges;
+    uint tile_mismatch_edges;
+
+    uint estimated_fine_edge_evals;
+
+    uint hist_tile_segments[32];
+    uint hist_fine_segments[32];
+};
+
+#if CR_ENABLE_GPU_STATS
+
+#define CR_STAT_ADD(field, value) atomicAdd(stats.field, value)
+#define CR_STAT_MAX(field, value) atomicMax(stats.field, value)
+#define CR_STAT_HIST_ADD(field, index, value) atomicAdd(stats.field[(index)], value)
+
+#else
+
+#define CR_STAT_ADD(field, value)
+#define CR_STAT_MAX(field, value)
+#define CR_STAT_HIST_ADD(field, index, value)
+
+#endif
 
 struct TileInfo {
     uint base;
@@ -27,12 +81,24 @@ struct TileInfo {
 };
 
 struct TileEdge {
-    uint p0;   // x: low 16, y: high 16, tile-local 8.8 fixed
-    uint p1;   // x: low 16, y: high 16, tile-local 8.8 fixed
-    uint meta; // bit 0 valid, bit 1 negative winding delta
-    uint y_edge;  
+    uint p0; 
+    uint p1; 
 };
 
+#define TOUCH_SEG_BITS   20u
+#define TOUCH_RANK_BITS  12u
+#define TOUCH_TILE_BITS  16u
+#define TOUCH_LOCAL_TILE_BITS 16u
+
+#define TOUCH_SEG_MASK   ((1u << TOUCH_SEG_BITS) - 1u)
+#define TOUCH_RANK_MASK  ((1u << TOUCH_RANK_BITS) - 1u)
+#define TOUCH_TILE_MASK  ((1u << TOUCH_TILE_BITS) - 1u)
+#define TOUCH_LOCAL_TILE_MASK ((1u << TOUCH_LOCAL_TILE_BITS) - 1u)
+
+struct TileTouchRecord {
+    uint a;
+    uint b;
+};
 
 struct Segment {
     vec2 p0;

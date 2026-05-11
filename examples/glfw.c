@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <math.h>
 #include <time.h>
-#include <string.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -60,79 +59,11 @@ static inline float rand01(uint32_t* state) {
     return (xorshift32(state) >> 8) * (1.0f / 16777216.0f);
 }
 
-static inline float frand_range(uint32_t* state, float min_v, float max_v) {
-    return min_v + (max_v - min_v) * rand01(state);
-}
-
 static inline void draw_line(float x0, float y0, float x1, float y1) {
     cr_draw_segment(&ctx, (struct cr_segment_t){
             .p0 = { x0, y0 },
             .p1 = { x1, y1 }
             });
-}
-
-static inline struct cr_point_t rotate_point(struct cr_point_t p, float angle) {
-    float c = cosf(angle);
-    float s = sinf(angle);
-    struct cr_point_t out = {
-        p.x * c - p.y * s,
-        p.x * s + p.y * c
-    };
-    return out;
-}
-
-static inline struct cr_point_t transform_point(
-        float cx, float cy,
-        float x, float y,
-        float angle,
-        float scale_x,
-        float scale_y) {
-    struct cr_point_t p = { x * scale_x, y * scale_y };
-    p = rotate_point(p, angle);
-    p.x += cx;
-    p.y += cy;
-    return p;
-}
-
-static void draw_rect_outline(float x, float y, float w, float h) {
-    draw_line(x,     y,     x + w, y);
-    draw_line(x + w, y,     x + w, y + h);
-    draw_line(x + w, y + h, x,     y + h);
-    draw_line(x,     y + h, x,     y);
-}
-static void draw_right_triangle_outline(
-        float x,
-        float y,
-        float w,
-        float h,
-        float angle) {
-    struct cr_point_t p0 = transform_point(x, y, 0.0f, 0.0f, angle, 1.0f, 1.0f);
-    struct cr_point_t p1 = transform_point(x, y, w,    0.0f, angle, 1.0f, 1.0f);
-    struct cr_point_t p2 = transform_point(x, y, 0.0f, h,    angle, 1.0f, 1.0f);
-
-    draw_line(p0.x, p0.y, p1.x, p1.y);
-    draw_line(p1.x, p1.y, p2.x, p2.y);
-    draw_line(p2.x, p2.y, p0.x, p0.y);
-}
-
-static void draw_regular_polygon(
-        float cx, float cy,
-        int sides,
-        float radius,
-        float angle) {
-    if (sides < 3) return;
-
-    for (int i = 0; i < sides; ++i) {
-        float a0 = angle + (2.0f * (float)M_PI * (float)i) / (float)sides;
-        float a1 = angle + (2.0f * (float)M_PI * (float)(i + 1)) / (float)sides;
-
-        float x0 = cx + cosf(a0) * radius;
-        float y0 = cy + sinf(a0) * radius;
-        float x1 = cx + cosf(a1) * radius;
-        float y1 = cy + sinf(a1) * radius;
-
-        draw_line(x0, y0, x1, y1);
-    }
 }
 
 static void draw_star(
@@ -160,321 +91,6 @@ static void draw_star(
         draw_line(x0, y0, x1, y1);
     }
 }
-
-static void draw_cross(float cx, float cy, float size, float angle) {
-    struct cr_point_t a0 = transform_point(cx, cy, -size, 0.0f, angle, 1.0f, 1.0f);
-    struct cr_point_t a1 = transform_point(cx, cy,  size, 0.0f, angle, 1.0f, 1.0f);
-    struct cr_point_t b0 = transform_point(cx, cy, 0.0f, -size, angle, 1.0f, 1.0f);
-    struct cr_point_t b1 = transform_point(cx, cy, 0.0f,  size, angle, 1.0f, 1.0f);
-
-    draw_line(a0.x, a0.y, a1.x, a1.y);
-    draw_line(b0.x, b0.y, b1.x, b1.y);
-}
-
-static void draw_x_shape(float cx, float cy, float size, float angle) {
-    struct cr_point_t a0 = transform_point(cx, cy, -size, -size, angle, 1.0f, 1.0f);
-    struct cr_point_t a1 = transform_point(cx, cy,  size,  size, angle, 1.0f, 1.0f);
-    struct cr_point_t b0 = transform_point(cx, cy,  size, -size, angle, 1.0f, 1.0f);
-    struct cr_point_t b1 = transform_point(cx, cy, -size,  size, angle, 1.0f, 1.0f);
-
-    draw_line(a0.x, a0.y, a1.x, a1.y);
-    draw_line(b0.x, b0.y, b1.x, b1.y);
-}
-
-static void draw_arc_polyline(
-        float cx, float cy,
-        float radius_x,
-        float radius_y,
-        float angle_offset,
-        float angle_span,
-        int segments) {
-    if (segments < 1) return;
-
-    for (int i = 0; i < segments; ++i) {
-        float t0 = (float)i / (float)segments;
-        float t1 = (float)(i + 1) / (float)segments;
-
-        float a0 = angle_offset + t0 * angle_span;
-        float a1 = angle_offset + t1 * angle_span;
-
-        float x0 = cx + cosf(a0) * radius_x;
-        float y0 = cy + sinf(a0) * radius_y;
-        float x1 = cx + cosf(a1) * radius_x;
-        float y1 = cy + sinf(a1) * radius_y;
-
-        draw_line(x0, y0, x1, y1);
-    }
-}
-
-static void draw_spiral(
-        float cx, float cy,
-        float start_r,
-        float end_r,
-        float turns,
-        float angle_offset,
-        int segments) {
-    if (segments < 1) return;
-
-    for (int i = 0; i < segments; ++i) {
-        float t0 = (float)i / (float)segments;
-        float t1 = (float)(i + 1) / (float)segments;
-
-        float r0 = start_r + (end_r - start_r) * t0;
-        float r1 = start_r + (end_r - start_r) * t1;
-
-        float a0 = angle_offset + t0 * turns * 2.0f * (float)M_PI;
-        float a1 = angle_offset + t1 * turns * 2.0f * (float)M_PI;
-
-        float x0 = cx + cosf(a0) * r0;
-        float y0 = cy + sinf(a0) * r0;
-        float x1 = cx + cosf(a1) * r1;
-        float y1 = cy + sinf(a1) * r1;
-
-        draw_line(x0, y0, x1, y1);
-    }
-}
-
-static void draw_zigzag(
-        float x,
-        float y,
-        float w,
-        float h,
-        int teeth) {
-    if (teeth < 1) return;
-
-    float step = w / (float)teeth;
-    float px = x;
-    float py = y + h * 0.5f;
-
-    for (int i = 1; i <= teeth; ++i) {
-        float nx = x + step * (float)i;
-        float ny = (i & 1) ? y : (y + h);
-        draw_line(px, py, nx, ny);
-        px = nx;
-        py = ny;
-    }
-}
-
-static void draw_grid_region(
-        float x,
-        float y,
-        float w,
-        float h,
-        int cols,
-        int rows,
-        float skew_x,
-        float skew_y) {
-    draw_rect_outline(x, y, w, h);
-
-    for (int i = 1; i < cols; ++i) {
-        float t = (float)i / (float)cols;
-        float xx = x + w * t;
-        draw_line(xx, y, xx + skew_x, y + h);
-    }
-
-    for (int j = 1; j < rows; ++j) {
-        float t = (float)j / (float)rows;
-        float yy = y + h * t;
-        draw_line(x, yy, x + w, yy + skew_y);
-    }
-}
-
-static void draw_triangle3(
-    float ax, float ay,
-    float bx, float by,
-    float cx, float cy
-) {
-    cr_draw_begin_path(&ctx);
-
-    draw_line(ax, ay, bx, by);
-    draw_line(bx, by, cx, cy);
-    draw_line(cx, cy, ax, ay);
-
-    cr_draw_end_path(&ctx);
-}
-
-static void draw_radial_burst(
-        float cx,
-        float cy,
-        float radius0,
-        float radius1,
-        int count,
-        float angle_offset) {
-    if (count < 1) return;
-
-    for (int i = 0; i < count; ++i) {
-        float a = angle_offset + 2.0f * (float)M_PI * ((float)i / (float)count);
-        float x0 = cx + cosf(a) * radius0;
-        float y0 = cy + sinf(a) * radius0;
-        float x1 = cx + cosf(a) * radius1;
-        float y1 = cy + sinf(a) * radius1;
-        draw_line(x0, y0, x1, y1);
-    }
-}
-
-static void draw_random_segment_cloud(
-        uint32_t* rng_state,
-        float x,
-        float y,
-        float w,
-        float h,
-        int count) {
-    for (int i = 0; i < count; ++i) {
-        float x0 = frand_range(rng_state, x, x + w);
-        float y0 = frand_range(rng_state, y, y + h);
-        float x1 = frand_range(rng_state, x, x + w);
-        float y1 = frand_range(rng_state, y, y + h);
-        draw_line(x0, y0, x1, y1);
-    }
-}
-
-static void draw_lissajous(
-        float cx,
-        float cy,
-        float ax,
-        float ay,
-        float fx,
-        float fy,
-        float phase,
-        int segments) {
-    if (segments < 2) return;
-
-    float prev_x = cx + sinf(phase) * ax;
-    float prev_y = cy + sinf(0.0f) * ay;
-
-    for (int i = 1; i <= segments; ++i) {
-        float t = (2.0f * (float)M_PI * (float)i) / (float)segments;
-        float x = cx + sinf(fx * t + phase) * ax;
-        float y = cy + sinf(fy * t) * ay;
-        draw_line(prev_x, prev_y, x, y);
-        prev_x = x;
-        prev_y = y;
-    }
-}
-
-
-static float hash01_u32(uint32_t x) {
-    x ^= x >> 16;
-    x *= 0x7feb352dU;
-    x ^= x >> 15;
-    x *= 0x846ca68bU;
-    x ^= x >> 16;
-    return (float)(x & 0x00ffffffu) / (float)0x01000000u;
-}
-
-static float lerpf(float a, float b, float t) {
-    return a + (b - a) * t;
-}
-
-static float smoothstep01(float t) {
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
-    return t * t * (3.0f - 2.0f * t);
-}
-
-
-void draw_many_boundary_crossing_triangles(float t) {
-    const float tile = 16.0f;
-
-    // Base triangle box before scaling.
-    const float tri_w = 8.0f * tile;
-    const float tri_h = 8.0f * tile;
-
-    // Smooth scale animation.
-    // 1.0 = original size
-    // Range: 0.65x -> 1.35x
-    float scale = 1.0f + 0.35f * sinf(t * 1.25f);
-
-    const float margin = 32.0f;
-
-    int fbw = 1280;
-    int fbh = 720;
-
-    // Account for max scale so it stays mostly onscreen.
-    const float max_scale = 1.35f;
-
-    const float max_tri_w = tri_w * max_scale;
-    const float max_tri_h = tri_h * max_scale;
-
-    const float segment_duration = 2.0f;
-
-    int seg0 = (int)floorf(t / segment_duration);
-    int seg1 = seg0 + 1;
-
-    float local_t = (t / segment_duration) - floorf(t / segment_duration);
-    float u = smoothstep01(local_t);
-
-    float max_x = (float)fbw - max_tri_w - margin;
-    float max_y = (float)fbh - max_tri_h - margin;
-
-    float min_x = margin;
-    float min_y = margin;
-
-    float ox0 = lerpf(min_x, max_x, hash01_u32((uint32_t)(seg0 * 2 + 0)));
-    float oy0 = lerpf(min_y, max_y, hash01_u32((uint32_t)(seg0 * 2 + 1)));
-
-    float ox1 = lerpf(min_x, max_x, hash01_u32((uint32_t)(seg1 * 2 + 0)));
-    float oy1 = lerpf(min_y, max_y, hash01_u32((uint32_t)(seg1 * 2 + 1)));
-
-    float ox = lerpf(ox0, ox1, u);
-    float oy = lerpf(oy0, oy1, u);
-
-    // Cycle through exact-corner-crossing direction cases every 1 second.
-    int stage = ((int)floorf(t)) % 4;
-    if (stage < 0) stage += 4;
-
-    // Local unscaled points.
-    float lax, lay;
-    float lbx, lby;
-    float lcx, lcy;
-
-    switch (stage) {
-        default:
-        case 0:
-            // d = (+,+)
-            lax = 2.0f * tile; lay = 2.0f * tile;
-            lbx = 8.0f * tile; lby = 8.0f * tile;
-            lcx = 2.0f * tile; lcy = 8.0f * tile;
-            break;
-
-        case 1:
-            // d = (-,+)
-            lax = 8.0f * tile; lay = 2.0f * tile;
-            lbx = 2.0f * tile; lby = 8.0f * tile;
-            lcx = 8.0f * tile; lcy = 8.0f * tile;
-            break;
-
-        case 2:
-            // d = (+,-)
-            lax = 2.0f * tile; lay = 8.0f * tile;
-            lbx = 8.0f * tile; lby = 2.0f * tile;
-            lcx = 2.0f * tile; lcy = 2.0f * tile;
-            break;
-
-        case 3:
-            // d = (-,-)
-            lax = 8.0f * tile; lay = 8.0f * tile;
-            lbx = 2.0f * tile; lby = 2.0f * tile;
-            lcx = 8.0f * tile; lcy = 2.0f * tile;
-            break;
-    }
-
-    // Scale around the center of the original 8x8 tile box.
-    float pivot_x = 5.0f * tile;
-    float pivot_y = 5.0f * tile;
-
-    float ax = ox + pivot_x + (lax - pivot_x) * scale;
-    float ay = oy + pivot_y + (lay - pivot_y) * scale;
-
-    float bx = ox + pivot_x + (lbx - pivot_x) * scale;
-    float by = oy + pivot_y + (lby - pivot_y) * scale;
-
-    float cx = ox + pivot_x + (lcx - pivot_x) * scale;
-    float cy = oy + pivot_y + (lcy - pivot_y) * scale;
-
-    draw_triangle3(ax, ay, bx, by, cx, cy);
-}
-
 
 int main(void) {
     GLFWwindow* window;
@@ -517,10 +133,10 @@ int main(void) {
         .enable_validation = true,
         .n_exts = n_exts,
         .exts = exts,
-        .enable_time_measuring = false,
+        .enable_gpu_profiler = true,
 
-        .layers = validation_layers, 
-        .n_layers = 1,
+        .layers = NULL, 
+        .n_layers = 0,
 
         .log_verbose = true,
         .surface_create = _glfw_surface_create,
@@ -531,7 +147,7 @@ int main(void) {
 
     double start_time = glfwGetTime();
 
-#define N_STARS 1 
+#define N_STARS 4000 
 
     float star_x[N_STARS];
     float star_y[N_STARS];
@@ -543,8 +159,8 @@ int main(void) {
 
     /* generate random positions once */
     for (int i = 0; i < N_STARS; ++i) {
-        star_x[i] = rand01(&rng) * (float)fbw + 50;
-        star_y[i] = rand01(&rng) * (float)fbh + 50;
+        star_x[i] = rand01(&rng) * (float)fbw;
+        star_y[i] = rand01(&rng) * (float)fbh;
     }
 
     while (!glfwWindowShouldClose(window)) {
@@ -563,9 +179,9 @@ int main(void) {
         cr_draw_begin_path(&ctx);
 
 
-        draw_line(30, 30, 200 * t * 0.2, 30);
-        draw_line(200 * t * 0.2, 30, 200 * t * 0.2, 200 * t * 0.2);
-        draw_line(200 * t * 0.2, 200 * t * 0.2, 30, 30); 
+        for(uint i = 0; i < 1; i++) {
+            draw_star(star_x[i], star_y[i], 5, 50 * t, 80 * t, t * 0.2);
+        }
 
 cr_draw_end_path(&ctx);
 

@@ -71,6 +71,8 @@ struct cr_frameloop_t {
   
   struct cr_frame_t frames[CR_FRAME_COUNT];
   uint32_t frame_idx;
+  uint32_t frame_counter;
+
 
   VkFence* swapchain_image_fences;
 
@@ -89,7 +91,8 @@ struct cr_context_init_info_t {
   const char** layers;
   size_t n_layers;
 
-  bool enable_validation, enable_time_measuring;
+  bool enable_validation ,
+       enable_gpu_profiler;
 
   void* surface_userdata;
   cr_surface_create_func_t surface_create;
@@ -150,7 +153,6 @@ struct cr_context_t {
   int _subgroup_size;
 
   double ms_gpu, ms_cpu;
-  bool enable_time_measuring;
 };
 
 bool cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info);

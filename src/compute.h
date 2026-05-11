@@ -43,15 +43,51 @@ struct cr_compute_tile_info_t {
 };
 
 struct cr_compute_tile_edge_t {
-    uint32_t p0;   // x: low 16, y: high 16, tile-local 8.8 fixed
-    uint32_t p1;   // x: low 16, y: high 16, tile-local 8.8 fixed
-    uint32_t meta; // bit 0 valid, bit 1 negative winding delta
-    uint32_t y_edge;
+    uint p0;   // x: low 16, y: high 16, tile-local 8.8 fixed
+    uint p1;   // x: low 16, y: high 16, tile-local 8.8 fixed
 };
+
+#define CR_STATS_HIST_BINS 32
+
+typedef struct cr_gpu_stats_t {
+    uint32_t n_tiles_seen;
+
+    uint32_t empty_tiles;
+    uint32_t solid_tiles;
+    uint32_t fine_tiles;
+    uint32_t active_tiles;
+
+    uint32_t total_tile_segments;
+    uint32_t total_fine_segments;
+
+    uint32_t max_tile_segments;
+    uint32_t max_fine_segments;
+
+    uint32_t max_abs_winding;
+
+    uint32_t contention_tiles;
+    uint32_t contended_tile_segments;
+    uint32_t excess_tile_segments;
+    uint32_t tile_atomic_pair_pressure;
+
+
+    uint32_t valid_edges;
+    uint32_t invalid_edges;
+    uint32_t y_edge_edges;
+    uint32_t horizontal_edges;
+    uint32_t zero_length_edges;
+    uint32_t tile_mismatch_edges;
+
+    uint32_t estimated_fine_edge_evals;
+
+    uint32_t hist_tile_segments[CR_STATS_HIST_BINS];
+    uint32_t hist_fine_segments[CR_STATS_HIST_BINS];
+} cr_gpu_stats_t;
 
 struct cr_compute_tile_touch_record_t {
     uint32_t seg_id;
     uint32_t pack;
+    uint subix; 
 };
 
 struct cr_compute_indirect_dispatch_cmd_t {
@@ -106,7 +142,7 @@ struct cr_compute_pipeline_layout_buffer_t {
 };
 
 struct cr_compute_pipeline_dynamic_state_t {
-  struct cr_gpu_buffer_t segment_buf, path_buf, indirect_buf; 
+  struct cr_gpu_buffer_t segment_buf, path_buf, indirect_buf, gpu_stats_readback_buf; 
   uint32_t n_segments, n_paths;
 
   struct cr_segment_t* segment_data;

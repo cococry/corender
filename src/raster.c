@@ -471,16 +471,6 @@ cr_raster_pipeline_batching_commit(struct cr_context_t* ctx, struct cr_raster_pi
 
   vkCmdBindVertexBuffers(frame->cmd_buf, 0, n_vbos, vbos, vbo_offsets);
 
-  if(ctx->enable_time_measuring) {
-    vkCmdResetQueryPool(frame->cmd_buf, frame->timestamp_pool, 0, 2);
-
-    vkCmdWriteTimestamp(
-      frame->cmd_buf,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-      frame->timestamp_pool,
-      0
-    );
-  }
 
   if(draw_indexed) {
     for(uint32_t i = 0; i < pipeline->n_static_buffers; i++) {
@@ -525,15 +515,6 @@ if (!pipeline->use_device_local_buffer) {
       0,
       batching->n_emitted_draws,
       sizeof(VkDrawIndirectCommand)
-    );
-  }
-
-  if(ctx->enable_time_measuring) {
-    vkCmdWriteTimestamp(
-      frame->cmd_buf,
-      VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-      frame->timestamp_pool,
-      1
     );
   }
 

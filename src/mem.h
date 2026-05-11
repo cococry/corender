@@ -13,12 +13,14 @@ enum cr_gpu_buffer_type_t {
   CR_GPU_BUFFER_VERTEX,
   CR_GPU_BUFFER_INDIRECT,
   CR_GPU_BUFFER_SSBO,
+  CR_GPU_BUFFER_READBACK
 };
 
 enum cr_gpu_buffer_memory_type_t {
   CR_GPU_BUFFER_MEM_DEVICE_LOCAL = 0,
   CR_GPU_BUFFER_MEM_MAPPED,
   CR_GPU_BUFFER_MEM_STAGING,
+  CR_GPU_BUFFER_MEM_READBACK
 };
 
 struct cr_upload_context_t {

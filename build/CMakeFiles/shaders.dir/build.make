@@ -91,134 +91,185 @@ CMakeFiles/shaders: bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute
 CMakeFiles/shaders: bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv
 CMakeFiles/shaders: bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Installing compiled shaders to /home/luca/.local/state/corender/shaders"
 	/usr/bin/cmake -E rm -rf /home/luca/.local/state/corender/shaders
 	/usr/bin/cmake -E make_directory /home/luca/.local/state/corender/shaders
 	/usr/bin/cmake -E copy_directory /home/luca/Dev/corender/build/bin/shaders /home/luca/.local/state/corender/shaders
 
 bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv: generated_shaders/1_tile_events_prefix2d_step1_sg16_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Generating bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg16_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg16_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg16_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg16_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step1_sg32_compute.spv: generated_shaders/1_tile_events_prefix2d_step1_sg32_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Generating bin/shaders/compute/1_tile_events_prefix2d_step1_sg32_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg32_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg32_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg32_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg32_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg32_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg32_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg32_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg32_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv: generated_shaders/1_tile_events_prefix2d_step1_sg4_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Generating bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg4_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg4_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg4_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg4_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step1_sg64_compute.spv: generated_shaders/1_tile_events_prefix2d_step1_sg64_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating bin/shaders/compute/1_tile_events_prefix2d_step1_sg64_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg64_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg64_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg64_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg64_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg64_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg64_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg64_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg64_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv: generated_shaders/1_tile_events_prefix2d_step1_sg8_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Generating bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg8_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg8_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step1_sg8_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step1_sg8_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step2_sg16_compute.spv: generated_shaders/1_tile_events_prefix2d_step2_sg16_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Generating bin/shaders/compute/1_tile_events_prefix2d_step2_sg16_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg16_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg16_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg16_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg16_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg16_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg16_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg16_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg16_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step2_sg32_compute.spv: generated_shaders/1_tile_events_prefix2d_step2_sg32_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Generating bin/shaders/compute/1_tile_events_prefix2d_step2_sg32_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg32_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg32_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg32_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg32_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg32_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg32_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg32_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg32_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step2_sg4_compute.spv: generated_shaders/1_tile_events_prefix2d_step2_sg4_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating bin/shaders/compute/1_tile_events_prefix2d_step2_sg4_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg4_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg4_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg4_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg4_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg4_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg4_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg4_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg4_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step2_sg64_compute.spv: generated_shaders/1_tile_events_prefix2d_step2_sg64_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Generating bin/shaders/compute/1_tile_events_prefix2d_step2_sg64_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg64_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg64_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg64_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg64_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg64_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg64_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg64_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg64_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step2_sg8_compute.spv: generated_shaders/1_tile_events_prefix2d_step2_sg8_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating bin/shaders/compute/1_tile_events_prefix2d_step2_sg8_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg8_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step2_sg8_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg8_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg8_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg8_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg8_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step2_sg8_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step2_sg8_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv: generated_shaders/1_tile_events_prefix2d_step3_sg16_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg16_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg16_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg16_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg16_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv: generated_shaders/1_tile_events_prefix2d_step3_sg32_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Generating bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg32_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg32_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg32_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg32_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step3_sg4_compute.spv: generated_shaders/1_tile_events_prefix2d_step3_sg4_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Generating bin/shaders/compute/1_tile_events_prefix2d_step3_sg4_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg4_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg4_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg4_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg4_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg4_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg4_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg4_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg4_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv: generated_shaders/1_tile_events_prefix2d_step3_sg64_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Generating bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg64_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg64_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg64_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg64_compute.spv
 
 bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute.spv: generated_shaders/1_tile_events_prefix2d_step3_sg8_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_15) "Generating bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute.spv"
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Compiling shader /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg8_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg8_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/build/generated_shaders/1_tile_events_prefix2d_step3_sg8_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_tile_events_prefix2d_step3_sg8_compute.spv
 
 bin/shaders/compute/1_walk_segments_compute.spv: /home/luca/Dev/corender/shaders/compute/1_walk_segments_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_16) "Generating bin/shaders/compute/1_walk_segments_compute.spv"
+bin/shaders/compute/1_walk_segments_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/1_walk_segments_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Compiling shader /home/luca/Dev/corender/shaders/compute/1_walk_segments_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/1_walk_segments_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/1_walk_segments_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_walk_segments_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/1_walk_segments_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/1_walk_segments_compute.spv
 
 bin/shaders/compute/2_build_scatter_indirect_compute.spv: /home/luca/Dev/corender/shaders/compute/2_build_scatter_indirect_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_17) "Generating bin/shaders/compute/2_build_scatter_indirect_compute.spv"
+bin/shaders/compute/2_build_scatter_indirect_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/2_build_scatter_indirect_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Compiling shader /home/luca/Dev/corender/shaders/compute/2_build_scatter_indirect_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/2_build_scatter_indirect_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/2_build_scatter_indirect_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/2_build_scatter_indirect_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/2_build_scatter_indirect_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/2_build_scatter_indirect_compute.spv
 
 bin/shaders/compute/3_allocate_tiles_compute.spv: /home/luca/Dev/corender/shaders/compute/3_allocate_tiles_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_18) "Generating bin/shaders/compute/3_allocate_tiles_compute.spv"
+bin/shaders/compute/3_allocate_tiles_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/3_allocate_tiles_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Compiling shader /home/luca/Dev/corender/shaders/compute/3_allocate_tiles_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/3_allocate_tiles_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/3_allocate_tiles_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/3_allocate_tiles_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/3_allocate_tiles_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/3_allocate_tiles_compute.spv
 
 bin/shaders/compute/4_scatter_touches_compute.spv: /home/luca/Dev/corender/shaders/compute/4_scatter_touches_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_19) "Generating bin/shaders/compute/4_scatter_touches_compute.spv"
+bin/shaders/compute/4_scatter_touches_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/4_scatter_touches_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Compiling shader /home/luca/Dev/corender/shaders/compute/4_scatter_touches_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/4_scatter_touches_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/4_scatter_touches_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/4_scatter_touches_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/4_scatter_touches_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/4_scatter_touches_compute.spv
 
 bin/shaders/compute/5_build_active_tiles_indirect_compute.spv: /home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_20) "Generating bin/shaders/compute/5_build_active_tiles_indirect_compute.spv"
+bin/shaders/compute/5_build_active_tiles_indirect_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/5_build_active_tiles_indirect_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Compiling shader /home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/5_build_active_tiles_indirect_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/5_build_active_tiles_indirect_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/5_build_active_tiles_indirect_compute.spv
 
 bin/shaders/compute/6_fine_eval_compute.spv: /home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_21) "Generating bin/shaders/compute/6_fine_eval_compute.spv"
+bin/shaders/compute/6_fine_eval_compute.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/compute/6_fine_eval_compute.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Compiling shader /home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl -> /home/luca/Dev/corender/build/bin/shaders/compute/6_fine_eval_compute.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/compute
-	glslc -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/6_fine_eval_compute.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=compute --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl -o /home/luca/Dev/corender/build/bin/shaders/compute/6_fine_eval_compute.spv
 
 bin/shaders/default/basic_frag.spv: /home/luca/Dev/corender/shaders/default/basic_frag.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_22) "Generating bin/shaders/default/basic_frag.spv"
+bin/shaders/default/basic_frag.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/default/basic_frag.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Compiling shader /home/luca/Dev/corender/shaders/default/basic_frag.glsl -> /home/luca/Dev/corender/build/bin/shaders/default/basic_frag.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/default
-	glslc -fshader-stage=fragment --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/default/basic_frag.glsl -o /home/luca/Dev/corender/build/bin/shaders/default/basic_frag.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=fragment --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/default/basic_frag.glsl -o /home/luca/Dev/corender/build/bin/shaders/default/basic_frag.spv
 
 bin/shaders/default/basic_vert.spv: /home/luca/Dev/corender/shaders/default/basic_vert.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_23) "Generating bin/shaders/default/basic_vert.spv"
+bin/shaders/default/basic_vert.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/default/basic_vert.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Compiling shader /home/luca/Dev/corender/shaders/default/basic_vert.glsl -> /home/luca/Dev/corender/build/bin/shaders/default/basic_vert.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/default
-	glslc -fshader-stage=vertex --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/default/basic_vert.glsl -o /home/luca/Dev/corender/build/bin/shaders/default/basic_vert.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=vertex --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/default/basic_vert.glsl -o /home/luca/Dev/corender/build/bin/shaders/default/basic_vert.spv
 
 bin/shaders/instanced/basic_frag.spv: /home/luca/Dev/corender/shaders/instanced/basic_frag.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_24) "Generating bin/shaders/instanced/basic_frag.spv"
+bin/shaders/instanced/basic_frag.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/instanced/basic_frag.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Compiling shader /home/luca/Dev/corender/shaders/instanced/basic_frag.glsl -> /home/luca/Dev/corender/build/bin/shaders/instanced/basic_frag.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/instanced
-	glslc -fshader-stage=fragment --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/instanced/basic_frag.glsl -o /home/luca/Dev/corender/build/bin/shaders/instanced/basic_frag.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=fragment --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/instanced/basic_frag.glsl -o /home/luca/Dev/corender/build/bin/shaders/instanced/basic_frag.spv
 
 bin/shaders/instanced/basic_vert.spv: /home/luca/Dev/corender/shaders/instanced/basic_vert.glsl
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_25) "Generating bin/shaders/instanced/basic_vert.spv"
+bin/shaders/instanced/basic_vert.spv: /home/luca/Dev/corender/shared/pc.glsl
+bin/shaders/instanced/basic_vert.spv: /home/luca/Dev/corender/shared/segment_walking.glsl
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --blue --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_26) "Compiling shader /home/luca/Dev/corender/shaders/instanced/basic_vert.glsl -> /home/luca/Dev/corender/build/bin/shaders/instanced/basic_vert.spv"
 	/usr/bin/cmake -E make_directory /home/luca/Dev/corender/build/bin/shaders/instanced
-	glslc -fshader-stage=vertex --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/instanced/basic_vert.glsl -o /home/luca/Dev/corender/build/bin/shaders/instanced/basic_vert.spv
+	/usr/bin/glslc -O -DCR_ENABLE_GPU_STATS=0 -fshader-stage=vertex --target-env=vulkan1.1 /home/luca/Dev/corender/shaders/instanced/basic_vert.glsl -o /home/luca/Dev/corender/build/bin/shaders/instanced/basic_vert.spv
 
 CMakeFiles/shaders.dir/codegen:
 .PHONY : CMakeFiles/shaders.dir/codegen

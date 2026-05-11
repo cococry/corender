@@ -161,7 +161,7 @@ _create_rendering_context(struct cr_context_t* ctx, const struct cr_context_init
     return false;
   }
 
-  if(!cr_util_global_gpu_profiler_init(ctx)) {
+  if(info->enable_gpu_profiler && !cr_util_global_gpu_profiler_init(ctx)) {
     CR_WARN(ctx->log, "GPU profiler cannot be enabled.");
   }
 
@@ -623,16 +623,6 @@ _create_frameloop(struct cr_context_t* ctx, struct cr_frameloop_t* o_frameloop, 
 
     _VK_CHECK(ctx, vkCreateFence(
       ctx->swapchain.logical_dev, &fence_info, NULL, &frame->in_flight_fence));
-
-    if(ctx->enable_time_measuring) {
-      VkQueryPoolCreateInfo qp_info = {
-        .sType      = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
-        .queryType  = VK_QUERY_TYPE_TIMESTAMP,
-        .queryCount = 2,
-      };
-
-      vkCreateQueryPool(ctx->logical_dev, &qp_info, NULL, &frame->timestamp_pool);
-    }
 
     CR_TRACE(ctx->log, "Initialized Vulkan frameloop frame data for frame %i", 
              i);
@@ -1299,7 +1289,6 @@ bool
 cr_context_create(struct cr_context_t* ctx, const struct cr_context_init_info_t* info) {
   memset(ctx, 0, sizeof *ctx);
   ctx->_skip_render = false;
-  ctx->enable_time_measuring = info->enable_time_measuring;
 
   if(!_create_log_context(ctx, info)) {
     CR_ERROR(ctx->log, "Failed to create logging context.");
@@ -1322,6 +1311,537 @@ void
 cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color) {
   memcpy(ctx->_pass_info.clear_color, color, sizeof(vec4));
 }
+
+#if CR_ENABLE_GPU_STATS
+
+static void
+cr_stats_hist_bin_range(int bin, uint32_t* lo, uint32_t* hi) {
+    if (bin <= 0) {
+        *lo = 0;
+        *hi = 0;
+        return;
+    }
+
+    if (bin == 1) {
+        *lo = 1;
+        *hi = 1;
+        return;
+    }
+
+    if (bin >= 31) {
+        *lo = 1u << 30;
+        *hi = UINT32_MAX;
+        return;
+    }
+
+    *lo = 1u << (bin - 1);
+    *hi = (1u << bin) - 1u;
+}
+
+
+void
+cr_read_stats_from_frame(
+        struct cr_context_t* ctx,
+        struct cr_gpu_stats_t* out_stats
+        ) {
+    memcpy(
+            out_stats,
+            compute_pipeline.dynamic[ctx->_swapchain_img_idx].gpu_stats_readback_buf.mem_handle,
+            sizeof(*out_stats)
+          );
+}
+
+static uint32_t
+cr_stats_hist_count_ge(
+    const uint32_t hist[CR_STATS_HIST_BINS],
+    uint32_t threshold
+) {
+    uint32_t total = 0;
+
+    for (int i = 0; i < CR_STATS_HIST_BINS; i++) {
+        uint32_t lo = 0;
+        uint32_t hi = 0;
+
+        cr_stats_hist_bin_range(i, &lo, &hi);
+
+        if (lo >= threshold) {
+            total += hist[i];
+        }
+    }
+
+    return total;
+}
+
+static int
+cr_stats_percentile_bin_nonzero(
+    const uint32_t hist[CR_STATS_HIST_BINS],
+    uint32_t total_nonzero,
+    float p
+) {
+    if (total_nonzero == 0) {
+        return 0;
+    }
+
+    uint32_t target = (uint32_t)ceilf((float)total_nonzero * p);
+    if (target == 0) {
+        target = 1;
+    }
+
+    uint32_t acc = 0;
+
+    /*
+        Skip bin 0, because bin 0 is empty tiles.
+        This gives percentiles over active/touched tiles.
+    */
+    for (int i = 1; i < CR_STATS_HIST_BINS; i++) {
+        acc += hist[i];
+
+        if (acc >= target) {
+            return i;
+        }
+    }
+
+    return CR_STATS_HIST_BINS - 1;
+}
+static int
+cr_stats_percentile_bin(
+    const uint32_t hist[CR_STATS_HIST_BINS],
+    uint32_t total,
+    float p
+) {
+    if (total == 0) {
+        return 0;
+    }
+
+    uint32_t target = (uint32_t)ceilf((float)total * p);
+    if (target == 0) {
+        target = 1;
+    }
+
+    uint32_t acc = 0;
+
+    for (int i = 0; i < CR_STATS_HIST_BINS; i++) {
+        acc += hist[i];
+
+        if (acc >= target) {
+            return i;
+        }
+    }
+
+    return CR_STATS_HIST_BINS - 1;
+}
+
+static void
+cr_stats_print_bin_label(int bin) {
+    uint32_t lo = 0;
+    uint32_t hi = 0;
+
+    cr_stats_hist_bin_range(bin, &lo, &hi);
+
+    if (lo == hi) {
+        printf("%u", lo);
+    } else if (hi == UINT32_MAX) {
+        printf("%u+", lo);
+    } else {
+        printf("%u-%u", lo, hi);
+    }
+}
+
+static void
+cr_stats_print_hist_compact(
+    const char* name,
+    const uint32_t hist[CR_STATS_HIST_BINS]
+) {
+    printf("  %-24s", name);
+
+    int printed = 0;
+
+    for (int i = 0; i < CR_STATS_HIST_BINS; i++) {
+        if (hist[i] == 0) {
+            continue;
+        }
+
+        if (printed == 0) {
+            printf(" ");
+        } else {
+            printf(", ");
+        }
+
+        cr_stats_print_bin_label(i);
+        printf(":%u", hist[i]);
+
+        printed++;
+    }
+
+    if (printed == 0) {
+        printf(" empty");
+    }
+
+    printf("\n");
+}
+
+static float
+cr_stats_div_u32(uint32_t num, uint32_t den) {
+    return den ? ((float)num / (float)den) : 0.0f;
+}
+
+static float
+cr_stats_percent_u32(uint32_t num, uint32_t den) {
+    return den ? (100.0f * (float)num / (float)den) : 0.0f;
+}
+
+void
+cr_print_gpu_stats(const struct cr_gpu_stats_t* s) {
+    if (!s) {
+        return;
+    }
+
+    int tile_active_p50_bin = cr_stats_percentile_bin_nonzero(
+        s->hist_tile_segments,
+        s->active_tiles,
+        0.50f
+    );
+
+    int tile_active_p90_bin = cr_stats_percentile_bin_nonzero(
+        s->hist_tile_segments,
+        s->active_tiles,
+        0.90f
+    );
+
+    int tile_active_p95_bin = cr_stats_percentile_bin_nonzero(
+        s->hist_tile_segments,
+        s->active_tiles,
+        0.95f
+    );
+
+    int tile_active_p99_bin = cr_stats_percentile_bin_nonzero(
+        s->hist_tile_segments,
+        s->active_tiles,
+        0.99f
+    );
+
+    int fine_p50_bin = cr_stats_percentile_bin(
+        s->hist_fine_segments,
+        s->fine_tiles,
+        0.50f
+    );
+
+    int fine_p90_bin = cr_stats_percentile_bin(
+        s->hist_fine_segments,
+        s->fine_tiles,
+        0.90f
+    );
+
+    int fine_p95_bin = cr_stats_percentile_bin(
+        s->hist_fine_segments,
+        s->fine_tiles,
+        0.95f
+    );
+
+    int fine_p99_bin = cr_stats_percentile_bin(
+        s->hist_fine_segments,
+        s->fine_tiles,
+        0.99f
+    );
+
+    float avg_tile_segments = cr_stats_div_u32(
+        s->total_tile_segments,
+        s->n_tiles_seen
+    );
+
+    float avg_tile_segments_active = cr_stats_div_u32(
+        s->total_tile_segments,
+        s->active_tiles
+    );
+
+    float avg_fine_segments = cr_stats_div_u32(
+        s->total_fine_segments,
+        s->fine_tiles
+    );
+
+    float active_pct = cr_stats_percent_u32(
+        s->active_tiles,
+        s->n_tiles_seen
+    );
+
+    float fine_pct = cr_stats_percent_u32(
+        s->fine_tiles,
+        s->n_tiles_seen
+    );
+
+    float solid_pct = cr_stats_percent_u32(
+        s->solid_tiles,
+        s->n_tiles_seen
+    );
+
+    float empty_pct = cr_stats_percent_u32(
+        s->empty_tiles,
+        s->n_tiles_seen
+    );
+
+    float invalid_pct = cr_stats_percent_u32(
+        s->invalid_edges,
+        s->valid_edges + s->invalid_edges
+    );
+
+    float yedge_pct = cr_stats_percent_u32(
+        s->y_edge_edges,
+        s->valid_edges
+    );
+
+    float horiz_pct = cr_stats_percent_u32(
+        s->horizontal_edges,
+        s->valid_edges
+    );
+
+    /*
+        Contention-derived stats.
+
+        contention_tiles:
+            tiles with 2+ touches.
+
+        contended_tile_segments:
+            all touches that landed on tiles with 2+ touches.
+
+        excess_tile_segments:
+            touches after the first touch per tile.
+
+        tile_atomic_pair_pressure:
+            sum n * (n - 1) / 2 over tiles.
+            This is a concentration proxy for atomicAdd(tile_segments[tile]).
+    */
+    float contention_tile_pct = cr_stats_percent_u32(
+        s->contention_tiles,
+        s->active_tiles
+    );
+
+    float contended_touch_pct = cr_stats_percent_u32(
+        s->contended_tile_segments,
+        s->total_tile_segments
+    );
+
+    float excess_touch_pct = cr_stats_percent_u32(
+        s->excess_tile_segments,
+        s->total_tile_segments
+    );
+
+    float avg_extra_hits_per_active_tile = cr_stats_div_u32(
+        s->excess_tile_segments,
+        s->active_tiles
+    );
+
+    float avg_prior_hits_per_touch = cr_stats_div_u32(
+        s->tile_atomic_pair_pressure,
+        s->total_tile_segments
+    );
+
+    uint32_t hot_ge_8 = cr_stats_hist_count_ge(
+        s->hist_tile_segments,
+        8u
+    );
+
+    uint32_t hot_ge_16 = cr_stats_hist_count_ge(
+        s->hist_tile_segments,
+        16u
+    );
+
+    uint32_t hot_ge_32 = cr_stats_hist_count_ge(
+        s->hist_tile_segments,
+        32u
+    );
+
+    uint32_t hot_ge_64 = cr_stats_hist_count_ge(
+        s->hist_tile_segments,
+        64u
+    );
+
+    uint32_t hot_ge_128 = cr_stats_hist_count_ge(
+        s->hist_tile_segments,
+        128u
+    );
+
+    float hot_ge_8_pct = cr_stats_percent_u32(
+        hot_ge_8,
+        s->active_tiles
+    );
+
+    float hot_ge_16_pct = cr_stats_percent_u32(
+        hot_ge_16,
+        s->active_tiles
+    );
+
+    float hot_ge_32_pct = cr_stats_percent_u32(
+        hot_ge_32,
+        s->active_tiles
+    );
+
+    float hot_ge_64_pct = cr_stats_percent_u32(
+        hot_ge_64,
+        s->active_tiles
+    );
+
+    float hot_ge_128_pct = cr_stats_percent_u32(
+        hot_ge_128,
+        s->active_tiles
+    );
+
+    printf("\n");
+    printf("[cr-gpu-stats]\n");
+
+    printf(
+        "  tiles                  seen=%u active=%u (%.1f%%) empty=%u (%.1f%%) solid=%u (%.1f%%) fine=%u (%.1f%%)\n",
+        s->n_tiles_seen,
+        s->active_tiles,
+        active_pct,
+        s->empty_tiles,
+        empty_pct,
+        s->solid_tiles,
+        solid_pct,
+        s->fine_tiles,
+        fine_pct
+    );
+
+    printf(
+        "  tile segments          total=%u avg/tile=%.2f avg/active=%.2f max/tile=%u active_p50~",
+        s->total_tile_segments,
+        avg_tile_segments,
+        avg_tile_segments_active,
+        s->max_tile_segments
+    );
+    cr_stats_print_bin_label(tile_active_p50_bin);
+
+    printf(" p90~");
+    cr_stats_print_bin_label(tile_active_p90_bin);
+
+    printf(" p95~");
+    cr_stats_print_bin_label(tile_active_p95_bin);
+
+    printf(" p99~");
+    cr_stats_print_bin_label(tile_active_p99_bin);
+
+    printf("\n");
+
+    printf(
+        "  tile contention        tiles=%u (%.1f%% active) contended_touches=%u (%.1f%% touches) excess_touches=%u (%.1f%% touches)\n",
+        s->contention_tiles,
+        contention_tile_pct,
+        s->contended_tile_segments,
+        contended_touch_pct,
+        s->excess_tile_segments,
+        excess_touch_pct
+    );
+
+    printf(
+        "  tile atomic pressure   pair_pressure=%u avg_prior_hits/touch=%.2f avg_extra_hits/active_tile=%.2f\n",
+        s->tile_atomic_pair_pressure,
+        avg_prior_hits_per_touch,
+        avg_extra_hits_per_active_tile
+    );
+
+    printf(
+        "  hot tile thresholds    >=8=%u (%.1f%% active) >=16=%u (%.1f%%) >=32=%u (%.1f%%) >=64=%u (%.1f%%) >=128=%u (%.1f%%)\n",
+        hot_ge_8,
+        hot_ge_8_pct,
+        hot_ge_16,
+        hot_ge_16_pct,
+        hot_ge_32,
+        hot_ge_32_pct,
+        hot_ge_64,
+        hot_ge_64_pct,
+        hot_ge_128,
+        hot_ge_128_pct
+    );
+
+    printf(
+        "  fine segments          total=%u avg/fine=%.2f max/fine=%u p50~",
+        s->total_fine_segments,
+        avg_fine_segments,
+        s->max_fine_segments
+    );
+    cr_stats_print_bin_label(fine_p50_bin);
+
+    printf(" p90~");
+    cr_stats_print_bin_label(fine_p90_bin);
+
+    printf(" p95~");
+    cr_stats_print_bin_label(fine_p95_bin);
+
+    printf(" p99~");
+    cr_stats_print_bin_label(fine_p99_bin);
+
+    printf("\n");
+
+    printf(
+        "  fine pressure          estimated_edge_evals=%u\n",
+        s->estimated_fine_edge_evals
+    );
+
+    printf(
+        "  scatter edges          valid=%u invalid=%u (%.2f%%) y_edge=%u (%.1f%%) horizontal=%u (%.1f%%)\n",
+        s->valid_edges,
+        s->invalid_edges,
+        invalid_pct,
+        s->y_edge_edges,
+        yedge_pct,
+        s->horizontal_edges,
+        horiz_pct
+    );
+
+    printf(
+        "  scatter rejects        zero_len=%u tile_mismatch=%u\n",
+        s->zero_length_edges,
+        s->tile_mismatch_edges
+    );
+
+    printf(
+        "  winding                max_abs=%u\n",
+        s->max_abs_winding
+    );
+
+    cr_stats_print_hist_compact(
+        "tile_seg_hist",
+        s->hist_tile_segments
+    );
+
+    cr_stats_print_hist_compact(
+        "fine_seg_hist",
+        s->hist_fine_segments
+    );
+
+    if (s->tile_mismatch_edges != 0) {
+        printf(
+            "  WARNING                tile_mismatch_edges is nonzero. Walk/scatter disagree.\n"
+        );
+    }
+
+    if (s->invalid_edges > s->valid_edges / 10u && s->valid_edges > 0u) {
+        printf(
+            "  WARNING                invalid_edges > 10%% of valid_edges. Scatter may be rejecting too much.\n"
+        );
+    }
+
+    if (s->max_tile_segments > 128u || hot_ge_64 != 0u) {
+        printf(
+            "  NOTE                   tile segment contention looks high. tile_segments[] atomics may be a real bottleneck.\n"
+        );
+    }
+
+    if (avg_prior_hits_per_touch > 8.0f) {
+        printf(
+            "  NOTE                   avg_prior_hits/touch is high. Touches are concentrated onto hot tile addresses.\n"
+        );
+    }
+
+    if (s->max_fine_segments > 512u) {
+        printf(
+            "  NOTE                   max_fine_segments is high. Check for pathological hot tiles.\n"
+        );
+    }
+
+    printf("\n");
+}
+
+#endif
 
 bool  
 cr_draw_begin(struct cr_context_t* ctx) {
@@ -1346,40 +1866,24 @@ cr_draw_begin(struct cr_context_t* ctx) {
       goto err;
   }
 
+#if CR_ENABLE_GPU_STATS 
+  if(ctx->frameloop.frame_counter % 600 == 0) {
+      struct cr_gpu_stats_t stats;
+      cr_read_stats_from_frame(ctx, &stats);
+      cr_print_gpu_stats(&stats);
+  }
+#endif
+
   /* GPU has finished all work previously submitted for this frame slot.
      Safe to read timestamp query results for this frame_idx. */
-  cr_gpu_profiler_collect_frame(
+  
+  if(cr_util_global_gpu_profiler_get()) { 
+      cr_gpu_profiler_collect_frame(
           cr_util_global_gpu_profiler_get(),
           ctx->frameloop.frame_idx
           );
-
-  if(ctx->enable_time_measuring) {
-    uint64_t timestamps[2];
-
-    uint32_t read_frame = (ctx->frameloop.frame_idx + CR_FRAME_COUNT - 1) % CR_FRAME_COUNT;
-
-    VkQueryPool pool = ctx->frameloop.frames[read_frame].timestamp_pool;
-
-    vkGetQueryPoolResults(
-      ctx->logical_dev,
-      pool,
-      0, 2,
-      sizeof(timestamps),
-      timestamps,
-      sizeof(uint64_t),
-      VK_QUERY_RESULT_64_BIT
-    );
-
-
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(ctx->phys_dev, &props);
-
-    double timestampPeriod = props.limits.timestampPeriod; 
-
-    double gpu_ms = (timestamps[1] - timestamps[0]) * timestampPeriod * 1e-6;
-
-    ctx->ms_gpu = gpu_ms;
   }
+
 
   cr_mem_staging_ring_begin(frame);
 
@@ -1388,10 +1892,6 @@ cr_draw_begin(struct cr_context_t* ctx) {
   //if(!cr_mem_upadate_lazy_destroys(ctx)) goto err; 
 
   ctx->_swapchain_img_idx = 0;
-
-  if(ctx->enable_time_measuring) {
-    _frame_start_time = cr_util_get_time_ns();
-  }
 
   VkResult res = vkAcquireNextImageKHR(
     ctx->logical_dev,
@@ -1536,11 +2036,13 @@ cr_draw_end(struct cr_context_t* ctx) {
 
   _VK_CHECK(ctx, vkBeginCommandBuffer(frame->cmd_buf, &begin_info));
 
-  cr_gpu_profiler_begin_frame(
-          cr_util_global_gpu_profiler_get(),
-          ctx->frameloop.frame_idx,
-          frame->cmd_buf
-          );
+  if(cr_util_global_gpu_profiler_get()) {
+      cr_gpu_profiler_begin_frame(
+              cr_util_global_gpu_profiler_get(),
+              ctx->frameloop.frame_idx,
+              frame->cmd_buf
+              );
+  }
 
   //cr_raster_pipeline_batching_commit(ctx, &instanced_raster_pipeline, ctx->frameloop.frame_idx);
   cr_compute_pipeline_dispatch(ctx, &compute_pipeline, ctx->frameloop.frame_idx, ctx->_swapchain_img_idx);
@@ -1574,7 +2076,6 @@ _VK_CHECK(ctx,
 );
 
 
-vkQueueWaitIdle(ctx->graphics_queue);
   VkPresentInfoKHR present_info = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,
@@ -1586,16 +2087,13 @@ vkQueueWaitIdle(ctx->graphics_queue);
 
   vkQueuePresentKHR(ctx->present_queue, &present_info);
 
+  
+  ctx->frameloop.frame_counter++;
+
   cr_mem_staging_ring_end(frame);
 
   ctx->frameloop.frame_idx = (ctx->frameloop.frame_idx + 1) % CR_FRAME_COUNT;
 
-
-  if(ctx->enable_time_measuring) {
-    uint64_t frame_end = cr_util_get_time_ns();
-
-    ctx->ms_cpu = (frame_end - _frame_start_time) / 1e6;
-  }
 
   return true;
 

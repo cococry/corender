@@ -13,7 +13,7 @@
 
 #define _SUBSYS_NAME "UTIL"
 
-struct cr_gpu_profiler_t global_profiler;
+struct cr_gpu_profiler_t* global_profiler = NULL;
 
 char* cr_util_get_state_folder(void) {
   const char* state_home = getenv("XDG_STATE_HOME");
@@ -199,8 +199,9 @@ uint32_t cr_util_djb2_hash(char *str) {
 }
 
 bool cr_util_global_gpu_profiler_init(struct cr_context_t* ctx) {
+    global_profiler = cr_util_alloc(ctx, 1, sizeof(*global_profiler));
     bool ok = cr_gpu_profiler_init(
-            &global_profiler,
+            global_profiler,
             ctx->phys_dev,
             ctx->logical_dev,
             ctx->graphics_queue_family, 
@@ -213,7 +214,7 @@ bool cr_util_global_gpu_profiler_init(struct cr_context_t* ctx) {
 }
 
 struct cr_gpu_profiler_t* cr_util_global_gpu_profiler_get() {
-    return &global_profiler;
+    return global_profiler;
 }
 
 

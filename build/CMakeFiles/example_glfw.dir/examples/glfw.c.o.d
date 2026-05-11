@@ -44,9 +44,8 @@ CMakeFiles/example_glfw.dir/examples/glfw.c.o: \
  /usr/include/bits/time.h /usr/include/bits/types/struct_tm.h \
  /usr/include/bits/types/struct_itimerspec.h \
  /usr/include/bits/types/locale_t.h /usr/include/bits/types/__locale_t.h \
- /usr/include/string.h /usr/include/strings.h /usr/include/GLFW/glfw3.h \
- /usr/include/vulkan/vulkan.h /usr/include/vulkan/vk_platform.h \
- /usr/include/vulkan/vulkan_core.h \
+ /usr/include/GLFW/glfw3.h /usr/include/vulkan/vulkan.h \
+ /usr/include/vulkan/vk_platform.h /usr/include/vulkan/vulkan_core.h \
  /usr/include/vk_video/vulkan_video_codec_h264std.h \
  /usr/include/vk_video/vulkan_video_codecs_common.h \
  /usr/include/vk_video/vulkan_video_codec_h264std_encode.h \

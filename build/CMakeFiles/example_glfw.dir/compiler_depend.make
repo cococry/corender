@@ -135,8 +135,6 @@ CMakeFiles/example_glfw.dir/examples/glfw.c.o: /home/luca/Dev/corender/examples/
   /usr/include/stdint.h \
   /usr/include/stdio.h \
   /usr/include/stdlib.h \
-  /usr/include/string.h \
-  /usr/include/strings.h \
   /usr/include/sys/cdefs.h \
   /usr/include/sys/select.h \
   /usr/include/sys/types.h \
@@ -330,8 +328,6 @@ CMakeFiles/example_glfw.dir/examples/glfw.c.o:
 /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/xsavesintrin.h:
 
 /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/xsaveoptintrin.h:
-
-/usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/xsavecintrin.h:
 
 /usr/include/bits/endianness.h:
 
@@ -647,8 +643,6 @@ libcorender.a:
 
 /usr/include/bits/mathcalls-helper-functions.h:
 
-/usr/include/string.h:
-
 /usr/include/gnu/stubs-64.h:
 
 /usr/include/vulkan/vulkan.h:
@@ -670,8 +664,6 @@ libcorender.a:
 /usr/include/bits/wordsize.h:
 
 /usr/include/stdio.h:
-
-/usr/include/strings.h:
 
 /usr/include/sys/select.h:
 
@@ -823,10 +815,6 @@ libcorender.a:
 
 /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stddef.h:
 
-/usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/xsaveintrin.h:
-
-/usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/vaesintrin.h:
-
 /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/mwaitxintrin.h:
 
 /usr/include/time.h:
@@ -870,3 +858,9 @@ libcorender.a:
 /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/uintrintrin.h:
 
 /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/vpclmulqdqintrin.h:
+
+/usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/xsavecintrin.h:
+
+/usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/vaesintrin.h:
+
+/usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/xsaveintrin.h:

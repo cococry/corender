@@ -1,15 +1,12 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_debug_printf : enable
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
 
 #include "../../shared/pc.glsl"
+#include "../../shared/segment_walking.glsl"
 
 layout(local_size_x = 256) in;
-
-struct TileTouchRecord {
-    uint seg_id;
-    uint pack;
-};
 
 layout(set = 0, binding = SEGMENTS_BINDING, std430) readonly buffer Segments {
     Segment segments[];
@@ -27,384 +24,208 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 2, std430) buffer TileEve
     int tile_events[];
 };
 
-const float EPS = 1e-6;
-const float TILE_BOUNDARY_EPS = 1e-6;
-const float DDA_CORNER_EPS = 1e-6;
+bool in_tile_bounds(ivec2 tile) {
+    return
+        tile.x >= 0 &&
+        tile.y >= 0 &&
+        tile.x < int(pc.n_tiles_x) &&
+        tile.y < int(pc.n_tiles_y);
+}
 
-void visit_tile(ivec2 tile, uint seg_id, uint local_idx, uint max_touches) {
-    if (
-        tile.x < 0 ||
-        tile.y < 0 ||
-        tile.x >= int(pc.n_tiles_x) ||
-        tile.y >= int(pc.n_tiles_y)
-    ) {
-        atomicOr(bump.failed, FAIL_BAD_TOUCH_TILE);
-        return;
+
+uint reserve_touch_idx() {
+    /*
+        Subgroup-batched global touch allocation.
+
+        Every active lane calling visit_tile participates. This turns:
+            one atomicAdd(bump.n_touches) per touch
+        into approximately:
+            one atomicAdd per active subgroup batch
+    */
+    uvec4 mask = subgroupBallot(true);
+    uint count = subgroupBallotBitCount(mask);
+    uint off = subgroupBallotExclusiveBitCount(mask);
+
+    uint base = 0u;
+
+    if (subgroupElect()) {
+        base = atomicAdd(bump.n_touches, count);
     }
+
+    base = subgroupBroadcastFirst(base);
+
+    return base + off;
+}
+
+
+TileTouchRecord pack_touch_record(
+    uint seg_id,
+    uint tile_id,
+    uint rank,
+    uint local_tile
+) {
+    TileTouchRecord r;
+
+    r.a = 0u;
+    r.b = 0u;
+
+    // enable GPU stats is used more as a 
+    // debug/sanitizing flag here
+#if CR_ENABLE_GPU_STATS
+    if (seg_id > TOUCH_SEG_MASK) {
+        atomicOr(bump.failed, FAIL_TOUCH_OVERFLOW);
+        return r;
+    }
+
+    if (tile_id > TOUCH_TILE_MASK) {
+        atomicOr(bump.failed, FAIL_TILE_ID_OVERFLOW);
+        return r;
+    }
+
+    if (local_tile > TOUCH_LOCAL_TILE_MASK) {
+        atomicOr(bump.failed, FAIL_TOUCH_OVERFLOW);
+        return r;
+    }
+#endif
+    
+    if (rank > TOUCH_RANK_MASK) {
+        atomicOr(bump.failed, FAIL_RANK_OVERFLOW);
+        return r;
+    }
+
+    r.a =
+        (seg_id & TOUCH_SEG_MASK) |
+        ((rank & TOUCH_RANK_MASK) << TOUCH_SEG_BITS);
+
+    r.b =
+        (tile_id & TOUCH_TILE_MASK) |
+        ((local_tile & TOUCH_LOCAL_TILE_MASK) << TOUCH_TILE_BITS);
+
+    return r;
+}
+
+uint touch_seg_id(TileTouchRecord r) {
+    return r.a & TOUCH_SEG_MASK;
+}
+
+uint touch_rank(TileTouchRecord r) {
+    return (r.a >> TOUCH_SEG_BITS) & TOUCH_RANK_MASK;
+}
+
+uint touch_tile_id(TileTouchRecord r) {
+    return r.b & TOUCH_TILE_MASK;
+}
+
+uint touch_local_tile(TileTouchRecord r) {
+    return (r.b >> TOUCH_TILE_BITS) & TOUCH_LOCAL_TILE_MASK;
+}
+
+void visit_tile(ivec2 tile, uint seg_id, uint local_tile) {
 
     uint tile_id = uint(tile.y) * pc.n_tiles_x + uint(tile.x);
 
+#if CR_ENABLE_GPU_STATS
     if (tile_id >= pc.n_tiles) {
         atomicOr(bump.failed, FAIL_BAD_TOUCH_TILE);
         return;
     }
+#endif
 
-    uint rank = atomicAdd(tile_segments[tile_id], 1u);
-    uint touch_idx = atomicAdd(bump.n_touches, 1u);
+    // most heavily contented atomic... grr atomics
+    uint rank = atomicAdd(tile_segments[tile_id], 1u);  
 
-    if (touch_idx >= max_touches) {
+    uint touch_idx = reserve_touch_idx();
+
+    if (touch_idx >= pc.max_tile_storage) {
         atomicOr(bump.failed, FAIL_TOUCH_OVERFLOW);
         return;
     }
+    
+    TileTouchRecord rec = pack_touch_record(seg_id, tile_id, rank, local_tile);
 
-    if (rank >= 65536u) {
-        atomicOr(bump.failed, FAIL_RANK_OVERFLOW);
-        return;
-    }
-
-    if (tile_id >= 65536u) {
-        atomicOr(bump.failed, FAIL_TILE_ID_OVERFLOW);
-        return;
-    }
-
-    tile_touch_records[touch_idx].seg_id = seg_id;
-    tile_touch_records[touch_idx].pack = (rank << 16u) | (tile_id & 0xffffu);
+    tile_touch_records[touch_idx] = rec;
 }
 
-bool clip_test(float p, float q, inout float t0, inout float t1) {
-    const float CLIP_EPS = 1e-8;
-
-    if (abs(p) < CLIP_EPS) {
-        return q >= 0.0;
+void emit_backdrop_delta(int y, int x, int delta) {
+    if (y < 0 || y >= int(pc.n_tiles_y)) {
+        return;
     }
 
-    float r = q / p;
-
-    if (p < 0.0) {
-        if (r > t1) return false;
-        if (r > t0) t0 = r;
-    } else {
-        if (r < t0) return false;
-        if (r < t1) t1 = r;
+    if (x < 0) {
+        x = 0;
+        // tiles left of the screen still need to 
+        // emit backdrop events, no return
     }
 
-    return true;
+    if (x >= int(pc.n_tiles_x)) {
+        return;
+    }
+
+    uint tile_id = uint(y) * pc.n_tiles_x + uint(x);
+
+    atomicAdd(tile_events[tile_id], delta);
 }
 
-bool clip_segment_to_rect(
-    inout vec2 p0,
-    inout vec2 p1,
-    vec2 rect_mn,
-    vec2 rect_mx
-) {
-    vec2 d = p1 - p0;
-
-    float t0 = 0.0;
-    float t1 = 1.0;
-
-    if (!clip_test(-d.x, p0.x - rect_mn.x, t0, t1)) return false;
-    if (!clip_test( d.x, rect_mx.x - p0.x, t0, t1)) return false;
-    if (!clip_test(-d.y, p0.y - rect_mn.y, t0, t1)) return false;
-    if (!clip_test( d.y, rect_mx.y - p0.y, t0, t1)) return false;
-
-    vec2 old_p0 = p0;
-
-    p0 = old_p0 + d * t0;
-    p1 = old_p0 + d * t1;
-
-    return true;
+bool starts_new_row(LineWalkParams lp, uint local_tile, float current_x_steps, float last_n_x_steps) {
+    // x did not change between previous tile and current tile
+    return
+        (local_tile == 0u)
+        ? (lp.y0 == lp.s0.y)
+        : (last_n_x_steps == current_x_steps);
 }
 
-ivec2 tile_of_point_for_direction(vec2 p, vec2 dir, float inv_tile_size) {
-    vec2 tc = p * inv_tile_size;
-    vec2 ftc = floor(tc);
-    ivec2 t = ivec2(ftc);
+void walk_segment_tiles(LineWalkParams lp, uint seg_id) {
+    float last_n_x_steps = floor(lp.x_step_rate * -1.0 + lp.x_step_start_offset);
 
-    if (dir.x < 0.0 && abs(tc.x - ftc.x) < TILE_BOUNDARY_EPS) {
-        t.x -= 1;
-    }
+    for (uint local_tile = 0u; local_tile < lp.count; local_tile++) {
+        float n_x_steps;
+        ivec2 tile = tile_for_local_tile(lp, local_tile, n_x_steps);
 
-    if (dir.y < 0.0 && abs(tc.y - ftc.y) < TILE_BOUNDARY_EPS) {
-        t.y -= 1;
-    }
+        bool changed_row = starts_new_row(lp, local_tile, n_x_steps, last_n_x_steps);
 
-    return t;
-}
-
-bool tile_y_boundary_row(float y, float inv_ts, out int row) {
-    float ty = y * inv_ts;
-    float nearest = round(ty);
-
-    if (abs(ty - nearest) > TILE_BOUNDARY_EPS) {
-        row = 0;
-        return false;
-    }
-
-    row = int(nearest);
-    return true;
-}
-
-int first_tile_strictly_right_of_crossing_float(float x, float inv_ts) {
-    float tx = x * inv_ts;
-    float nearest = round(tx);
-
-    if (abs(tx - nearest) < TILE_BOUNDARY_EPS) {
-        tx = nearest;
-    }
-
-    return max(int(floor(tx)) + 1, 0);
-}
-
-void emit_top_edge_event_at_tile(uint event_y, uint event_x, vec2 d) {
-    if (event_y >= pc.n_tiles_y) {
-        return;
-    }
-
-    if (event_x >= pc.n_tiles_x) {
-        return;
-    }
-
-    if (abs(d.y) <= EPS) {
-        return;
-    }
-
-    int delta = d.y > 0.0 ? -1 : 1;
-
-    uint event_tile_id = event_y * pc.n_tiles_x + event_x;
-    atomicAdd(tile_events[event_tile_id], delta);
-}
-
-void emit_top_edge_event_for_y_crossing(
-    ivec2 from_tile,
-    ivec2 to_tile,
-    vec2 p0,
-    vec2 d,
-    float t_cross,
-    bool crossed_x_too,
-    float inv_ts
-) {
-    if (from_tile.y == to_tile.y) {
-        return;
-    }
-
-    int event_y = max(from_tile.y, to_tile.y);
-
-    if (event_y < 0 || event_y >= int(pc.n_tiles_y)) {
-        return;
-    }
-
-    float x_cross = p0.x + d.x * t_cross;
-
-    int event_x = first_tile_strictly_right_of_crossing_float(
-        x_cross,
-        inv_ts
-    );
-
-    if (event_x < 0 || event_x >= int(pc.n_tiles_x)) {
-        return;
-    }
-
-    emit_top_edge_event_at_tile(uint(event_y), uint(event_x), d);
-}
-
-void emit_endpoint_top_edge_event(vec2 p, vec2 d, float inv_ts) {
-    int row = 0;
-
-    if (!tile_y_boundary_row(p.y, inv_ts, row)) {
-        return;
-    }
-
-    if (row < 0 || row >= int(pc.n_tiles_y)) {
-        return;
-    }
-
-    int event_x = first_tile_strictly_right_of_crossing_float(p.x, inv_ts);
-
-    if (event_x < 0 || event_x >= int(pc.n_tiles_x)) {
-        return;
-    }
-
-    emit_top_edge_event_at_tile(uint(row), uint(event_x), d);
-}
-
-void walk_segment_global_tiles(vec2 p0_in, vec2 p1_in, uint seg_id, uint max_touches) {
-    vec2 p0 = p0_in;
-    vec2 p1 = p1_in;
-
-    float ts = float(pc.tile_size);
-    float inv_ts = 1.0 / ts;
-
-    vec2 screen_mn = vec2(0.0);
-    vec2 screen_mx = vec2(float(pc.screen_w), float(pc.screen_h));
-
-    if (!clip_segment_to_rect(p0, p1, screen_mn, screen_mx)) {
-        return;
-    }
-
-    vec2 d = p1 - p0;
-
-    if (dot(d, d) < EPS * EPS) {
-        return;
-    }
-
-    ivec2 tile = tile_of_point_for_direction(p0, d, inv_ts);
-    ivec2 end_tile = tile_of_point_for_direction(p1, -d, inv_ts);
-
-    ivec2 tile_mn = ivec2(0);
-    ivec2 tile_mx = ivec2(int(pc.n_tiles_x) - 1, int(pc.n_tiles_y) - 1);
-
-    tile = clamp(tile, tile_mn, tile_mx);
-    end_tile = clamp(end_tile, tile_mn, tile_mx);
-
-    if (d.y > EPS) {
-        emit_endpoint_top_edge_event(p0, d, inv_ts);
-    } else if (d.y < -EPS) {
-        emit_endpoint_top_edge_event(p1, d, inv_ts);
-    }
-
-    uint local_tile_idx = 0u;
-
-    visit_tile(tile, seg_id, local_tile_idx, max_touches);
-
-    if (tile == end_tile) {
-        return;
-    }
-
-    int step_x = d.x > 0.0 ? 1 : (d.x < 0.0 ? -1 : 0);
-    int step_y = d.y > 0.0 ? 1 : (d.y < 0.0 ? -1 : 0);
-
-    const float INF = 3.402823466e+38;
-    float t_max_x = INF;
-    float t_max_y = INF;
-    float t_delta_x = INF;
-    float t_delta_y = INF;
-
-    if (step_y == 0) {
-        for (int x = tile.x + step_x; x != end_tile.x + step_x; x += step_x) {
-            local_tile_idx++;
-            visit_tile(ivec2(x, tile.y), seg_id, local_tile_idx, max_touches);
-        }
-        return;
-    }
-
-    if (step_x == 0) {
-        for (int y = tile.y + step_y; y != end_tile.y + step_y; y += step_y) {
-            ivec2 prev_tile = ivec2(tile.x, y - step_y);
-            ivec2 next_tile = ivec2(tile.x, y);
-
-            float boundary_y =
-                step_y > 0
-                ? float(y) * ts
-                : float(y + 1) * ts;
-
-            float t_cross = (boundary_y - p0.y) / d.y;
-
-            if (t_cross > EPS && t_cross < 1.0 - EPS) {
-                emit_top_edge_event_for_y_crossing(
-                    prev_tile,
-                    next_tile,
-                    p0,
-                    d,
-                    t_cross,
-                    false,
-                    inv_ts
-                );
-            }
-
-            local_tile_idx++;
-            visit_tile(next_tile, seg_id, local_tile_idx, max_touches);
+        // only emit backdrop events when we crossed a
+        // tile-row boundary
+        if (changed_row) {
+            emit_backdrop_delta(tile.y, tile.x + 1, lp.delta);
         }
 
-        return;
-    }
-
-    float next_boundary_x =
-        step_x > 0
-        ? float(tile.x + 1) * ts
-        : float(tile.x) * ts;
-
-    float inv_dx = 1.0 / d.x;
-    t_max_x = (next_boundary_x - p0.x) * inv_dx;
-    t_delta_x = ts * abs(inv_dx);
-
-    float next_boundary_y =
-        step_y > 0
-        ? float(tile.y + 1) * ts
-        : float(tile.y) * ts;
-
-    float inv_dy = 1.0 / d.y;
-    t_max_y = (next_boundary_y - p0.y) * inv_dy;
-    t_delta_y = ts * abs(inv_dy);
-
-    uint max_iters =
-        (pc.n_tiles_x > 0u ? pc.n_tiles_x - 1u : 0u) +
-        (pc.n_tiles_y > 0u ? pc.n_tiles_y - 1u : 0u);
-
-    for (uint iter = 0u; iter < max_iters; iter++) {
-        if (tile == end_tile) {
-            break;
+        // visit every tile this segment overlaps and 
+        // insert touch records.
+        if (in_tile_bounds(tile)) {
+            visit_tile(tile, seg_id, local_tile);
         }
 
-        ivec2 prev_tile = tile;
-
-        float corner_eps = DDA_CORNER_EPS * max(max(abs(t_max_x), abs(t_max_y)), 1.0);
-
-        if (t_max_x + corner_eps < t_max_y) {
-            tile.x += step_x;
-            t_max_x += t_delta_x;
-        } else if (t_max_y + corner_eps < t_max_x) {
-            float t_cross = t_max_y;
-
-            tile.y += step_y;
-            t_max_y += t_delta_y;
-
-            if (t_cross > EPS && t_cross < 1.0 - EPS) {
-                emit_top_edge_event_for_y_crossing(
-                    prev_tile,
-                    tile,
-                    p0,
-                    d,
-                    t_cross,
-                    false,
-                    inv_ts
-                );
-            }
-        } else {
-            float t_cross = min(t_max_x, t_max_y);
-
-            tile.x += step_x;
-            tile.y += step_y;
-
-            t_max_x += t_delta_x;
-            t_max_y += t_delta_y;
-
-            if (t_cross > EPS && t_cross < 1.0 - EPS) {
-                emit_top_edge_event_for_y_crossing(
-                    prev_tile,
-                    tile,
-                    p0,
-                    d,
-                    t_cross,
-                    true,
-                    inv_ts
-                );
-            }
-        }
-
-        if (
-            tile.x < tile_mn.x ||
-            tile.y < tile_mn.y ||
-            tile.x > tile_mx.x ||
-            tile.y > tile_mx.y
-        ) {
-            break;
-        }
-
-        local_tile_idx++;
-        visit_tile(tile, seg_id, local_tile_idx, max_touches);
+        last_n_x_steps = n_x_steps;
     }
 }
 
+void walk_segment(vec2 p0, vec2 p1, uint seg_id) {
+    if (pc.n_tiles_x == 0u || pc.n_tiles_y == 0u) {
+        return;
+    }
+
+    LineWalkParams lp;
+
+    if (!make_line_walk_params(p0, p1, lp)) {
+        return;
+    }
+
+    float xmin = min(lp.s0.x, lp.s1.x);
+    float xmax = max(lp.s0.x, lp.s1.x);
+
+    if (
+            lp.s0.y >= float(pc.n_tiles_y) ||
+            lp.s1.y <= 0.0 ||
+            xmin >= float(pc.n_tiles_x)
+       ) {
+        return;
+    }
+
+    walk_segment_tiles(lp, seg_id);
+}
+
+// dispatched over all segments globally. each 
+// workgroup handles 256 segments.
 void main() {
     uint seg_id = gl_GlobalInvocationID.x;
 
@@ -414,5 +235,7 @@ void main() {
 
     Segment seg = segments[seg_id];
 
-    walk_segment_global_tiles(seg.p0, seg.p1, seg_id, pc.max_tile_storage);
+    walk_segment(seg.p0, seg.p1, seg_id);
 }
+
+

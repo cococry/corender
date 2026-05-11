@@ -2,267 +2,376 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include "../../shared/pc.glsl"
+#include "../../shared/segment_walking.glsl"
 
 layout(local_size_x = 256) in;
 
-struct TileTouchRecord {
-    uint seg_id;
-    uint pack;
-};
-
-const uint TILE_EDGE_VALID       = 1u;
-const uint TILE_EDGE_NEGATIVE    = 2u;
-const uint TILE_EDGE_YEDGE_POS   = 4u;
-const uint TILE_EDGE_YEDGE_NEG   = 8u;
-
-const float TILE_EDGE_COORD_SCALE = 256.0;
-const uint TILE_EDGE_COORD_MAX = 65535u;
-
-const float EPS = 1e-6;
-const float TILE_BOUNDARY_EPS = 1e-5;
+const float ONE_MINUS_ULP = 0.99999994;
+const float ROBUST_EPSILON = 2e-7;
+const float EPSILON = 1e-6;
+const float CLIP_NUDGE = 1e-3;
 
 layout(set = 0, binding = SEGMENTS_BINDING, std430) readonly buffer Segments {
-    Segment segments[];
+  Segment segments[];
 };
 
 layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 1, std430) readonly buffer TileTouchRecords {
-    TileTouchRecord tile_touch_records[];
+  TileTouchRecord tile_touch_records[];
 };
 
 layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 5, std430) readonly buffer TileInfos {
-    TileInfo tile_infos[];
+  TileInfo tile_infos[];
 };
 
 layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 7, std430) writeonly buffer TileEdges {
-    TileEdge tile_edges[];
+  TileEdge tile_edges[];
 };
 
+#if CR_ENABLE_GPU_STATS
+layout(set = 0, binding = STATS_BINDING, std430) buffer StatsBuffer {
+  GpuStats stats;
+};
+#endif
+
 uint unpack_tile_id(uint packed_tile_rank) {
-    return packed_tile_rank & 0xffffu;
+  return packed_tile_rank & 0xffffu;
 }
 
 uint unpack_rank(uint packed_tile_rank) {
-    return packed_tile_rank >> 16u;
+  return packed_tile_rank >> 16u;
 }
 
-bool clip_test(float p, float q, inout float t0, inout float t1) {
-    const float CLIP_EPS = 1e-8;
-
-    if (abs(p) < CLIP_EPS) {
-        return q >= 0.0;
-    }
-
-    float r = q / p;
-
-    if (p < 0.0) {
-        if (r > t1) return false;
-        if (r > t0) t0 = r;
-    } else {
-        if (r < t0) return false;
-        if (r < t1) t1 = r;
-    }
-
-    return true;
-}
-
-bool clip_segment_to_rect(
-    inout vec2 p0,
-    inout vec2 p1,
-    vec2 rect_mn,
-    vec2 rect_mx
-) {
-    vec2 d = p1 - p0;
-
-    float t0 = 0.0;
-    float t1 = 1.0;
-
-    if (!clip_test(-d.x, p0.x - rect_mn.x, t0, t1)) return false;
-    if (!clip_test( d.x, rect_mx.x - p0.x, t0, t1)) return false;
-    if (!clip_test(-d.y, p0.y - rect_mn.y, t0, t1)) return false;
-    if (!clip_test( d.y, rect_mx.y - p0.y, t0, t1)) return false;
-
-    vec2 old_p0 = p0;
-
-    p0 = old_p0 + d * t0;
-    p1 = old_p0 + d * t1;
-
-    return true;
-}
 
 uint pack_coord(float v) {
-    float max_coord = float(TILE_EDGE_COORD_MAX) / TILE_EDGE_COORD_SCALE;
-    uint q = uint(round(clamp(v, 0.0, max_coord) * TILE_EDGE_COORD_SCALE));
-    return min(q, TILE_EDGE_COORD_MAX);
+  float ts = float(pc.tile_size);
+  return uint(round(clamp(v, 0.0, ts) * (65535.0 / ts)));
 }
 
 uint pack_point(vec2 p) {
-    uint x = pack_coord(p.x);
-    uint y = pack_coord(p.y);
-    return x | (y << 16u);
+  uint x = pack_coord(p.x);
+  uint y = pack_coord(p.y);
+  return x | (y << 16u);
 }
 
 TileEdge make_invalid_edge() {
-    TileEdge e;
-    e.p0 = 0u;
-    e.p1 = 0u;
-    e.meta = 0u;
-    e.y_edge = pack_coord(float(pc.tile_size));
-    return e;
+  TileEdge e;
+  e.p0 = 0u;
+  e.p1 = 0u;
+  return e;
 }
 
-bool is_integerish(float v) {
-    return abs(v - round(v)) < TILE_BOUNDARY_EPS;
+void write_invalid_edge(uint dst) {
+  CR_STAT_ADD(invalid_edges, 1u);
+  tile_edges[dst] = make_invalid_edge();
 }
 
-float compute_y_edge_for_left_boundary(
-    vec2 seg_p0,
-    vec2 seg_p1,
-    vec2 tile_mn,
-    vec2 tile_mx
-) {
-    vec2 d = seg_p1 - seg_p0;
+bool has_left_edge_signal(vec2 p0, vec2 p1) {
+  float ts = float(pc.tile_size);
 
-    float ts = tile_mx.y - tile_mn.y;
-    float sentinel = ts;
+  bool p0_left =
+    abs(p0.x) <= EPSILON &&
+    p0.y > EPSILON &&
+    p0.y < ts - EPSILON;
 
-    if (abs(d.x) <= EPS) {
-        return sentinel;
-    }
+  bool p1_left =
+    abs(p1.x) <= EPSILON &&
+    p1.y > EPSILON &&
+    p1.y < ts - EPSILON;
 
-    float t = (tile_mn.x - seg_p0.x) / d.x;
-
-    // Half-open segment ownership.
-    if (t < 0.0 || t >= 1.0) {
-        return sentinel;
-    }
-
-    float y = seg_p0.y + t * d.y;
-
-    if (y <= tile_mn.y + TILE_BOUNDARY_EPS ||
-        y >= tile_mx.y - TILE_BOUNDARY_EPS) {
-        return sentinel;
-    }
-
-    return y - tile_mn.y;
+  return p0_left || p1_left;
 }
 
+bool is_horizontal_edge(vec2 p0, vec2 p1) {
+  return abs(p1.y - p0.y) <= EPSILON;
+}
+
+bool make_tile_edge(
+    Segment seg,
+    uint local_tile,
+    out ivec2 tile,
+    out vec2 local_p0,
+    out vec2 local_p1
+    ) {
+  float ts = float(pc.tile_size);
+
+  bool is_down = seg.p1.y >= seg.p0.y;
+
+  vec2 p0 = is_down ? seg.p0 : seg.p1;
+  vec2 p1 = is_down ? seg.p1 : seg.p0;
+
+  LineWalkParams lp;
+
+  if (!make_line_walk_params(seg.p0, seg.p1, lp)) {
+    return false;
+  }
+
+  if (local_tile >= lp.count) {
+    return false;
+  }
+
+  float x_step;
+  tile = tile_for_local_tile(lp, local_tile, x_step);
+
+  vec2 tile_xy = vec2(tile) * ts;
+  vec2 tile_xy1 = tile_xy + vec2(ts);
+
+  if (local_tile > 0u) {
+    float previous_x_step = floor(
+        lp.x_step_rate * (float(local_tile) - 1.0) +
+        lp.x_step_start_offset
+        );
+
+    if (previous_x_step == x_step) {
+      /*
+       * X did not change from the previous tile to this tile.
+       * Therefore Y changed, so this tile was entered through the top edge.
+       *
+       * Segments are already normalized to move downward, so it cannot enter
+       * through the bottom edge.
+       */
+      float denom = p1.y - p0.y;
+
+      if (denom == 0.0) {
+        return false;
+      }
+
+      // X coordinate where the segment entered this tile through the top edge.
+      float t = (tile_xy.y - p0.y) / denom;
+      float x_point = p0.x + (p1.x - p0.x) * t;
+
+      // Clamp segment X point to tile bounds.
+      // This should theoretically be optional.
+      x_point = clamp(x_point, tile_xy.x + CLIP_NUDGE, tile_xy1.x);
+
+      // Top Y is the clip boundary for the start point.
+      p0 = vec2(x_point, tile_xy.y);
+    } else {
+      /*
+       * X changed from the previous tile to this tile.
+       * Therefore this tile was entered through a vertical edge.
+       */
+      float x_clip = lp.x_sign > 0.0
+        ? tile_xy.x
+        : tile_xy1.x;
+
+      float denom = p1.x - p0.x;
+
+      if (denom == 0.0) {
+        return false;
+      }
+
+      // Y coordinate where the segment entered this tile through the vertical edge.
+      float y_point =
+        p0.y +
+        (p1.y - p0.y) * (x_clip - p0.x) / denom;
+
+      // Clamp segment Y point to tile bounds.
+      // This should theoretically be optional.
+      y_point = clamp(y_point, tile_xy.y + CLIP_NUDGE, tile_xy1.y);
+
+      p0 = vec2(x_clip, y_point);
+    }
+  }
+
+  /*
+   * Clip end point to the boundary where this tile is exited.
+   */
+  if (local_tile < lp.count - 1u) {
+    float next_x_step = floor(
+        lp.x_step_rate * (float(local_tile) + 1.0) +
+        lp.x_step_start_offset
+        );
+
+    if (x_step == next_x_step) {
+      /*
+       * X will not change from this tile to the next tile.
+       * Therefore Y changes, so this tile exits through the bottom edge.
+       */
+      float denom = p1.y - p0.y;
+
+      if (denom == 0.0) {
+        return false;
+      }
+
+      float xt =
+        p0.x +
+        (p1.x - p0.x) * (tile_xy1.y - p0.y) / denom;
+
+      xt = clamp(xt, tile_xy.x + CLIP_NUDGE, tile_xy1.x);
+
+      p1 = vec2(xt, tile_xy1.y);
+    } else {
+      /*
+       * X will change from this tile to the next tile.
+       * Therefore this tile exits through a vertical edge.
+       */
+      float x_clip = lp.x_sign > 0.0
+        ? tile_xy1.x
+        : tile_xy.x;
+
+      float denom = p1.x - p0.x;
+
+      if (denom == 0.0) {
+        return false;
+      }
+
+      float yt =
+        p0.y +
+        (p1.y - p0.y) * (x_clip - p0.x) / denom;
+
+      yt = clamp(yt, tile_xy.y + CLIP_NUDGE, tile_xy1.y);
+
+      p1 = vec2(x_clip, yt);
+    }
+  }
+
+  local_p0 = p0 - tile_xy;
+  local_p1 = p1 - tile_xy;
+
+  /*
+     Nudge exact-left-edge cases so fine evaluation can distinguish
+     true y-edges from degenerate boundary cases.
+   */
+  if (local_p0.x == 0.0) {
+    if (local_p1.x == 0.0) {
+      local_p0.x = EPSILON;
+
+      if (local_p0.y == 0.0) {
+        local_p1.x = EPSILON;
+        local_p1.y = ts;
+      } else {
+        local_p1.x = 2.0 * EPSILON;
+        local_p1.y = local_p0.y;
+      }
+    } else if (local_p0.y == 0.0) {
+      local_p0.x = EPSILON;
+    } else {
+      /*
+         Keep local_p0.x exactly 0.
+         Fine derives y_edge from this.
+       */
+    }
+  } else if (local_p1.x == 0.0) {
+    if (local_p1.y == 0.0) {
+      local_p1.x = EPSILON;
+    } else {
+      /*
+         Keep local_p1.x exactly 0.
+         Fine derives y_edge from this.
+       */
+    }
+  }
+
+  /*
+     Restore original edge direction.
+   */
+  if (!is_down) {
+    vec2 tmp = local_p0;
+    local_p0 = local_p1;
+    local_p1 = tmp;
+  }
+
+  return true;
+}
+
+
+
+uint touch_seg_id(TileTouchRecord r) {
+  return r.a & TOUCH_SEG_MASK;
+}
+
+uint touch_rank(TileTouchRecord r) {
+  return (r.a >> TOUCH_SEG_BITS) & TOUCH_RANK_MASK;
+}
+
+uint touch_tile_id(TileTouchRecord r) {
+  return r.b & TOUCH_TILE_MASK;
+}
+
+uint touch_local_tile(TileTouchRecord r) {
+  return (r.b >> TOUCH_TILE_BITS) & TOUCH_LOCAL_TILE_MASK;
+}
+
+// dispatch over all segment-tile touch records 
+// generated by 1_walk_segments 
 void main() {
-    uint touch_idx = gl_GlobalInvocationID.x;
+  uint touch_idx = gl_GlobalInvocationID.x;
 
-    if (touch_idx >= bump.n_touches) {
-        return;
-    }
+  if (touch_idx >= bump.n_touches) {
+    return;
+  }
 
-    TileTouchRecord touch = tile_touch_records[touch_idx];
+  TileTouchRecord touch = tile_touch_records[touch_idx];
 
-    uint tile_id = unpack_tile_id(touch.pack);
-    uint rank = unpack_rank(touch.pack);
+  uint seg_id         = touch_seg_id(touch);
+  uint rank           = touch_rank(touch);
+  uint tile_id        = touch_tile_id(touch);
+  uint local_tile     = touch_local_tile(touch);
 
-    if (tile_id >= pc.n_tiles) {
-        atomicOr(bump.failed, FAIL_SCATTER_OOB);
-        return;
-    }
+  // enable GPU stats is used more as a 
+  // debug/sanitizing flag here
+#ifdef CR_ENABLE_GPU_STATS
+  if (tile_id >= pc.n_tiles) {
+    CR_STAT_ADD(invalid_edges, 1u);
+    atomicOr(bump.failed, FAIL_SCATTER_OOB);
+    return;
+  }
+#endif
 
-    TileInfo info = tile_infos[tile_id];
+  TileInfo info = tile_infos[tile_id];
 
-    if (rank >= info.count) {
-        atomicOr(bump.failed, FAIL_RANK_OOB);
-        return;
-    }
+  if (rank >= info.count) {
+    CR_STAT_ADD(invalid_edges, 1u);
+    atomicOr(bump.failed, FAIL_RANK_OOB);
+    return;
+  }
 
-    uint dst = info.base + rank;
+  uint dst = info.base + rank;
 
-    if (dst >= pc.max_tile_storage) {
-        atomicOr(bump.failed, FAIL_SCATTER_OOB);
-        return;
-    }
+  if (dst >= pc.max_tile_storage) {
+    CR_STAT_ADD(invalid_edges, 1u);
+    atomicOr(bump.failed, FAIL_SCATTER_OOB);
+    return;
+  }
 
-    if (touch.seg_id >= pc.n_segments) {
-        atomicOr(bump.failed, FAIL_SCATTER_OOB);
-        return;
-    }
+  Segment seg = segments[seg_id];
 
-    uint tile_x = tile_id % pc.n_tiles_x;
-    uint tile_y = tile_id / pc.n_tiles_x;
+  ivec2 reconstructed_tile;
+  vec2 local_p0;
+  vec2 local_p1;
 
-    float ts = float(pc.tile_size);
+  if(!make_tile_edge(
+      seg,
+      local_tile,
+      reconstructed_tile,
+      local_p0,
+      local_p1
+      )) {
+    CR_STAT_ADD(invalid_edges, 1u);
+    return;
+  }
 
-    vec2 tile_mn = vec2(float(tile_x), float(tile_y)) * ts;
-    vec2 tile_mx = tile_mn + vec2(ts);
 
-    Segment seg = segments[touch.seg_id];
+  uint reconstructed_tile_id =
+    uint(reconstructed_tile.y) * pc.n_tiles_x +
+    uint(reconstructed_tile.x);
+  vec2 d = local_p1 - local_p0;
 
-    vec2 p0 = seg.p0;
-    vec2 p1 = seg.p1;
+  CR_STAT_ADD(valid_edges, 1u);
 
-    TileEdge edge = make_invalid_edge();
+#ifdef CR_ENABLE_GPU_STATS
+  if (has_left_edge_signal(local_p0, local_p1)) {
+    CR_STAT_ADD(y_edge_edges, 1u);
+  }
 
-    if (!clip_segment_to_rect(p0, p1, tile_mn, tile_mx)) {
-        tile_edges[dst] = edge;
-        return;
-    }
+  if (is_horizontal_edge(local_p0, local_p1)) {
+    CR_STAT_ADD(horizontal_edges, 1u);
+  }
+#endif 
 
-    vec2 clipped_d = p1 - p0;
+  TileEdge edge;
+  edge.p0 = pack_point(local_p0);
+  edge.p1 = pack_point(local_p1);
 
-    if (dot(clipped_d, clipped_d) < EPS * EPS) {
-        tile_edges[dst] = edge;
-        return;
-    }
-
-    vec2 local_p0 = p0 - tile_mn;
-    vec2 local_p1 = p1 - tile_mn;
-
-    local_p0 = clamp(local_p0, vec2(0.0), vec2(ts));
-    local_p1 = clamp(local_p1, vec2(0.0), vec2(ts));
-
-    vec2 local_d = local_p1 - local_p0;
-
-    if (dot(local_d, local_d) < EPS * EPS) {
-        tile_edges[dst] = edge;
-        return;
-    }
-
-    bool local_horizontal = abs(local_d.y) < EPS;
-    bool local_grid_aligned =
-        is_integerish(local_p0.y) &&
-        is_integerish(local_p1.y);
-
-    vec2 original_d = seg.p1 - seg.p0;
-
-    uint meta = TILE_EDGE_VALID;
-
-    if (abs(original_d.y) >= EPS) {
-        int winding_delta = original_d.y > 0.0 ? -1 : 1;
-
-        if (winding_delta < 0) {
-            meta |= TILE_EDGE_NEGATIVE;
-        }
-    }
-    float y_edge = compute_y_edge_for_left_boundary(
-        seg.p0,
-        seg.p1,
-        tile_mn,
-        tile_mx
-    );
-
-    bool has_y_edge = y_edge < ts;
-
-    if (has_y_edge) {
-        if (original_d.x > EPS) {
-            meta |= TILE_EDGE_YEDGE_POS;
-        } else if (original_d.x < -EPS) {
-            meta |= TILE_EDGE_YEDGE_NEG;
-        }
-    }
-    if (local_horizontal && local_grid_aligned && !has_y_edge) {
-        tile_edges[dst] = edge;
-        return;
-    }
-
-    edge.p0 = pack_point(local_p0);
-    edge.p1 = pack_point(local_p1);
-    edge.y_edge = pack_coord(y_edge);
-    edge.meta = meta;
-
-    tile_edges[dst] = edge;
+  tile_edges[dst] = edge;
 }
