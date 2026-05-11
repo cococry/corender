@@ -90,6 +90,13 @@ cr_mem_transfer_to_device_local_gpu_buffer(
     const struct cr_gpu_buffer_t* buf
     );
 
+
+bool cr_mem_upload_to_device_local_gpu_buffer_static(
+        struct cr_context_t* ctx,
+        const void* data,
+        size_t size,
+        enum cr_gpu_buffer_type_t type,
+        struct cr_gpu_buffer_t* o_buf);
 bool 
 cr_mem_clear_gpu_buffer(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_gpu_buffer_t* buf);
 

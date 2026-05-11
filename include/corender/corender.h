@@ -1,8 +1,8 @@
 #pragma once 
-#include <cglm/types.h>
 #include <vulkan/vulkan_core.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <cglm/types.h>
 #include <cglm/cglm.h>
 
 #define CR_FRAME_COUNT 2

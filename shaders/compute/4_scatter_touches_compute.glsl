@@ -229,9 +229,6 @@ bool make_tile_edge(
   local_p1 = p1 - tile_xy;
 
   /*
-     Nudge exact-left-edge cases so fine evaluation can distinguish
-     true y-edges from degenerate boundary cases.
-   */
   if (local_p0.x == 0.0) {
     if (local_p1.x == 0.0) {
       local_p0.x = EPSILON;
@@ -246,21 +243,13 @@ bool make_tile_edge(
     } else if (local_p0.y == 0.0) {
       local_p0.x = EPSILON;
     } else {
-      /*
-         Keep local_p0.x exactly 0.
-         Fine derives y_edge from this.
-       */
     }
   } else if (local_p1.x == 0.0) {
     if (local_p1.y == 0.0) {
       local_p1.x = EPSILON;
-    } else {
-      /*
-         Keep local_p1.x exactly 0.
-         Fine derives y_edge from this.
-       */
     }
   }
+  */
 
   /*
      Restore original edge direction.
@@ -351,10 +340,6 @@ void main() {
     return;
   }
 
-
-  uint reconstructed_tile_id =
-    uint(reconstructed_tile.y) * pc.n_tiles_x +
-    uint(reconstructed_tile.x);
   vec2 d = local_p1 - local_p0;
 
   CR_STAT_ADD(valid_edges, 1u);

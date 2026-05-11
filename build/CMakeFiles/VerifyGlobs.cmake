@@ -61,6 +61,7 @@ set(OLD_GLOB
   "/home/luca/Dev/corender/src/compute.c"
   "/home/luca/Dev/corender/src/corender.c"
   "/home/luca/Dev/corender/src/mem.c"
+  "/home/luca/Dev/corender/src/msaa_lut.c"
   "/home/luca/Dev/corender/src/profiler.c"
   "/home/luca/Dev/corender/src/raster.c"
   "/home/luca/Dev/corender/src/util.c"
@@ -95,6 +96,7 @@ set(OLD_GLOB
   "/home/luca/Dev/corender/shaders/compute/4_scatter_touches_compute.glsl"
   "/home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl"
   "/home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl"
+  "/home/luca/Dev/corender/shaders/compute/6_fine_eval_msaa_compute.glsl"
   )
 if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
   message("-- GLOB mismatch!")

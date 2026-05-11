@@ -55,6 +55,9 @@ void main() {
         return;
     }
 
+    uint n_segments = tile_n_segments[tile_id];
+    int winding = tile_events[tile_id];
+
 #if CR_ENABLE_GPU_STATS
     if (n_segments >= 2u) {
         CR_STAT_ADD(contention_tiles, 1u);
@@ -75,9 +78,6 @@ void main() {
     uint tile_bin = hist_bin(n_segments);
     CR_STAT_HIST_ADD(hist_tile_segments, tile_bin, 1u);
 #endif
-
-    uint n_segments = tile_n_segments[tile_id];
-    int winding = tile_events[tile_id];
 
 #if CR_ENABLE_GPU_STATS
     uint abs_w = abs_i32_to_u32(winding);

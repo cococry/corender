@@ -64,10 +64,9 @@ CMakeFiles/example_glfw.dir/examples/glfw.c.o: \
  /usr/include/vk_video/vulkan_video_codec_vp9std.h /usr/include/GL/gl.h \
  /usr/include/GL/glext.h /usr/include/KHR/khrplatform.h \
  /home/luca/Dev/corender/examples/../include/corender/corender.h \
- /usr/include/cglm/types.h \
+ /usr/include/vulkan/vulkan_core.h /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
- /usr/include/vulkan/vulkan_core.h /usr/include/cglm/cglm.h \
- /usr/include/cglm/common.h \
+ /usr/include/cglm/cglm.h /usr/include/cglm/common.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/float.h \
  /usr/include/cglm/types.h /usr/include/cglm/simd/intrin.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/immintrin.h \

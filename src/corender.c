@@ -1314,6 +1314,19 @@ cr_draw_set_clear_color(struct cr_context_t* ctx, vec4 color) {
 
 #if CR_ENABLE_GPU_STATS
 
+
+#define FAIL_TOUCH_OVERFLOW         1u << 0
+#define FAIL_TILE_SEGMENT_OVERFLOW  1u << 1
+#define FAIL_ACTIVE_TILE_OVERFLOW   1u << 2
+#define FAIL_RANK_OVERFLOW          1u << 3
+#define FAIL_TILE_ID_OVERFLOW       1u << 4
+#define FAIL_SCATTER_OOB            1u << 5
+#define FAIL_BAD_TOUCH_TILE         1u << 6
+#define FAIL_TILE_EVENT_OOB         1u << 7
+#define FAIL_RANK_OOB               1u << 8
+#define FAIL_FINE_TILE_SIZE_MISMATCH 1u << 9 
+#define FAIL_FINE_OOB 1u << 10 
+
 static void
 cr_stats_hist_bin_range(int bin, uint32_t* lo, uint32_t* hi) {
     if (bin <= 0) {
@@ -1837,6 +1850,102 @@ cr_print_gpu_stats(const struct cr_gpu_stats_t* s) {
             "  NOTE                   max_fine_segments is high. Check for pathological hot tiles.\n"
         );
     }
+
+        if (s->failed != 0u) {
+        printf(
+            "  ERROR                  gpu failed flags set: 0x%08x\n",
+            s->failed
+        );
+
+        if ((s->failed & FAIL_TOUCH_OVERFLOW) != 0u) {
+            printf(
+                "  ERROR                  FAIL_TOUCH_OVERFLOW. bump.n_touches exceeded touch record capacity.\n"
+            );
+        }
+
+          if ((s->failed & FAIL_TILE_SEGMENT_OVERFLOW) != 0u) {
+            printf(
+                "  ERROR                  FAIL_TILE_SEGMENT_OVERFLOW. tile segment storage exceeded max_tile_storage.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_ACTIVE_TILE_OVERFLOW) != 0u) {
+            printf(
+                "  ERROR                  FAIL_ACTIVE_TILE_OVERFLOW. active_tiles[] capacity was exceeded.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_RANK_OVERFLOW) != 0u) {
+            printf(
+                "  ERROR                  FAIL_RANK_OVERFLOW. per-tile touch rank exceeded encodable range.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_TILE_ID_OVERFLOW) != 0u) {
+            printf(
+                "  ERROR                  FAIL_TILE_ID_OVERFLOW. computed tile id exceeded encodable or valid tile range.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_SCATTER_OOB) != 0u) {
+            printf(
+                "  ERROR                  FAIL_SCATTER_OOB. scatter pass attempted out-of-bounds tile edge write.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_BAD_TOUCH_TILE) != 0u) {
+            printf(
+                "  ERROR                  FAIL_BAD_TOUCH_TILE. touch record referenced an invalid tile.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_TILE_EVENT_OOB) != 0u) {
+            printf(
+                "  ERROR                  FAIL_TILE_EVENT_OOB. tile event access exceeded tile_events[] bounds.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_RANK_OOB) != 0u) {
+            printf(
+                "  ERROR                  FAIL_RANK_OOB. scatter rank resolved outside the expected tile segment range.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_FINE_TILE_SIZE_MISMATCH) != 0u) {
+            printf(
+                "  ERROR                  FAIL_FINE_TILE_SIZE_MISMATCH. fine shader tile size assumptions do not match push constants.\n"
+            );
+        }
+
+        if ((s->failed & FAIL_FINE_OOB) != 0u) {
+            printf(
+                "  ERROR                  FAIL_FINE_OOB. fine pass read an invalid active tile or wrote outside expected tile bounds.\n"
+            );
+        }
+
+        uint32_t known_failed_bits =
+            FAIL_TOUCH_OVERFLOW |
+            FAIL_TILE_SEGMENT_OVERFLOW |
+            FAIL_ACTIVE_TILE_OVERFLOW |
+            FAIL_RANK_OVERFLOW |
+            FAIL_TILE_ID_OVERFLOW |
+            FAIL_SCATTER_OOB |
+            FAIL_BAD_TOUCH_TILE |
+            FAIL_TILE_EVENT_OOB |
+            FAIL_RANK_OOB |
+            FAIL_FINE_TILE_SIZE_MISMATCH |
+            FAIL_FINE_OOB;
+
+        uint32_t unknown_failed_bits = s->failed & ~known_failed_bits;
+
+        if (unknown_failed_bits != 0u) {
+            printf(
+                "  ERROR                  unknown failed bits set: 0x%08x\n",
+                unknown_failed_bits
+            );
+        }
+    }
+
 
     printf("\n");
 }

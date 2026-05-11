@@ -5,22 +5,31 @@
 layout(local_size_x = 1) in;
 
 layout(set = 0, binding = INDIRECT_BINDING, std430) buffer ScatterIndirect {
-    uint dispatch_x;
-    uint dispatch_y;
-    uint dispatch_z;
+  uint dispatch_x;
+  uint dispatch_y;
+  uint dispatch_z;
 } scatter_indirect;
 
-void main() {
-    if (bump.failed != 0u) {
-        scatter_indirect.dispatch_x = 0u;
-        scatter_indirect.dispatch_y = 1u;
-        scatter_indirect.dispatch_z = 1u;
-        return;
-    }
+#if CR_ENABLE_GPU_STATS
+layout(set = 0, binding = STATS_BINDING, std430) buffer StatsBuffer {
+  GpuStats stats;
+};
+#endif
 
-    // this is used in the next pass, scatter_touches, which 
-    // runs per touch record.
-    scatter_indirect.dispatch_x = (bump.n_touches + 255u) >> 8; 
+void main() {
+  if (bump.failed != 0u) {
+#if CR_ENABLE_GPU_STATS
+    atomicOr(stats.failed, bump.failed);
+#endif
+    scatter_indirect.dispatch_x = 0u;
     scatter_indirect.dispatch_y = 1u;
     scatter_indirect.dispatch_z = 1u;
+    return;
+  }
+
+  // this is used in the next pass, scatter_touches, which 
+  // runs per touch record.
+  scatter_indirect.dispatch_x = (bump.n_touches + 255u) >> 8; 
+  scatter_indirect.dispatch_y = 1u;
+  scatter_indirect.dispatch_z = 1u;
 }

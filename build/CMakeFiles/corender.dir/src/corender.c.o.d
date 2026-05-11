@@ -58,8 +58,6 @@ CMakeFiles/corender.dir/src/corender.c.o: \
  /home/luca/Dev/corender/src/../vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
  /home/luca/Dev/corender/src/../include/corender/corender.h \
- /usr/include/cglm/types.h \
- /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdbool.h \
  /usr/include/stdio.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdarg.h \
@@ -68,6 +66,8 @@ CMakeFiles/corender.dir/src/corender.c.o: \
  /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
  /usr/include/bits/types/cookie_io_functions_t.h \
  /usr/include/bits/stdio_lim.h /usr/include/bits/stdio.h \
+ /usr/include/cglm/types.h \
+ /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
  /usr/include/cglm/cglm.h /usr/include/cglm/common.h /usr/include/math.h \
  /usr/include/bits/math-vector.h /usr/include/bits/libm-simd-decl-stubs.h \
  /usr/include/bits/flt-eval-method.h /usr/include/bits/fp-logb.h \

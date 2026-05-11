@@ -21,6 +21,7 @@ ee980afb57edf3c91d21e9d07d378ede bin/shaders/compute/3_allocate_tiles_compute.sp
 119028cb8faf3e3d31b47d2f4cc4b190 bin/shaders/compute/4_scatter_touches_compute.spv
 9a9740485ea550b77efff5f50caeca3f bin/shaders/compute/5_build_active_tiles_indirect_compute.spv
 5d5bbcc1ff02b45a4302d623374d1570 bin/shaders/compute/6_fine_eval_compute.spv
+6d9eff2ad7ecc9ef3068606a723f20d6 bin/shaders/compute/6_fine_eval_msaa_compute.spv
 15d8d95f1a42c6d439a5f3c176d7b06a bin/shaders/default/basic_frag.spv
 543903f4c7ac2e325bac7f6e735d953f bin/shaders/default/basic_vert.spv
 9cfdca3e79785f38363cb4051dd3bdcf bin/shaders/instanced/basic_frag.spv

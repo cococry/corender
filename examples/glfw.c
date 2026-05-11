@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -147,20 +148,20 @@ int main(void) {
 
     double start_time = glfwGetTime();
 
-#define N_STARS 4000 
+#define N_STARS 40000
 
-    float star_x[N_STARS];
-    float star_y[N_STARS];
+    float* star_x = malloc(N_STARS * sizeof(float));
+    float* star_y = malloc(N_STARS * sizeof(float));
 
     int fbw = 0, fbh = 0;
     glfwGetFramebufferSize(window, &fbw, &fbh);
 
-    uint32_t rng = time(NULL); 
+    uint32_t rng = 0x1512125; 
 
     /* generate random positions once */
     for (int i = 0; i < N_STARS; ++i) {
-        star_x[i] = rand01(&rng) * (float)fbw;
-        star_y[i] = rand01(&rng) * (float)fbh;
+        star_x[i] = rand01(&rng) * (float)fbw + 50;
+        star_y[i] = rand01(&rng) * (float)fbh + 50;
     }
 
     while (!glfwWindowShouldClose(window)) {
@@ -180,7 +181,7 @@ int main(void) {
 
 
         for(uint i = 0; i < 1; i++) {
-            draw_star(star_x[i], star_y[i], 5, 50 * t, 80 * t, t * 0.2);
+            draw_star(star_x[i], star_y[i], 5, 50, 80, t * 0.2);
         }
 
 cr_draw_end_path(&ctx);

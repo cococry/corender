@@ -1,5 +1,6 @@
 #include "compute.h"
 #include "mem.h"
+#include "msaa_lut.h"
 #include "util.h"
 #include <errno.h>
 #include <linux/limits.h>
@@ -20,7 +21,8 @@ enum {
     CR_BINDING_PATHS         = 1,
     CR_BINDING_STORAGE_IMAGE = 2,
     CR_BINDING_INDIRECT      = 3,
-    CR_FIRST_USER_BINDING    = 4
+    CR_BINDING_MSAA_LUT      = 4,
+    CR_FIRST_USER_BINDING    = 5
 };
 
 static VkPipelineLayout _compute_pipeline_layout;
@@ -72,7 +74,7 @@ static bool _ensure_path_capacity(
         uint32_t swap_idx,
         size_t capacity);
 
-static const uint avg_touch_capacity_per_tile = 100;
+static const uint max_touch_capacity_per_tile = 1024;
 
 bool 
 _create_shader_module(struct 
@@ -528,7 +530,7 @@ _compute_binding_size(
     }
 
     if(!strcmp(name, "tile_touch_records")) {
-        *o_size = sizeof(struct cr_compute_tile_touch_record_t) * n_tiles * avg_touch_capacity_per_tile;
+        *o_size = sizeof(struct cr_compute_tile_touch_record_t) * n_tiles * max_touch_capacity_per_tile;
         return true;
     }
 
@@ -558,7 +560,7 @@ _compute_binding_size(
     }
 
     if(!strcmp(name, "tile_edges")) {
-        *o_size = sizeof(struct cr_compute_tile_edge_t) * n_tiles * avg_touch_capacity_per_tile;
+        *o_size = sizeof(struct cr_compute_tile_edge_t) * n_tiles * max_touch_capacity_per_tile;
         return true;
     }
 
@@ -657,6 +659,22 @@ _vk_update_descriptors_for_frame(
         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         .pBufferInfo = &buffer_infos[CR_BINDING_INDIRECT]
     };
+    
+    buffer_infos[CR_BINDING_MSAA_LUT] = (VkDescriptorBufferInfo) {
+        .buffer = pipeline->msaa_lut_buf.buf,
+        .offset = 0,
+        .range = VK_WHOLE_SIZE
+    };
+
+    writes[CR_BINDING_MSAA_LUT] = (VkWriteDescriptorSet) {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = _global_sets[swap_idx],
+        .dstBinding = CR_BINDING_MSAA_LUT,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .pBufferInfo = &buffer_infos[CR_BINDING_MSAA_LUT]
+    };
 
     for (uint32_t j = 0; j < pipeline->n_buffers; j++) {
         uint32_t binding = CR_FIRST_USER_BINDING + j;
@@ -695,7 +713,6 @@ _vk_update_descriptors_for_frame(
 err:
     return false;
 }
-
 bool
 _vk_pipeline_layout_init(
         struct cr_context_t* ctx,
@@ -707,7 +724,7 @@ _vk_pipeline_layout_init(
         CR_FIRST_USER_BINDING + n_bindings;
 
     const uint32_t n_storage_buffers =
-        3u + n_bindings;
+        4u + n_bindings;
 
     VkResult res;
 
@@ -854,7 +871,7 @@ _vk_pipeline_layout_init(
             return false;
         }
 #endif
-
+      
         dyn->path_capacity = 5000;
         dyn->path_data =
             cr_util_alloc(ctx, dyn->path_capacity, sizeof(*dyn->path_data));
@@ -959,6 +976,66 @@ err:
     return false;
 }
 
+static bool _create_fine_msaa8_lut_buffer(
+    struct cr_context_t* ctx,
+    struct cr_gpu_buffer_t* o_lut_buf
+) {
+    if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
+
+    uint32_t lut[FINE_MSAA8_LUT_PACKED_WORD_COUNT];
+
+    fine_msaa8_build_cell_mask_lut_packed(lut);
+
+    VkDeviceSize lut_size = sizeof(lut);
+
+    if (!cr_mem_upload_to_device_local_gpu_buffer_static(
+            ctx,
+            lut,
+            lut_size,
+            CR_GPU_BUFFER_SSBO,
+            o_lut_buf
+        )) {
+        CR_ERROR(ctx->log, "Failed to upload fine MSAA8 LUT buffer.");
+        return false;
+    }
+
+    return true;
+
+err:
+    return false;
+}
+
+static bool _create_fine_msaa16_lut_buffer(
+    struct cr_context_t* ctx,
+    struct cr_gpu_buffer_t* o_lut_buf
+) {
+    if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
+
+    printf("Got here.\n");
+    uint32_t lut[FINE_MSAA16_LUT_PACKED_WORD_COUNT];
+
+    fine_msaa16_build_cell_mask_lut_packed(lut);
+
+    VkDeviceSize lut_size = sizeof(lut);
+
+    if (!cr_mem_upload_to_device_local_gpu_buffer_static(
+            ctx,
+            lut,
+            lut_size,
+            CR_GPU_BUFFER_SSBO,
+            o_lut_buf
+        )) {
+        CR_ERROR(ctx->log, "Failed to upload fine MSAA16 LUT buffer.");
+        return false;
+    }
+
+    return true;
+
+err:
+    return false;
+}
+
+
 bool 
 cr_compute_pipeline_init(
         struct cr_context_t* ctx, struct cr_compute_pipeline_init_info_t* info, 
@@ -989,7 +1066,7 @@ cr_compute_pipeline_init(
             .name = "bump"  
         },
         (struct cr_compute_pipeline_layout_binding_t) {
-            .buffer_size = sizeof(struct cr_compute_tile_touch_record_t) * tiles_x * tiles_y * avg_touch_capacity_per_tile, 
+            .buffer_size = sizeof(struct cr_compute_tile_touch_record_t) * tiles_x * tiles_y * max_touch_capacity_per_tile, 
             .name = "tile_touch_records"  
         },
         (struct cr_compute_pipeline_layout_binding_t) {
@@ -1013,7 +1090,7 @@ cr_compute_pipeline_init(
             .name = "active_tiles"  
         },
         (struct cr_compute_pipeline_layout_binding_t) {
-            .buffer_size = sizeof(struct cr_compute_tile_edge_t) * tiles_x * tiles_y * avg_touch_capacity_per_tile, 
+            .buffer_size = sizeof(struct cr_compute_tile_edge_t) * tiles_x * tiles_y * max_touch_capacity_per_tile, 
             .name = "tile_edges"  
         },
 #if CR_ENABLE_GPU_STATS
@@ -1024,6 +1101,8 @@ cr_compute_pipeline_init(
 #endif
     };
 
+
+    _create_fine_msaa16_lut_buffer(ctx, &pipeline->msaa_lut_buf);
 
     if(!_vk_pipeline_layout_init(ctx, pipeline, bindings, sizeof(bindings) / sizeof(bindings[0]))) {
         CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline layout."); 
@@ -1313,7 +1392,7 @@ cr_compute_pipeline_dispatch(
         .n_segments = n_segments,
         .screen_w = screen_w,
         .screen_h = screen_h,
-        .max_tile_storage = tiles_x * tiles_y * avg_touch_capacity_per_tile,
+        .max_tile_storage = tiles_x * tiles_y * max_touch_capacity_per_tile,
         .n_paths =  pipeline->dynamic[swapchain_image_idx].n_paths, 
     };
 
@@ -1446,7 +1525,11 @@ cr_compute_pipeline_dispatch(
                 ,*_buffer_by_name(ctx, pipeline, swapchain_image_idx, "stats")
 #endif
                 },
+#if CR_ENABLE_GPU_STATS
                 5
+#else 
+                4
+#endif
                 );
 
         if (profiler != NULL) {
@@ -1511,7 +1594,11 @@ cr_compute_pipeline_dispatch(
                 ,*_buffer_by_name(ctx, pipeline, swapchain_image_idx, "stats")
 #endif
                 },
+#if CR_ENABLE_GPU_STATS
                 3
+#else 
+                2
+#endif
                 );
 
         if (profiler != NULL) {
@@ -1565,13 +1652,13 @@ cr_compute_pipeline_dispatch(
                     profiler,
                     swapchain_image_idx,
                     frame->cmd_buf,
-                    "fine_eval"
+                    "fine_eval_msaa"
                     );
         }
 
         _vk_dispatch_compute_indirect(
                 frame,
-                _kernel_by_name(ctx, pipeline, "fine_eval"),
+                _kernel_by_name(ctx, pipeline, "fine_eval_msaa"),
                 swapchain_image_idx,
                 &pc,
                 &pipeline->dynamic[swapchain_image_idx].indirect_buf,
@@ -1667,6 +1754,8 @@ _ensure_segment_capacity(
     dyn->segment_data = segment_data;
     dyn->segment_capacity = new_capacity;
 
+    vkDeviceWaitIdle(ctx->logical_dev);
+
     if (dyn->segment_buf.buf != VK_NULL_HANDLE)
         cr_mem_destroy_gpu_buffer(ctx, &dyn->segment_buf);
 
@@ -1707,6 +1796,8 @@ _ensure_path_capacity(
 
     dyn->path_data = path_data;
     dyn->path_capacity = new_capacity;
+
+    vkDeviceWaitIdle(ctx->logical_dev);
 
     if (dyn->path_buf.buf != VK_NULL_HANDLE)
         cr_mem_destroy_gpu_buffer(ctx, &dyn->path_buf);
@@ -1786,3 +1877,4 @@ bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pi
 
     return true;
 }
+

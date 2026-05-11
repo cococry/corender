@@ -1,6 +1,6 @@
-CMakeFiles/corender.dir/src/compute.c.o: \
- /home/luca/Dev/corender/src/compute.c /usr/include/stdc-predef.h \
- /home/luca/Dev/corender/src/compute.h \
+CMakeFiles/corender.dir/src/msaa_lut.c.o: \
+ /home/luca/Dev/corender/src/msaa_lut.c /usr/include/stdc-predef.h \
+ /home/luca/Dev/corender/src/msaa_lut.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdint.h \
  /usr/include/stdint.h /usr/include/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -10,40 +10,13 @@ CMakeFiles/corender.dir/src/compute.c.o: \
  /usr/include/bits/types.h /usr/include/bits/typesizes.h \
  /usr/include/bits/time64.h /usr/include/bits/wchar.h \
  /usr/include/bits/stdint-intn.h /usr/include/bits/stdint-uintn.h \
- /usr/include/bits/stdint-least.h \
- /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdbool.h \
- /usr/include/vulkan/vulkan_core.h /usr/include/vulkan/vk_platform.h \
- /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stddef.h \
- /usr/include/vk_video/vulkan_video_codec_h264std.h \
- /usr/include/vk_video/vulkan_video_codecs_common.h \
- /usr/include/vk_video/vulkan_video_codec_h264std_encode.h \
- /usr/include/vk_video/vulkan_video_codec_h264std.h \
- /usr/include/vk_video/vulkan_video_codec_h265std.h \
- /usr/include/vk_video/vulkan_video_codec_h265std_encode.h \
- /usr/include/vk_video/vulkan_video_codec_h265std.h \
- /usr/include/vk_video/vulkan_video_codec_h264std_decode.h \
- /usr/include/vk_video/vulkan_video_codec_h265std_decode.h \
- /usr/include/vk_video/vulkan_video_codec_av1std.h \
- /usr/include/vk_video/vulkan_video_codec_av1std_decode.h \
- /usr/include/vk_video/vulkan_video_codec_av1std.h \
- /usr/include/vk_video/vulkan_video_codec_av1std_encode.h \
- /usr/include/vk_video/vulkan_video_codec_vp9std.h \
- /usr/include/vk_video/vulkan_video_codec_vp9std_decode.h \
- /usr/include/vk_video/vulkan_video_codec_vp9std.h \
- /home/luca/Dev/corender/src/../include/corender/corender.h \
- /usr/include/stdio.h \
- /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdarg.h \
- /usr/include/bits/types/__fpos_t.h /usr/include/bits/types/__mbstate_t.h \
- /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
- /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
- /usr/include/bits/types/cookie_io_functions_t.h \
- /usr/include/bits/stdio_lim.h /usr/include/bits/floatn.h \
- /usr/include/bits/floatn-common.h /usr/include/bits/stdio.h \
- /usr/include/cglm/types.h \
+ /usr/include/bits/stdint-least.h /usr/include/cglm/types.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdalign.h \
  /usr/include/cglm/cglm.h /usr/include/cglm/common.h \
+ /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stddef.h \
  /usr/include/stdlib.h /usr/include/bits/waitflags.h \
- /usr/include/bits/waitstatus.h /usr/include/sys/types.h \
+ /usr/include/bits/waitstatus.h /usr/include/bits/floatn.h \
+ /usr/include/bits/floatn-common.h /usr/include/sys/types.h \
  /usr/include/bits/types/clock_t.h /usr/include/bits/types/clockid_t.h \
  /usr/include/bits/types/time_t.h /usr/include/bits/types/timer_t.h \
  /usr/include/endian.h /usr/include/bits/endian.h \
@@ -65,6 +38,7 @@ CMakeFiles/corender.dir/src/compute.c.o: \
  /usr/include/bits/mathcalls-helper-functions.h \
  /usr/include/bits/mathcalls.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/float.h \
+ /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdbool.h \
  /usr/include/cglm/types.h /usr/include/cglm/simd/intrin.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/immintrin.h \
  /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/x86gprintrin.h \
@@ -196,24 +170,69 @@ CMakeFiles/corender.dir/src/compute.c.o: \
  /usr/include/cglm/euler.h /usr/include/cglm/handed/euler_to_quat_rh.h \
  /usr/include/cglm/common.h /usr/include/cglm/noise.h \
  /usr/include/cglm/aabb2d.h /usr/include/cglm/box.h \
- /usr/include/cglm/color.h /usr/include/cglm/io.h \
+ /usr/include/cglm/color.h /usr/include/cglm/io.h /usr/include/stdio.h \
+ /usr/lib/gcc/x86_64-unknown-linux-gnu/14.2/include/stdarg.h \
+ /usr/include/bits/types/__fpos_t.h /usr/include/bits/types/__mbstate_t.h \
+ /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
+ /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
+ /usr/include/bits/types/cookie_io_functions_t.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/stdio.h \
  /usr/include/cglm/project.h /usr/include/cglm/clipspace/project_no.h \
  /usr/include/cglm/vec3.h /usr/include/cglm/vec4.h \
  /usr/include/cglm/sphere.h /usr/include/cglm/ease.h \
  /usr/include/cglm/curve.h /usr/include/cglm/bezier.h \
  /usr/include/cglm/ray.h /usr/include/cglm/affine2d.h \
- /home/luca/Dev/corender/src/mem.h \
- /home/luca/Dev/corender/src/../vendor/vma/vk_mem_alloc.h \
- /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
- /home/luca/Dev/corender/src/msaa_lut.h \
- /home/luca/Dev/corender/src/util.h \
- /home/luca/Dev/corender/src/profiler.h /usr/include/errno.h \
- /usr/include/bits/errno.h /usr/include/linux/errno.h \
- /usr/include/asm/errno.h /usr/include/asm-generic/errno.h \
- /usr/include/asm-generic/errno-base.h /usr/include/linux/limits.h \
- /usr/include/string.h /usr/include/bits/types/locale_t.h \
- /usr/include/bits/types/__locale_t.h /usr/include/strings.h \
- /usr/include/dirent.h /usr/include/bits/dirent.h \
- /usr/include/bits/posix1_lim.h /usr/include/bits/local_lim.h \
- /usr/include/bits/pthread_stack_min-dynamic.h \
- /usr/include/bits/pthread_stack_min.h /usr/include/bits/dirent_ext.h
+ /usr/include/cglm/struct.h /usr/include/cglm/cglm.h \
+ /usr/include/cglm/types-struct.h /usr/include/cglm/struct/vec2.h \
+ /usr/include/cglm/common.h /usr/include/cglm/types-struct.h \
+ /usr/include/cglm/util.h /usr/include/cglm/vec2.h \
+ /usr/include/cglm/struct/vec2-ext.h /usr/include/cglm/vec2-ext.h \
+ /usr/include/cglm/struct/vec3.h /usr/include/cglm/vec3.h \
+ /usr/include/cglm/struct/vec3-ext.h /usr/include/cglm/vec3-ext.h \
+ /usr/include/cglm/struct/vec4.h /usr/include/cglm/vec4.h \
+ /usr/include/cglm/struct/vec4-ext.h /usr/include/cglm/vec4-ext.h \
+ /usr/include/cglm/struct/ivec2.h /usr/include/cglm/ivec2.h \
+ /usr/include/cglm/struct/ivec3.h /usr/include/cglm/ivec3.h \
+ /usr/include/cglm/struct/ivec4.h /usr/include/cglm/ivec4.h \
+ /usr/include/cglm/struct/mat2.h /usr/include/cglm/mat2.h \
+ /usr/include/cglm/struct/mat2x3.h /usr/include/cglm/mat2x3.h \
+ /usr/include/cglm/struct/mat2x4.h /usr/include/cglm/mat2x4.h \
+ /usr/include/cglm/struct/mat3.h /usr/include/cglm/mat3.h \
+ /usr/include/cglm/struct/vec3.h /usr/include/cglm/struct/mat3x2.h \
+ /usr/include/cglm/mat3x2.h /usr/include/cglm/struct/mat3x4.h \
+ /usr/include/cglm/mat3x4.h /usr/include/cglm/struct/mat4.h \
+ /usr/include/cglm/mat4.h /usr/include/cglm/struct/vec4.h \
+ /usr/include/cglm/struct/mat4x2.h /usr/include/cglm/mat4x2.h \
+ /usr/include/cglm/struct/mat4x3.h /usr/include/cglm/mat4x3.h \
+ /usr/include/cglm/struct/affine.h /usr/include/cglm/affine.h \
+ /usr/include/cglm/struct/mat4.h /usr/include/cglm/struct/affine-mat.h \
+ /usr/include/cglm/affine-mat.h /usr/include/cglm/struct/affine-pre.h \
+ /usr/include/cglm/struct/affine-post.h \
+ /usr/include/cglm/struct/frustum.h /usr/include/cglm/frustum.h \
+ /usr/include/cglm/struct/plane.h /usr/include/cglm/plane.h \
+ /usr/include/cglm/struct/plane.h /usr/include/cglm/struct/noise.h \
+ /usr/include/cglm/noise.h /usr/include/cglm/struct/box.h \
+ /usr/include/cglm/box.h /usr/include/cglm/struct/color.h \
+ /usr/include/cglm/color.h /usr/include/cglm/struct/io.h \
+ /usr/include/cglm/io.h /usr/include/cglm/struct/cam.h \
+ /usr/include/cglm/cam.h /usr/include/cglm/struct/clipspace/ortho_rh_no.h \
+ /usr/include/cglm/common.h /usr/include/cglm/types-struct.h \
+ /usr/include/cglm/plane.h /usr/include/cglm/cam.h \
+ /usr/include/cglm/struct/vec3.h \
+ /usr/include/cglm/clipspace/ortho_rh_no.h \
+ /usr/include/cglm/struct/clipspace/persp_rh_no.h \
+ /usr/include/cglm/clipspace/persp_rh_no.h \
+ /usr/include/cglm/struct/clipspace/view_rh_no.h \
+ /usr/include/cglm/clipspace/view_rh_no.h /usr/include/cglm/struct/quat.h \
+ /usr/include/cglm/quat.h /usr/include/cglm/struct/euler.h \
+ /usr/include/cglm/euler.h /usr/include/cglm/struct/project.h \
+ /usr/include/cglm/project.h \
+ /usr/include/cglm/struct/clipspace/project_no.h \
+ /usr/include/cglm/clipspace/project_no.h \
+ /usr/include/cglm/struct/sphere.h /usr/include/cglm/sphere.h \
+ /usr/include/cglm/struct/curve.h /usr/include/cglm/curve.h \
+ /usr/include/cglm/struct/affine2d.h /usr/include/cglm/affine2d.h \
+ /usr/include/cglm/struct/mat3.h /usr/include/cglm/struct/ray.h \
+ /usr/include/cglm/ray.h /usr/include/string.h \
+ /usr/include/bits/types/locale_t.h /usr/include/bits/types/__locale_t.h \
+ /usr/include/strings.h

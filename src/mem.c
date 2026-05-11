@@ -369,6 +369,179 @@ err:
     return false;
 }
 
+bool
+cr_mem_upload_to_device_local_gpu_buffer_static(
+        struct cr_context_t* ctx,
+        const void* data,
+        size_t size,
+        enum cr_gpu_buffer_type_t type,
+        struct cr_gpu_buffer_t* o_buf
+        ) {
+    if (!ctx || !data || !size || !o_buf) _PARAM_CHECK_FAIL();
+    if (!cr_mem_create_gpu_buffer(
+                ctx,
+                size,
+                type,
+                CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+                o_buf
+                )) {
+        CR_ERROR(ctx->log, "Failed to create static device-local GPU buffer.");
+        return false;
+    }
+
+     _VK_CHECK(ctx, vkWaitForFences(
+                ctx->logical_dev,
+                1,
+                &_upload.fence,
+                VK_TRUE,
+                UINT64_MAX
+                ));
+
+    _VK_CHECK(ctx, vkResetFences(
+                ctx->logical_dev,
+                1,
+                &_upload.fence
+                ));
+
+    _VK_CHECK(ctx, vkResetCommandPool(
+                ctx->logical_dev,
+                _upload.cmd_pool,
+                0
+                ));
+
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    _VK_CHECK(ctx, vkBeginCommandBuffer(
+                _upload.cmd_buf,
+                &begin_info
+                ));
+
+    size_t offset = cr_mem_staging_ring_alloc(
+            &_staging_ring,
+            size,
+            ctx->phys_dev_limits.optimalBufferCopyOffsetAlignment
+            );
+
+    if (offset == SIZE_MAX) {
+        CR_FATAL(ctx->log, "Staging ring out of memory during static upload.");
+        goto err_destroy_buf;
+    }
+
+    memcpy(
+            (uint8_t*)_staging_ring.buf.mem_handle + offset,
+            data,
+            size
+            );
+
+    VkBufferCopy copy = {
+        .srcOffset = offset,
+        .dstOffset = 0,
+        .size      = size
+    };
+
+    vkCmdCopyBuffer(
+            _upload.cmd_buf,
+            _staging_ring.buf.buf,
+            o_buf->buf,
+            1,
+            &copy
+            );
+
+    VkPipelineStageFlags2 dst_stage_mask = 0;
+    VkAccessFlags2        dst_access_mask = 0;
+
+    switch (type) {
+        case CR_GPU_BUFFER_VERTEX:
+            dst_stage_mask  = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+            dst_access_mask = VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
+            break;
+
+        case CR_GPU_BUFFER_INDEX:
+            dst_stage_mask  = VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+            dst_access_mask = VK_ACCESS_2_INDEX_READ_BIT;
+            break;
+
+        case CR_GPU_BUFFER_INDIRECT:
+            dst_stage_mask  = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+            dst_access_mask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+            break;
+
+        case CR_GPU_BUFFER_SSBO:
+            dst_stage_mask =
+                VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+                VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+
+            dst_access_mask =
+                VK_ACCESS_2_SHADER_STORAGE_READ_BIT |
+                VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+            break;
+
+        default:
+            CR_FATAL(ctx->log, "Invalid static GPU buffer type.");
+            goto err_destroy_buf;
+    }
+
+    VkBufferMemoryBarrier2 barrier = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+
+        .srcStageMask  = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+
+        .dstStageMask  = dst_stage_mask,
+        .dstAccessMask = dst_access_mask,
+
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+
+        .buffer = o_buf->buf,
+        .offset = 0,
+        .size   = size
+    };
+
+    VkDependencyInfo dep = {
+        .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+        .bufferMemoryBarrierCount = 1,
+        .pBufferMemoryBarriers = &barrier
+    };
+
+    vkCmdPipelineBarrier2(_upload.cmd_buf, &dep);
+
+    _VK_CHECK(ctx, vkEndCommandBuffer(_upload.cmd_buf));
+
+    VkSubmitInfo submit_info = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &_upload.cmd_buf
+    };
+
+    _VK_CHECK(ctx, vkQueueSubmit(
+                ctx->graphics_queue,
+                1,
+                &submit_info,
+                _upload.fence
+                ));
+    _VK_CHECK(ctx, vkWaitForFences(
+                ctx->logical_dev,
+                1,
+                &_upload.fence,
+                VK_TRUE,
+                UINT64_MAX
+                ));
+
+    return true;
+
+err_destroy_buf:
+    cr_mem_destroy_gpu_buffer(ctx, o_buf);
+    return false;
+
+err:
+    cr_mem_destroy_gpu_buffer(ctx, o_buf);
+    return false;
+}
 
 bool 
 cr_mem_transfer_to_device_local_gpu_buffer(

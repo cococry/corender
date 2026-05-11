@@ -1,8 +1,9 @@
-#define COMP_PIPELINE_BINDING_BASE  4 // first valid location after segments,paths,img and indirect
 #define SEGMENTS_BINDING            0 
 #define PATHS_BINDING               1 
 #define IMG_BINDING                 2 
 #define INDIRECT_BINDING            3 
+#define MSAA_LUT_BINDING            4 
+#define COMP_PIPELINE_BINDING_BASE  5 // first valid location after segments,paths,img and indirect
 #define SUBGROUP_TMP_BINDING        COMP_PIPELINE_BINDING_BASE + 3 
 
 #define FAIL_TOUCH_OVERFLOW         1u << 0
@@ -16,7 +17,6 @@
 #define FAIL_RANK_OOB               1u << 8
 #define FAIL_FINE_TILE_SIZE_MISMATCH 1u << 9 
 #define FAIL_FINE_OOB 1u << 10 
-#define AVG_TOUCHES_PER_TILE        100
 
 #ifndef CR_ENABLE_GPU_STATS
 #define CR_ENABLE_GPU_STATS 0
@@ -26,37 +26,39 @@
 #define STATS_HIST_BINS 32u
 
 struct GpuStats {
-    uint n_tiles_seen;
+  uint failed;
 
-    uint empty_tiles;
-    uint solid_tiles;
-    uint fine_tiles;
-    uint active_tiles;
+  uint n_tiles_seen;
 
-    uint total_tile_segments;
-    uint total_fine_segments;
+  uint empty_tiles;
+  uint solid_tiles;
+  uint fine_tiles;
+  uint active_tiles;
 
-    uint max_tile_segments;
-    uint max_fine_segments;
+  uint total_tile_segments;
+  uint total_fine_segments;
 
-    uint max_abs_winding;
+  uint max_tile_segments;
+  uint max_fine_segments;
 
-    uint contention_tiles;
-    uint contended_tile_segments;
-    uint excess_tile_segments;
-    uint tile_atomic_pair_pressure;
+  uint max_abs_winding;
 
-    uint valid_edges;
-    uint invalid_edges;
-    uint y_edge_edges;
-    uint horizontal_edges;
-    uint zero_length_edges;
-    uint tile_mismatch_edges;
+  uint contention_tiles;
+  uint contended_tile_segments;
+  uint excess_tile_segments;
+  uint tile_atomic_pair_pressure;
 
-    uint estimated_fine_edge_evals;
+  uint valid_edges;
+  uint invalid_edges;
+  uint y_edge_edges;
+  uint horizontal_edges;
+  uint zero_length_edges;
+  uint tile_mismatch_edges;
 
-    uint hist_tile_segments[32];
-    uint hist_fine_segments[32];
+  uint estimated_fine_edge_evals;
+
+  uint hist_tile_segments[32];
+  uint hist_fine_segments[32];
 };
 
 #if CR_ENABLE_GPU_STATS
@@ -74,15 +76,15 @@ struct GpuStats {
 #endif
 
 struct TileInfo {
-    uint base;
-    uint count;
-    int winding;
-    uint flags;
+  uint base;
+  uint count;
+  int winding;
+  uint flags;
 };
 
 struct TileEdge {
-    uint p0; 
-    uint p1; 
+  uint p0; 
+  uint p1; 
 };
 
 #define TOUCH_SEG_BITS   20u
@@ -96,34 +98,34 @@ struct TileEdge {
 #define TOUCH_LOCAL_TILE_MASK ((1u << TOUCH_LOCAL_TILE_BITS) - 1u)
 
 struct TileTouchRecord {
-    uint a;
-    uint b;
+  uint a;
+  uint b;
 };
 
 struct Segment {
-    vec2 p0;
-    vec2 p1;
+  vec2 p0;
+  vec2 p1;
 };
 
 #define TILE_EMPTY 0u
 #define TILE_SOLID (1u << 0)
 #define TILE_FINE  (1u << 1)
 layout(push_constant) uniform push_constant {
-    uint screen_w, screen_h;
-    uint n_tiles_x, n_tiles_y, n_tiles;
+  uint screen_w, screen_h;
+  uint n_tiles_x, n_tiles_y, n_tiles;
 
-    uint tile_size;
+  uint tile_size;
 
-    uint max_tile_storage;
+  uint max_tile_storage;
 
-    uint n_segments;
-    uint n_paths;
+  uint n_segments;
+  uint n_paths;
 } pc;
 
 layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 0, std430) buffer Bump {
-    uint n_touches;
-    uint n_active_tiles;
-    uint n_tile_segment_slots;
-    uint failed;
+  uint n_touches;
+  uint n_active_tiles;
+  uint n_tile_segment_slots;
+  uint failed;
 } bump;
 
