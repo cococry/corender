@@ -27,12 +27,12 @@ layout(local_size_x = 256) in;
 #define SGS_PER_WG (WG_SIZE / SG_SIZE)
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 7, std430) buffer PrefixOutput {
+layout(set = 0, binding = 8, std430) buffer PrefixOutput {
     T tile_events[];
 };
 #endif
 
-layout(set = 0, binding = 7, std430) buffer PrefixInput {
+layout(set = 0, binding = 8, std430) buffer PrefixInput {
     T tile_events[];
 };
 

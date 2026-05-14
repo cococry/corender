@@ -2,8 +2,9 @@
 #define PATHS_BINDING               1 
 #define IMG_BINDING                 2 
 #define INDIRECT_BINDING            3 
-#define MSAA_LUT_BINDING            4 
-#define COMP_PIPELINE_BINDING_BASE  5 // first valid location after segments,paths,img and indirect
+#define MSAA8_LUT_BINDING           4 
+#define MSAA16_LUT_BINDING          5
+#define COMP_PIPELINE_BINDING_BASE  6 // first valid location after segments,paths,img and indirect
 #define SUBGROUP_TMP_BINDING        COMP_PIPELINE_BINDING_BASE + 3 
 
 #define FAIL_TOUCH_OVERFLOW         1u << 0

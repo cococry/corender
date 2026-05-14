@@ -114,24 +114,10 @@ CMakeFiles/corender.dir/src/mem.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/corender.dir/src/mem.c.s"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/luca/Dev/corender/src/mem.c -o CMakeFiles/corender.dir/src/mem.c.s
 
-CMakeFiles/corender.dir/src/msaa_lut.c.o: CMakeFiles/corender.dir/flags.make
-CMakeFiles/corender.dir/src/msaa_lut.c.o: /home/luca/Dev/corender/src/msaa_lut.c
-CMakeFiles/corender.dir/src/msaa_lut.c.o: CMakeFiles/corender.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building C object CMakeFiles/corender.dir/src/msaa_lut.c.o"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/corender.dir/src/msaa_lut.c.o -MF CMakeFiles/corender.dir/src/msaa_lut.c.o.d -o CMakeFiles/corender.dir/src/msaa_lut.c.o -c /home/luca/Dev/corender/src/msaa_lut.c
-
-CMakeFiles/corender.dir/src/msaa_lut.c.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/corender.dir/src/msaa_lut.c.i"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /home/luca/Dev/corender/src/msaa_lut.c > CMakeFiles/corender.dir/src/msaa_lut.c.i
-
-CMakeFiles/corender.dir/src/msaa_lut.c.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/corender.dir/src/msaa_lut.c.s"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /home/luca/Dev/corender/src/msaa_lut.c -o CMakeFiles/corender.dir/src/msaa_lut.c.s
-
 CMakeFiles/corender.dir/src/profiler.c.o: CMakeFiles/corender.dir/flags.make
 CMakeFiles/corender.dir/src/profiler.c.o: /home/luca/Dev/corender/src/profiler.c
 CMakeFiles/corender.dir/src/profiler.c.o: CMakeFiles/corender.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building C object CMakeFiles/corender.dir/src/profiler.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building C object CMakeFiles/corender.dir/src/profiler.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/corender.dir/src/profiler.c.o -MF CMakeFiles/corender.dir/src/profiler.c.o.d -o CMakeFiles/corender.dir/src/profiler.c.o -c /home/luca/Dev/corender/src/profiler.c
 
 CMakeFiles/corender.dir/src/profiler.c.i: cmake_force
@@ -145,7 +131,7 @@ CMakeFiles/corender.dir/src/profiler.c.s: cmake_force
 CMakeFiles/corender.dir/src/raster.c.o: CMakeFiles/corender.dir/flags.make
 CMakeFiles/corender.dir/src/raster.c.o: /home/luca/Dev/corender/src/raster.c
 CMakeFiles/corender.dir/src/raster.c.o: CMakeFiles/corender.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building C object CMakeFiles/corender.dir/src/raster.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building C object CMakeFiles/corender.dir/src/raster.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/corender.dir/src/raster.c.o -MF CMakeFiles/corender.dir/src/raster.c.o.d -o CMakeFiles/corender.dir/src/raster.c.o -c /home/luca/Dev/corender/src/raster.c
 
 CMakeFiles/corender.dir/src/raster.c.i: cmake_force
@@ -159,7 +145,7 @@ CMakeFiles/corender.dir/src/raster.c.s: cmake_force
 CMakeFiles/corender.dir/src/util.c.o: CMakeFiles/corender.dir/flags.make
 CMakeFiles/corender.dir/src/util.c.o: /home/luca/Dev/corender/src/util.c
 CMakeFiles/corender.dir/src/util.c.o: CMakeFiles/corender.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building C object CMakeFiles/corender.dir/src/util.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building C object CMakeFiles/corender.dir/src/util.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/corender.dir/src/util.c.o -MF CMakeFiles/corender.dir/src/util.c.o.d -o CMakeFiles/corender.dir/src/util.c.o -c /home/luca/Dev/corender/src/util.c
 
 CMakeFiles/corender.dir/src/util.c.i: cmake_force
@@ -173,7 +159,7 @@ CMakeFiles/corender.dir/src/util.c.s: cmake_force
 CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o: CMakeFiles/corender.dir/flags.make
 CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o: /home/luca/Dev/corender/vendor/vma/vma_impl.cpp
 CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o: CMakeFiles/corender.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o -MF CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o.d -o CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o -c /home/luca/Dev/corender/vendor/vma/vma_impl.cpp
 
 CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.i: cmake_force
@@ -189,7 +175,6 @@ corender_OBJECTS = \
 "CMakeFiles/corender.dir/src/compute.c.o" \
 "CMakeFiles/corender.dir/src/corender.c.o" \
 "CMakeFiles/corender.dir/src/mem.c.o" \
-"CMakeFiles/corender.dir/src/msaa_lut.c.o" \
 "CMakeFiles/corender.dir/src/profiler.c.o" \
 "CMakeFiles/corender.dir/src/raster.c.o" \
 "CMakeFiles/corender.dir/src/util.c.o" \
@@ -201,14 +186,13 @@ corender_EXTERNAL_OBJECTS =
 libcorender.a: CMakeFiles/corender.dir/src/compute.c.o
 libcorender.a: CMakeFiles/corender.dir/src/corender.c.o
 libcorender.a: CMakeFiles/corender.dir/src/mem.c.o
-libcorender.a: CMakeFiles/corender.dir/src/msaa_lut.c.o
 libcorender.a: CMakeFiles/corender.dir/src/profiler.c.o
 libcorender.a: CMakeFiles/corender.dir/src/raster.c.o
 libcorender.a: CMakeFiles/corender.dir/src/util.c.o
 libcorender.a: CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o
 libcorender.a: CMakeFiles/corender.dir/build.make
 libcorender.a: CMakeFiles/corender.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX static library libcorender.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/luca/Dev/corender/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX static library libcorender.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/corender.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/corender.dir/link.txt --verbose=$(VERBOSE)
 

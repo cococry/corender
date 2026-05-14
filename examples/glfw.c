@@ -180,8 +180,8 @@ int main(void) {
         cr_draw_begin_path(&ctx);
 
 
-        for(uint i = 0; i < 1; i++) {
-            draw_star(star_x[i], star_y[i], 5, 50, 80, t * 0.2);
+        for(uint i = 0; i < N_STARS; i++) {
+            draw_star(star_x[i], star_y[i], 5, 50, 80, 50 * 0.2);
         }
 
 cr_draw_end_path(&ctx);

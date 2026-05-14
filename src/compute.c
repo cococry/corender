@@ -1,6 +1,6 @@
 #include "compute.h"
 #include "mem.h"
-#include "msaa_lut.h"
+#include "fine_msaa_lut_static.h"
 #include "util.h"
 #include <errno.h>
 #include <linux/limits.h>
@@ -21,8 +21,9 @@ enum {
     CR_BINDING_PATHS         = 1,
     CR_BINDING_STORAGE_IMAGE = 2,
     CR_BINDING_INDIRECT      = 3,
-    CR_BINDING_MSAA_LUT      = 4,
-    CR_FIRST_USER_BINDING    = 5
+    CR_BINDING_MSAA8_LUT     = 4,
+    CR_BINDING_MSAA16_LUT    = 5,
+    CR_FIRST_USER_BINDING    = 6
 };
 
 static VkPipelineLayout _compute_pipeline_layout;
@@ -660,20 +661,36 @@ _vk_update_descriptors_for_frame(
         .pBufferInfo = &buffer_infos[CR_BINDING_INDIRECT]
     };
     
-    buffer_infos[CR_BINDING_MSAA_LUT] = (VkDescriptorBufferInfo) {
-        .buffer = pipeline->msaa_lut_buf.buf,
+    buffer_infos[CR_BINDING_MSAA8_LUT] = (VkDescriptorBufferInfo) {
+        .buffer = pipeline->msaa8_lut_buf.buf,
         .offset = 0,
         .range = VK_WHOLE_SIZE
     };
 
-    writes[CR_BINDING_MSAA_LUT] = (VkWriteDescriptorSet) {
+    writes[CR_BINDING_MSAA8_LUT] = (VkWriteDescriptorSet) {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstSet = _global_sets[swap_idx],
-        .dstBinding = CR_BINDING_MSAA_LUT,
+        .dstBinding = CR_BINDING_MSAA8_LUT,
         .dstArrayElement = 0,
         .descriptorCount = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        .pBufferInfo = &buffer_infos[CR_BINDING_MSAA_LUT]
+        .pBufferInfo = &buffer_infos[CR_BINDING_MSAA8_LUT]
+    };
+    
+    buffer_infos[CR_BINDING_MSAA16_LUT] = (VkDescriptorBufferInfo) {
+        .buffer = pipeline->msaa16_lut_buf.buf,
+        .offset = 0,
+        .range = VK_WHOLE_SIZE
+    };
+
+    writes[CR_BINDING_MSAA16_LUT] = (VkWriteDescriptorSet) {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = _global_sets[swap_idx],
+        .dstBinding = CR_BINDING_MSAA16_LUT,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        .pBufferInfo = &buffer_infos[CR_BINDING_MSAA16_LUT]
     };
 
     for (uint32_t j = 0; j < pipeline->n_buffers; j++) {
@@ -724,7 +741,7 @@ _vk_pipeline_layout_init(
         CR_FIRST_USER_BINDING + n_bindings;
 
     const uint32_t n_storage_buffers =
-        4u + n_bindings;
+        CR_FIRST_USER_BINDING - 1 + n_bindings;
 
     VkResult res;
 
@@ -976,34 +993,6 @@ err:
     return false;
 }
 
-static bool _create_fine_msaa8_lut_buffer(
-    struct cr_context_t* ctx,
-    struct cr_gpu_buffer_t* o_lut_buf
-) {
-    if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
-
-    uint32_t lut[FINE_MSAA8_LUT_PACKED_WORD_COUNT];
-
-    fine_msaa8_build_cell_mask_lut_packed(lut);
-
-    VkDeviceSize lut_size = sizeof(lut);
-
-    if (!cr_mem_upload_to_device_local_gpu_buffer_static(
-            ctx,
-            lut,
-            lut_size,
-            CR_GPU_BUFFER_SSBO,
-            o_lut_buf
-        )) {
-        CR_ERROR(ctx->log, "Failed to upload fine MSAA8 LUT buffer.");
-        return false;
-    }
-
-    return true;
-
-err:
-    return false;
-}
 
 static bool _create_fine_msaa16_lut_buffer(
     struct cr_context_t* ctx,
@@ -1011,12 +1000,11 @@ static bool _create_fine_msaa16_lut_buffer(
 ) {
     if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
 
-    printf("Got here.\n");
-    uint32_t lut[FINE_MSAA16_LUT_PACKED_WORD_COUNT];
+    const uint32_t* lut = FINE_MSAA16_CELL_MASK_LUT_PACKED; 
 
-    fine_msaa16_build_cell_mask_lut_packed(lut);
+    VkDeviceSize lut_size =
+        sizeof(uint32_t) * FINE_MSAA16_LUT_PACKED_WORD_COUNT;
 
-    VkDeviceSize lut_size = sizeof(lut);
 
     if (!cr_mem_upload_to_device_local_gpu_buffer_static(
             ctx,
@@ -1026,6 +1014,36 @@ static bool _create_fine_msaa16_lut_buffer(
             o_lut_buf
         )) {
         CR_ERROR(ctx->log, "Failed to upload fine MSAA16 LUT buffer.");
+        return false;
+    }
+
+    return true;
+
+err:
+    return false;
+}
+
+static bool _create_fine_msaa8_lut_buffer(
+    struct cr_context_t* ctx,
+    struct cr_gpu_buffer_t* o_lut_buf
+) {
+    if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
+
+    const uint32_t* lut = FINE_MSAA8_CELL_MASK_LUT_PACKED;
+
+
+    
+    VkDeviceSize lut_size =
+        sizeof(uint32_t) * FINE_MSAA8_LUT_PACKED_WORD_COUNT;
+
+    if (!cr_mem_upload_to_device_local_gpu_buffer_static(
+            ctx,
+            lut,
+            lut_size,
+            CR_GPU_BUFFER_SSBO,
+            o_lut_buf
+        )) {
+        CR_ERROR(ctx->log, "Failed to upload fine MSAA8 LUT buffer.");
         return false;
     }
 
@@ -1102,7 +1120,10 @@ cr_compute_pipeline_init(
     };
 
 
-    _create_fine_msaa16_lut_buffer(ctx, &pipeline->msaa_lut_buf);
+    if(!_create_fine_msaa8_lut_buffer(ctx, &pipeline->msaa8_lut_buf) || 
+      !_create_fine_msaa16_lut_buffer(ctx, &pipeline->msaa16_lut_buf)) {
+      CR_FATAL(ctx->log, "Failed to create MSAA LUT buffers.");
+    }
 
     if(!_vk_pipeline_layout_init(ctx, pipeline, bindings, sizeof(bindings) / sizeof(bindings[0]))) {
         CR_ERROR(ctx->log, "Failed to create Vulkan-Compute pipeline layout."); 

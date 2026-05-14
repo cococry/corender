@@ -4,6 +4,8 @@
 #extension GL_KHR_shader_subgroup_arithmetic : require
 #extension GL_KHR_shader_subgroup_ballot : require
 
+#define FINE_DENSE_EDGE_THRESHOLD 32
+
 #include "../../shared/pc.glsl"
 
 layout(local_size_x = 4, local_size_y = 16, local_size_z = 1) in;
@@ -17,8 +19,34 @@ const uint EDGE_CHUNK_SIZE = WORKGROUP_SIZE;
 const uint ENFORCED_SUBGROUP_SIZE = 32u;
 const uint N_SUBGROUPS = WORKGROUP_SIZE / ENFORCED_SUBGROUP_SIZE;
 
+#ifndef FINE_MSAA_SAMPLE_COUNT
+#define FINE_MSAA_SAMPLE_COUNT 8
+#endif
+
+
+#if FINE_MSAA_SAMPLE_COUNT == 8
+
+layout(set = 0, binding = MSAA8_LUT_BINDING, std430) readonly buffer MsaaMaskLut {
+  uint msaa_mask_lut[];
+};
+
+const uint MSAA_SAMPLE_COUNT = 8u;
+const uint MSAA_FULL_MASK = 0xffu;
+const uint MASK_LUT_DIM = 128u;
+
+#elif FINE_MSAA_SAMPLE_COUNT == 16
+
+layout(set = 0, binding = MSAA16_LUT_BINDING, std430) readonly buffer MsaaMaskLut {
+  uint msaa_mask_lut[];
+};
+
 const uint MSAA_SAMPLE_COUNT = 16u;
 const uint MSAA_FULL_MASK = 0xffffu;
+const uint MASK_LUT_DIM = 256u;
+
+#else
+#error Unsupported FINE_MSAA_SAMPLE_COUNT
+#endif
 
 const float EPS = 1e-6;
 const float FINE_TILE_SIZE_F = 16.0;
@@ -41,13 +69,8 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 7, std430) readonly buffe
   TileEdge tile_edges[];
 };
 
-layout(set = 0, binding = MSAA_LUT_BINDING, std430) readonly buffer MsaaMaskLut {
-  uint msaa_mask_lut[];
-};
-
 layout(set = 0, binding = IMG_BINDING, rgba8) uniform writeonly image2D img;
 
-const uint MASK_LUT_DIM = 256u;
 const float MASK_LUT_X_MIN = -1.0;
 const float MASK_LUT_X_MAX =  2.0;
 const float MASK_LUT_X_SCALE =
@@ -58,16 +81,23 @@ uint quantize_mask_lut_x(float x) {
   return uint(clamp(q, 0.0, float(MASK_LUT_DIM - 1u)));
 }
 
-uint lookup_msaa16_cell_mask(float x_top, float x_bottom) {
+uint lookup_msaa_cell_mask(float x_top, float x_bottom) {
   uint top_ix = quantize_mask_lut_x(x_top);
   uint bottom_ix = quantize_mask_lut_x(x_bottom);
 
   uint entry_ix = top_ix * MASK_LUT_DIM + bottom_ix;
 
+#if FINE_MSAA_SAMPLE_COUNT == 8
+  uint word = msaa_mask_lut[entry_ix >> 2u];
+  uint shift = (entry_ix & 3u) * 8u;
+
+  return (word >> shift) & MSAA_FULL_MASK;
+#else
   uint word = msaa_mask_lut[entry_ix >> 1u];
   uint shift = (entry_ix & 1u) * 16u;
 
   return (word >> shift) & MSAA_FULL_MASK;
+#endif
 }
 
 shared TileEdge sh_edges[EDGE_CHUNK_SIZE];
@@ -263,7 +293,7 @@ uint compute_cell_sample_mask_lut(
 
   float x_bottom = x_top + lp.slope_x_per_y;
 
-  return lookup_msaa16_cell_mask(x_top, x_bottom);
+  return lookup_msaa_cell_mask(x_top, x_bottom);
 }
 
 bool make_msaa_line_walk_params(
@@ -413,6 +443,41 @@ void accumulate_msaa_cell(
     atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
   }
 }
+
+void accumulate_msaa_cell_direct(
+    MsaaLineWalkParams lp,
+    uint local_tile,
+    float n_x_steps,
+    bool changed_pixel_row
+    ) {
+  int x = int(lp.x0 + lp.x_sign * n_x_steps);
+
+  int y = int(lp.y0 + float(local_tile) - n_x_steps);
+
+  if (
+      x < 0 ||
+      y < 0 ||
+      x >= int(FINE_TILE_SIZE) ||
+      y >= int(FINE_TILE_SIZE)
+     ) {
+    return;
+  }
+
+  if (changed_pixel_row) {
+    emit_x_winding_event(uint(x), uint(y));
+  }
+
+  uint mask = compute_cell_sample_mask_lut(
+      lp,
+      uint(x),
+      uint(y)
+      );
+
+  if (mask != 0u) {
+    atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
+  }
+}
+
 
 void prefix_counts(uint lane, uint count) {
   uint subgroup_prefix = subgroupInclusiveAdd(count);
@@ -691,6 +756,72 @@ void shade_fine_tile_msaa(
   write_msaa_pixels(info, tile_x, tile_y, local_base, tile_fully_inside);
 }
 
+void shade_fine_tile_msaa_dense(
+    TileInfo info,
+    uint tile_x,
+    uint tile_y,
+    uvec2 local_base,
+    bool tile_fully_inside
+    ) {
+  uint lane = gl_LocalInvocationIndex;
+
+  clear_msaa_shared(lane);
+
+  // For dense tiles, edges are iterated directly without a pixel-cell scheduler
+  // (like in shade_fine_tile_msaa()).
+  // This is useful for pathological dense tiles, as it removes binary_search_edge()
+  // from every pixel-cell job, it removes doing prefix sums per edge chunk and it 
+  // avoids lots of shared memory traffic.
+  // Also, dense tiles already have enough natural parallelism. With info.count >= 64, 
+  // every lane has at least one edge, often several, so load balance isn't really 
+  // a problem here. 
+  for (uint edge_local = lane; edge_local < info.count; edge_local += WORKGROUP_SIZE) {
+    TileEdge edge = tile_edges[info.base + edge_local];
+
+    float left_y_edge = get_left_y_edge_from_packed(edge.p0, edge.p1);
+
+    vec2 p0 = unpack_point(edge.p0);
+    vec2 p1 = unpack_point(edge.p1);
+
+    apply_grid_x_nudge(p0, p1);
+
+    MsaaLineWalkParams lp;
+
+    if (make_msaa_line_walk_params(p0, p1, lp)) {
+      float prev_n_x_steps = 0.0;
+
+      for (uint local_tile = 0u; local_tile < lp.count; local_tile++) {
+        float n_x_steps =
+          floor(lp.x_step_rate * float(local_tile) + lp.x_step_start_offset);
+
+        bool changed_pixel_row;
+
+        if (local_tile == 0u) {
+          changed_pixel_row = abs(lp.y0 - lp.xy0.y) <= EPS;
+        } else {
+          changed_pixel_row = n_x_steps == prev_n_x_steps;
+        }
+
+        accumulate_msaa_cell_direct(
+            lp,
+            local_tile,
+            n_x_steps,
+            changed_pixel_row
+            );
+
+        prev_n_x_steps = n_x_steps;
+      }
+    }
+
+    emit_left_y_edge_event(left_y_edge);
+  }
+
+  barrier();
+
+  write_msaa_pixels(info, tile_x, tile_y, local_base, tile_fully_inside);
+}
+
+
 // dispatched over all active tiles
 // each workgroup handles one active tile
 // each workgroup contains 4(x) x 16(y) = 64 invocations
@@ -724,9 +855,13 @@ void main() {
     shade_solid_tile(tile_x, tile_y, local_base, tile_fully_inside);
     return;
   }
-
   if ((info.flags & TILE_FINE) != 0u) {
-    shade_fine_tile_msaa(info, tile_x, tile_y, local_base, tile_fully_inside);
+    if (info.count >= FINE_DENSE_EDGE_THRESHOLD) {
+      shade_fine_tile_msaa_dense(info, tile_x, tile_y, local_base, tile_fully_inside);
+    } else {
+      shade_fine_tile_msaa(info, tile_x, tile_y, local_base, tile_fully_inside);
+    }
+
     return;
   }
 }

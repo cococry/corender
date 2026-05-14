@@ -205,7 +205,7 @@ CMakeFiles/corender.dir/src/compute.c.o: \
  /home/luca/Dev/corender/src/mem.h \
  /home/luca/Dev/corender/src/../vendor/vma/vk_mem_alloc.h \
  /usr/include/vulkan/vulkan.h /usr/include/vulkan/vulkan_core.h \
- /home/luca/Dev/corender/src/msaa_lut.h \
+ /home/luca/Dev/corender/src/fine_msaa_lut_static.h \
  /home/luca/Dev/corender/src/util.h \
  /home/luca/Dev/corender/src/profiler.h /usr/include/errno.h \
  /usr/include/bits/errno.h /usr/include/linux/errno.h \

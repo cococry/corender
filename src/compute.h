@@ -176,7 +176,7 @@ struct cr_compute_pipeline_t {
 
   struct cr_storage_image_t storage_img;
 
-  struct cr_gpu_buffer_t msaa_lut_buf; 
+  struct cr_gpu_buffer_t msaa8_lut_buf, msaa16_lut_buf; 
 
   VkDescriptorPool descriptor_pool;
 

@@ -97,7 +97,7 @@ set(SUBGROUP_SIZES 4 8 16 32 64)
 set(PIPELINE_tile_events
     tile_events # input buffer
     tile_events # output buffer, in-place
-    7           # binding location for input buffer
+    8           # binding location for input buffer
     -1          # binding location for output buffer, no output buffer
     -1          # prefixed output, same as INPUT
     0           # enable 1d prefix sum

@@ -297,30 +297,6 @@ src/mem.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/mem.c.s
 .PHONY : src/mem.c.s
 
-src/msaa_lut.o: src/msaa_lut.c.o
-.PHONY : src/msaa_lut.o
-
-# target to build an object file
-src/msaa_lut.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/msaa_lut.c.o
-.PHONY : src/msaa_lut.c.o
-
-src/msaa_lut.i: src/msaa_lut.c.i
-.PHONY : src/msaa_lut.i
-
-# target to preprocess a source file
-src/msaa_lut.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/msaa_lut.c.i
-.PHONY : src/msaa_lut.c.i
-
-src/msaa_lut.s: src/msaa_lut.c.s
-.PHONY : src/msaa_lut.s
-
-# target to generate assembly for a file
-src/msaa_lut.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/corender.dir/build.make CMakeFiles/corender.dir/src/msaa_lut.c.s
-.PHONY : src/msaa_lut.c.s
-
 src/profiler.o: src/profiler.c.o
 .PHONY : src/profiler.o
 
@@ -444,9 +420,6 @@ help:
 	@echo "... src/mem.o"
 	@echo "... src/mem.i"
 	@echo "... src/mem.s"
-	@echo "... src/msaa_lut.o"
-	@echo "... src/msaa_lut.i"
-	@echo "... src/msaa_lut.s"
 	@echo "... src/profiler.o"
 	@echo "... src/profiler.i"
 	@echo "... src/profiler.s"
