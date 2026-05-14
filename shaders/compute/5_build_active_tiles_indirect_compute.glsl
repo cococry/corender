@@ -4,12 +4,19 @@
 
 layout(local_size_x = 1) in;
 
+layout(set = 0, binding = INDIRECT_BINDING, std430) buffer Indirect {
+  uint sparse_x;
+  uint sparse_y;
+  uint sparse_z;
 
-layout(set = 0, binding = INDIRECT_BINDING, std430) buffer ActiveTilesIndirect {
-  uint dispatch_x;
-  uint dispatch_y;
-  uint dispatch_z;
-} active_tiles_indirect;
+  uint dense_x;
+  uint dense_y;
+  uint dense_z;
+
+  uint analytic_x;
+  uint analytic_y;
+  uint analytic_z;
+};
 
 #if CR_ENABLE_GPU_STATS
 layout(set = 0, binding = STATS_BINDING, std430) buffer StatsBuffer {
@@ -22,15 +29,34 @@ void main() {
 #if CR_ENABLE_GPU_STATS
     atomicOr(stats.failed, bump.failed);
 #endif
-    active_tiles_indirect.dispatch_x = 0u;
-    active_tiles_indirect.dispatch_y = 1u;
-    active_tiles_indirect.dispatch_z = 1u;
+
+    sparse_x = 0u;
+    sparse_y = 1u;
+    sparse_z = 1u;
+
+    dense_x = 0u;
+    dense_y = 1u;
+    dense_z = 1u;
+
+    analytic_x = 0u;
+    analytic_y = 1u;
+    analytic_z = 1u;
+
     return;
   }
 
-  // we will dispatch one workgroup per active tile
-  // in the next step
-  active_tiles_indirect.dispatch_x = bump.n_active_tiles;
-  active_tiles_indirect.dispatch_y = 1u;
-  active_tiles_indirect.dispatch_z = 1u;
+  uint n_sparse = bump.n_active_tiles_sparse;
+  uint n_dense = bump.n_active_tiles_dense;
+
+  sparse_x = n_sparse;
+  sparse_y = 1u;
+  sparse_z = 1u;
+
+  dense_x = n_dense;
+  dense_y = 1u;
+  dense_z = 1u;
+
+  analytic_x = n_sparse + n_dense;
+  analytic_y = 1u;
+  analytic_z = 1u;
 }

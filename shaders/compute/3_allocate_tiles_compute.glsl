@@ -17,8 +17,12 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 5, std430) buffer TileInf
     TileInfo tile_infos[];
 };
 
-layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 6, std430) buffer ActiveTiles {
-    uint active_tiles[];
+layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 6, std430) buffer ActiveTilesSparse {
+    uint active_tiles_sparse[];
+};
+
+layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 7, std430) buffer ActiveTilesDense {
+    uint active_tiles_dense[];
 };
 
 #if CR_ENABLE_GPU_STATS
@@ -88,25 +92,29 @@ void main() {
 
     uint flags = TILE_EMPTY;
 
-    // if the tile has any segments directly touching it,
-    // it needs to be evaluated as a fine tile.
+#if EVEN_ODD_WINDING
+    bool winding_inside = (winding & 1) != 0;
+#else
+    bool winding_inside = winding != 0;
+#endif
+
     if (has_edges) {
-        flags |= TILE_FINE;
-    } else if ((winding & 1) != 0) {
-        // if the tile does not have edges touching it 
-        // but the winding rule says it is inside, it is
-        // a solid tile.
-        flags |= TILE_SOLID;
+      flags |= TILE_FINE;
+    } else if (winding_inside) {
+      // if the tile does not have edges touching it 
+      // but the winding rule says it is inside, it is
+      // a solid tile.
+      flags |= TILE_SOLID;
     }
 
 #if CR_ENABLE_GPU_STATS
     if (flags == TILE_EMPTY) {
-        CR_STAT_ADD(empty_tiles, 1u);
+      CR_STAT_ADD(empty_tiles, 1u);
     } else {
-        CR_STAT_ADD(active_tiles, 1u);
+      CR_STAT_ADD(active_tiles, 1u);
 
-        if ((flags & TILE_SOLID) != 0u) {
-            CR_STAT_ADD(solid_tiles, 1u);
+      if ((flags & TILE_SOLID) != 0u) {
+        CR_STAT_ADD(solid_tiles, 1u);
         }
 
         if ((flags & TILE_FINE) != 0u) {
@@ -145,13 +153,24 @@ void main() {
     // if the tile is not empty, it's active and we add it 
     // to the list of dispatched tiles for fine.
     if (flags != TILE_EMPTY) {
-        uint active_idx = atomicAdd(bump.n_active_tiles, 1u);
+      if ((flags & TILE_FINE) != 0u && n_segments >= TILE_DENSE_THRESHOLD) {
+        uint active_idx = atomicAdd(bump.n_active_tiles_dense, 1u);
 
         if (active_idx >= pc.n_tiles) {
-            atomicOr(bump.failed, FAIL_ACTIVE_TILE_OVERFLOW);
-            return;
+          atomicOr(bump.failed, FAIL_ACTIVE_TILE_OVERFLOW);
+          return;
         }
 
-        active_tiles[active_idx] = tile_id;
+        active_tiles_dense[active_idx] = tile_id;
+      } else {
+        uint active_idx = atomicAdd(bump.n_active_tiles_sparse, 1u);
+
+        if (active_idx >= pc.n_tiles) {
+          atomicOr(bump.failed, FAIL_ACTIVE_TILE_OVERFLOW);
+          return;
+        }
+
+        active_tiles_sparse[active_idx] = tile_id;
+      }
     }
 }

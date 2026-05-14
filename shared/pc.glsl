@@ -23,8 +23,11 @@
 #define CR_ENABLE_GPU_STATS 0
 #endif
 
-#define STATS_BINDING (COMP_PIPELINE_BINDING_BASE + 8)
+#define STATS_BINDING (COMP_PIPELINE_BINDING_BASE + 9)
 #define STATS_HIST_BINS 32u
+
+#define TILE_DENSE_THRESHOLD 32
+#define EVEN_ODD_WINDING 1
 
 struct GpuStats {
   uint failed;
@@ -125,7 +128,8 @@ layout(push_constant) uniform push_constant {
 
 layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 0, std430) buffer Bump {
   uint n_touches;
-  uint n_active_tiles;
+  uint n_active_tiles_sparse;
+  uint n_active_tiles_dense;
   uint n_tile_segment_slots;
   uint failed;
 } bump;

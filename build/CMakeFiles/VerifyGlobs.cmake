@@ -94,8 +94,9 @@ set(OLD_GLOB
   "/home/luca/Dev/corender/shaders/compute/3_allocate_tiles_compute.glsl"
   "/home/luca/Dev/corender/shaders/compute/4_scatter_touches_compute.glsl"
   "/home/luca/Dev/corender/shaders/compute/5_build_active_tiles_indirect_compute.glsl"
-  "/home/luca/Dev/corender/shaders/compute/6_fine_eval_compute.glsl"
-  "/home/luca/Dev/corender/shaders/compute/6_fine_eval_msaa_compute.glsl"
+  "/home/luca/Dev/corender/shaders/compute/6_fine_eval_analytic_compute.glsl"
+  "/home/luca/Dev/corender/shaders/compute/7_fine_eval_msaa_sparse_compute.glsl"
+  "/home/luca/Dev/corender/shaders/compute/8_fine_eval_msaa_dense_compute.glsl"
   )
 if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
   message("-- GLOB mismatch!")
@@ -175,6 +176,7 @@ endif()
 # SHADER_SHARED_DEPS at CMakeLists.txt:91 (file)
 file(GLOB_RECURSE NEW_GLOB LIST_DIRECTORIES false "/home/luca/Dev/corender/shared/*.glsl")
 set(OLD_GLOB
+  "/home/luca/Dev/corender/shared/fine_eval_msaa_common.glsl"
   "/home/luca/Dev/corender/shared/pc.glsl"
   "/home/luca/Dev/corender/shared/segment_walking.glsl"
   )

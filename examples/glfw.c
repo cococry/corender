@@ -148,7 +148,7 @@ int main(void) {
 
     double start_time = glfwGetTime();
 
-#define N_STARS 40000
+#define N_STARS 1 
 
     float* star_x = malloc(N_STARS * sizeof(float));
     float* star_y = malloc(N_STARS * sizeof(float));
@@ -181,7 +181,7 @@ int main(void) {
 
 
         for(uint i = 0; i < N_STARS; i++) {
-            draw_star(star_x[i], star_y[i], 5, 50, 80, 50 * 0.2);
+            draw_star(star_x[i], star_y[i], 5, 50, 80, t * 0.2);
         }
 
 cr_draw_end_path(&ctx);

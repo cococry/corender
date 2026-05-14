@@ -30,7 +30,8 @@ struct cr_compute_pipeline_push_constant_t {
 
 struct cr_compute_bump_t {
   uint32_t n_touches;
-  uint32_t n_active_tiles;
+  uint32_t n_active_tiles_sparse;
+  uint32_t n_active_tiles_dense;
   uint32_t n_tile_segment_slots;
   uint32_t failed;
 };

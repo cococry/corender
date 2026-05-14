@@ -23,7 +23,7 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 5, std430) readonly buffe
   TileInfo tile_infos[];
 };
 
-layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 7, std430) writeonly buffer TileEdges {
+layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 8, std430) writeonly buffer TileEdges {
   TileEdge tile_edges[];
 };
 
@@ -262,8 +262,6 @@ bool make_tile_edge(
 
   return true;
 }
-
-
 
 uint touch_seg_id(TileTouchRecord r) {
   return r.a & TOUCH_SEG_MASK;

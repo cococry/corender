@@ -1,12 +1,3 @@
-#version 450
-#extension GL_GOOGLE_include_directive : require
-#extension GL_KHR_shader_subgroup_basic : require
-#extension GL_KHR_shader_subgroup_arithmetic : require
-#extension GL_KHR_shader_subgroup_ballot : require
-
-#define FINE_DENSE_EDGE_THRESHOLD 32
-
-#include "../../shared/pc.glsl"
 
 layout(local_size_x = 4, local_size_y = 16, local_size_z = 1) in;
 
@@ -20,7 +11,7 @@ const uint ENFORCED_SUBGROUP_SIZE = 32u;
 const uint N_SUBGROUPS = WORKGROUP_SIZE / ENFORCED_SUBGROUP_SIZE;
 
 #ifndef FINE_MSAA_SAMPLE_COUNT
-#define FINE_MSAA_SAMPLE_COUNT 8
+#define FINE_MSAA_SAMPLE_COUNT 16
 #endif
 
 
@@ -61,11 +52,7 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 5, std430) readonly buffe
   TileInfo tile_infos[];
 };
 
-layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 6, std430) readonly buffer ActiveTiles {
-  uint active_tiles[];
-};
-
-layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 7, std430) readonly buffer TileEdges {
+layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 8, std430) readonly buffer TileEdges {
   TileEdge tile_edges[];
 };
 
@@ -100,11 +87,6 @@ uint lookup_msaa_cell_mask(float x_top, float x_bottom) {
 #endif
 }
 
-shared TileEdge sh_edges[EDGE_CHUNK_SIZE];
-
-shared uint sh_count[WORKGROUP_SIZE];
-shared uint sh_subgroup_sums[N_SUBGROUPS];
-
 // One bit per row of this tile.
 // Bit y means row parity toggles starting at row y
 shared uint sh_winding_y;
@@ -135,8 +117,6 @@ struct MsaaLineWalkParams {
   uint count_x;
   uint count;
 };
-
-shared MsaaLineWalkParams sh_walk[EDGE_CHUNK_SIZE];
 
 uint packed_x(uint packed_point) {
   return packed_point & 0xffffu;
@@ -391,130 +371,6 @@ bool make_msaa_line_walk_params(
   return true;
 }
 
-void accumulate_msaa_cell(
-    MsaaLineWalkParams lp,
-    uint local_tile
-    ) {
-  // number of x-steps taken before this local pixel cell
-  float n_x_steps =
-    floor(lp.x_step_rate * float(local_tile) + lp.x_step_start_offset);
-
-  // recover the pixel cell touched by this local walk step
-  int x = int(lp.x0 + lp.x_sign * n_x_steps);
-
-  // remaining steps are y-steps
-  int y = int(lp.y0 + float(local_tile) - n_x_steps);
-
-  // ignore cells outside this fine tile
-  if (
-      x < 0 ||
-      y < 0 ||
-      x >= int(FINE_TILE_SIZE) ||
-      y >= int(FINE_TILE_SIZE)
-     ) {
-    return;
-  }
-
-  bool changed_pixel_row;
-
-  if (local_tile == 0u) {
-    changed_pixel_row = abs(lp.y0 - lp.xy0.y) <= EPS;
-  } else {
-    float prev_n_x_steps =
-      floor(lp.x_step_rate * float(local_tile - 1u) + lp.x_step_start_offset);
-
-    changed_pixel_row = n_x_steps == prev_n_x_steps;
-  }
-
-  // emit parity event only if row changed
-  if (changed_pixel_row) {
-    emit_x_winding_event(uint(x), uint(y));
-  }
-
-  // compute this edge's 16-sample coverage mask for the pixel cell
-  uint mask = compute_cell_sample_mask_lut(
-      lp,
-      uint(x),
-      uint(y)
-      );
-
-  // xor edge coverage into the shared per-pixel MSAA mask
-  if (mask != 0u) {
-    atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
-  }
-}
-
-void accumulate_msaa_cell_direct(
-    MsaaLineWalkParams lp,
-    uint local_tile,
-    float n_x_steps,
-    bool changed_pixel_row
-    ) {
-  int x = int(lp.x0 + lp.x_sign * n_x_steps);
-
-  int y = int(lp.y0 + float(local_tile) - n_x_steps);
-
-  if (
-      x < 0 ||
-      y < 0 ||
-      x >= int(FINE_TILE_SIZE) ||
-      y >= int(FINE_TILE_SIZE)
-     ) {
-    return;
-  }
-
-  if (changed_pixel_row) {
-    emit_x_winding_event(uint(x), uint(y));
-  }
-
-  uint mask = compute_cell_sample_mask_lut(
-      lp,
-      uint(x),
-      uint(y)
-      );
-
-  if (mask != 0u) {
-    atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
-  }
-}
-
-
-void prefix_counts(uint lane, uint count) {
-  uint subgroup_prefix = subgroupInclusiveAdd(count);
-
-  uint subgroup_total =
-    subgroupBroadcast(subgroup_prefix, ENFORCED_SUBGROUP_SIZE - 1u);
-
-  if (gl_SubgroupInvocationID == 0u) {
-    sh_subgroup_sums[gl_SubgroupID] = subgroup_total;
-  }
-
-  barrier();
-
-  uint subgroup_base = gl_SubgroupID == 0u ? 0u : sh_subgroup_sums[0];
-
-  sh_count[lane] = subgroup_base + subgroup_prefix;
-
-  barrier();
-}
-
-uint binary_search_edge(uint goal, uint chunk_count) {
-  uint lo = 0u;
-  uint hi = chunk_count;
-
-  while (hi > lo + 1u) {
-    uint mid = (lo + hi) >> 1u;
-
-    if (goal >= sh_count[mid - 1u]) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-
-  return lo;
-}
-
 void store_pixel_checked(ivec2 p, vec4 rgba) {
   if (
       p.x >= 0 &&
@@ -671,197 +527,5 @@ void write_msaa_pixels(
         scan_x,
         tile_fully_inside
         );
-  }
-}
-
-void shade_fine_tile_msaa(
-    TileInfo info,
-    uint tile_x,
-    uint tile_y,
-    uvec2 local_base,
-    bool tile_fully_inside
-    ) {
-  uint lane = gl_LocalInvocationIndex;
-
-  clear_msaa_shared(lane);
-
-  for (uint chunk_base = 0u; chunk_base < info.count; chunk_base += EDGE_CHUNK_SIZE) {
-    uint remaining = info.count - chunk_base;
-    uint chunk_count = min(EDGE_CHUNK_SIZE, remaining);
-
-    // load edges into shared mem
-    if (lane < chunk_count) {
-      sh_edges[lane] = tile_edges[info.base + chunk_base + lane];
-    }
-
-    barrier();
-
-    uint pixel_count = 0u;
-
-    if (lane < chunk_count) {
-      TileEdge edge = sh_edges[lane];
-
-      float left_y_edge = get_left_y_edge_from_packed(edge.p0, edge.p1);
-
-      vec2 p0 = unpack_point(edge.p0);
-      vec2 p1 = unpack_point(edge.p1);
-
-      apply_grid_x_nudge(p0, p1);
-
-      MsaaLineWalkParams lp;
-
-      if (make_msaa_line_walk_params(p0, p1, lp)) {
-        sh_walk[lane] = lp;
-        pixel_count = lp.count;
-      } else {
-        pixel_count = 0u;
-      }
-
-      // emit the parity event per edge
-      emit_left_y_edge_event(left_y_edge);
-    }
-
-    prefix_counts(lane, pixel_count);
-
-    // total number of pixel-cell jobs in this edge chunk
-    uint total_pixel_cells = 0u;
-
-    if (chunk_count > 0u) {
-      total_pixel_cells = sh_count[chunk_count - 1u];
-    }
-
-    barrier();
-
-    for (uint work_cell = lane; work_cell < total_pixel_cells; work_cell += WORKGROUP_SIZE) {
-      // the index of the edge that the current work
-      // pixel-cell is on
-      uint edge_idx = binary_search_edge(work_cell, chunk_count);
-
-      uint previous_cell = 0u;
-
-      if (edge_idx > 0u) {
-        previous_cell = sh_count[edge_idx - 1u];
-      }
-
-      uint local_cell = work_cell - previous_cell;
-
-      MsaaLineWalkParams lp = sh_walk[edge_idx];
-
-      accumulate_msaa_cell(lp, local_cell);
-    }
-
-    barrier();
-  }
-
-  write_msaa_pixels(info, tile_x, tile_y, local_base, tile_fully_inside);
-}
-
-void shade_fine_tile_msaa_dense(
-    TileInfo info,
-    uint tile_x,
-    uint tile_y,
-    uvec2 local_base,
-    bool tile_fully_inside
-    ) {
-  uint lane = gl_LocalInvocationIndex;
-
-  clear_msaa_shared(lane);
-
-  // For dense tiles, edges are iterated directly without a pixel-cell scheduler
-  // (like in shade_fine_tile_msaa()).
-  // This is useful for pathological dense tiles, as it removes binary_search_edge()
-  // from every pixel-cell job, it removes doing prefix sums per edge chunk and it 
-  // avoids lots of shared memory traffic.
-  // Also, dense tiles already have enough natural parallelism. With info.count >= 64, 
-  // every lane has at least one edge, often several, so load balance isn't really 
-  // a problem here. 
-  for (uint edge_local = lane; edge_local < info.count; edge_local += WORKGROUP_SIZE) {
-    TileEdge edge = tile_edges[info.base + edge_local];
-
-    float left_y_edge = get_left_y_edge_from_packed(edge.p0, edge.p1);
-
-    vec2 p0 = unpack_point(edge.p0);
-    vec2 p1 = unpack_point(edge.p1);
-
-    apply_grid_x_nudge(p0, p1);
-
-    MsaaLineWalkParams lp;
-
-    if (make_msaa_line_walk_params(p0, p1, lp)) {
-      float prev_n_x_steps = 0.0;
-
-      for (uint local_tile = 0u; local_tile < lp.count; local_tile++) {
-        float n_x_steps =
-          floor(lp.x_step_rate * float(local_tile) + lp.x_step_start_offset);
-
-        bool changed_pixel_row;
-
-        if (local_tile == 0u) {
-          changed_pixel_row = abs(lp.y0 - lp.xy0.y) <= EPS;
-        } else {
-          changed_pixel_row = n_x_steps == prev_n_x_steps;
-        }
-
-        accumulate_msaa_cell_direct(
-            lp,
-            local_tile,
-            n_x_steps,
-            changed_pixel_row
-            );
-
-        prev_n_x_steps = n_x_steps;
-      }
-    }
-
-    emit_left_y_edge_event(left_y_edge);
-  }
-
-  barrier();
-
-  write_msaa_pixels(info, tile_x, tile_y, local_base, tile_fully_inside);
-}
-
-
-// dispatched over all active tiles
-// each workgroup handles one active tile
-// each workgroup contains 4(x) x 16(y) = 64 invocations
-void main() {
-  uint active_ix = gl_WorkGroupID.x;
-
-  if (active_ix >= bump.n_active_tiles) {
-    return;
-  }
-
-  uint tile_id = active_tiles[active_ix];
-
-  if (tile_id >= pc.n_tiles) {
-    atomicOr(bump.failed, FAIL_FINE_OOB);
-    return;
-  }
-
-  TileInfo info = tile_infos[tile_id];
-
-  uint tile_x = tile_id % pc.n_tiles_x;
-  uint tile_y = tile_id / pc.n_tiles_x;
-
-  bool tile_fully_inside = tile_is_fully_inside_screen(tile_x, tile_y);
-
-  uvec2 local_base = uvec2(
-      gl_LocalInvocationID.x * PIXELS_PER_THREAD,
-      gl_LocalInvocationID.y
-      );
-
-  if ((info.flags & TILE_SOLID) != 0u) {
-    shade_solid_tile(tile_x, tile_y, local_base, tile_fully_inside);
-    return;
-  }
-  if ((info.flags & TILE_FINE) != 0u) {
-    if (info.count >= FINE_DENSE_EDGE_THRESHOLD) {
-      shade_fine_tile_msaa_dense(info, tile_x, tile_y, local_base, tile_fully_inside);
-    } else {
-      shade_fine_tile_msaa(info, tile_x, tile_y, local_base, tile_fully_inside);
-    }
-
-    return;
   }
 }
