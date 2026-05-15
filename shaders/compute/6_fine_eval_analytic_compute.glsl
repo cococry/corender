@@ -116,9 +116,11 @@ vec4 resolve_nonzero(vec4 a) {
 }
 
 vec4 resolve_coverage(vec4 a) {
-    vec4 coverage = CR_FILL_RULE_NONZERO 
-        ? resolve_even_odd(a)
-        : resolve_nonzero(a);
+#if CR_FILL_RULE_NONZERO
+    vec4 coverage = resolve_nonzero(a);
+#else
+    vec4 coverage = resolve_even_odd(a);
+#endif
 
     return clamp(coverage, vec4(0.0), vec4(1.0));
 }

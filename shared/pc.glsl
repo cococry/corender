@@ -1,11 +1,18 @@
-#define SEGMENTS_BINDING            0 
-#define PATHS_BINDING               1 
-#define IMG_BINDING                 2 
-#define INDIRECT_BINDING            3 
-#define MSAA8_LUT_BINDING           4 
-#define MSAA16_LUT_BINDING          5
-#define COMP_PIPELINE_BINDING_BASE  6 // first valid location after segments,paths,img and indirect
-#define SUBGROUP_TMP_BINDING        COMP_PIPELINE_BINDING_BASE + 3 
+#define SEGMENTS_BINDING            0
+#define PATHS_BINDING               1
+#define IMG_BINDING                 2
+#define INDIRECT_BINDING            3
+
+#define MSAA8_LUT_BINDING           4
+#define MSAA8X_LUT_BINDING          5
+#define MSAA8Y_LUT_BINDING          6
+
+#define MSAA16_LUT_BINDING          7
+#define MSAA16X_LUT_BINDING         8
+#define MSAA16Y_LUT_BINDING         9
+
+#define COMP_PIPELINE_BINDING_BASE  10
+#define SUBGROUP_TMP_BINDING        (COMP_PIPELINE_BINDING_BASE + 3)
 
 #define FAIL_TOUCH_OVERFLOW         1u << 0
 #define FAIL_TILE_SEGMENT_OVERFLOW  1u << 1
@@ -28,7 +35,7 @@
 
 #define TILE_DENSE_THRESHOLD 32
 
-#define CR_FILL_RULE_NONZERO true
+#define CR_FILL_RULE_NONZERO 0 
 
 struct GpuStats {
   uint failed;

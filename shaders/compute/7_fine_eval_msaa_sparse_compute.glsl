@@ -62,27 +62,48 @@ void accumulate_msaa_cell(
 #endif
   }
 
-  // compute this edge's 16 sample coverage mask for the pixel cell
+    uint pix = pixel_ix(uint(x), uint(y));
+
+#if CR_FILL_RULE_NONZERO
+  uint x_mask = compute_cell_sample_x_mask_lut(
+      lp,
+      uint(x),
+      uint(y)
+      );
+
+  uint y_mask = compute_cell_sample_y_mask_lut(
+      lp,
+      uint(x),
+      uint(y)
+      );
+
+  if (x_mask != 0u) {
+    emit_sample_winding(
+        pix,
+        x_mask,
+        lp.winding_delta
+        );
+  }
+
+  if (y_mask != 0u) {
+    emit_sample_winding(
+        pix,
+        y_mask,
+        lp.left_delta
+        );
+  }
+#else
   uint mask = compute_cell_sample_mask_lut(
       lp,
       uint(x),
       uint(y)
       );
 
-#if CR_FILL_RULE_NONZERO
   if (mask != 0u) {
-    emit_sample_winding(
-        pixel_ix(uint(x), uint(y)),
-        mask,
-        lp.winding_delta
-        );
-  }
-#else
-  // xor edge coverage into the shared per-pixel MSAA mask
-  if (mask != 0u) {
-    atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
+    atomicXor(sh_samples[pix], mask);
   }
 #endif
+
 }
 
 void prefix_counts(uint lane, uint count) {
@@ -153,7 +174,7 @@ void shade_fine_tile_msaa(
       vec2 p0 = unpack_point(edge.p0);
       vec2 p1 = unpack_point(edge.p1);
 
-#if CR_FILL_RULE_NONZERO
+      #if CR_FILL_RULE_NONZERO
       int left_delta = left_y_edge_delta_from_points(p0, p1);
 #endif
 
@@ -162,11 +183,15 @@ void shade_fine_tile_msaa(
       MsaaLineWalkParams lp;
 
       if (make_msaa_line_walk_params(p0, p1, lp)) {
+#if CR_FILL_RULE_NONZERO
+        lp.left_delta = left_delta;
+#endif
         sh_walk[lane] = lp;
         pixel_count = lp.count;
       } else {
         pixel_count = 0u;
       }
+
 
       // emit the parity event per edge
 #if CR_FILL_RULE_NONZERO

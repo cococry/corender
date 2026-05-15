@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
+#include <time.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -147,7 +148,7 @@ int main(void) {
 
     double start_time = glfwGetTime();
 
-#define N_STARS 40000 
+#define N_STARS 40000
 
     float* star_x = malloc(N_STARS * sizeof(float));
     float* star_y = malloc(N_STARS * sizeof(float));
@@ -155,7 +156,7 @@ int main(void) {
     int fbw = 0, fbh = 0;
     glfwGetFramebufferSize(window, &fbw, &fbh);
 
-    uint32_t rng = 0x1512125; 
+    uint32_t rng = time(NULL); 
 
     /* generate random positions once */
     for (int i = 0; i < N_STARS; ++i) {
@@ -174,6 +175,7 @@ int main(void) {
         float size = 50;
 
         cr_draw_begin(&ctx);
+
 
         cr_draw_begin_path(&ctx);
 

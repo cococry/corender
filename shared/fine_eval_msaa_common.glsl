@@ -10,9 +10,8 @@ const uint ENFORCED_SUBGROUP_SIZE = 32u;
 const uint N_SUBGROUPS = WORKGROUP_SIZE / ENFORCED_SUBGROUP_SIZE;
 
 #ifndef FINE_MSAA_SAMPLE_COUNT
-#define FINE_MSAA_SAMPLE_COUNT 16
+#define FINE_MSAA_SAMPLE_COUNT 16 
 #endif
-
 
 #if FINE_MSAA_SAMPLE_COUNT == 8
 
@@ -20,9 +19,18 @@ layout(set = 0, binding = MSAA8_LUT_BINDING, std430) readonly buffer MsaaMaskLut
   uint msaa_mask_lut[];
 };
 
+layout(set = 0, binding = MSAA8X_LUT_BINDING, std430) readonly buffer MsaaXMaskLut {
+  uint msaa_x_mask_lut[];
+};
+
+layout(set = 0, binding = MSAA8Y_LUT_BINDING, std430) readonly buffer MsaaYMaskLut {
+  uint msaa_y_mask_lut[];
+};
+
 const uint MSAA_SAMPLE_COUNT = 8u;
 const uint MSAA_FULL_MASK = 0xffu;
 const uint MASK_LUT_DIM = 128u;
+const uint MSAA_LUT_MASKS_PER_WORD = 4u;
 
 #if CR_FILL_RULE_NONZERO
 #define MSAA_NZ_WORDS_PER_PIXEL 4u
@@ -34,9 +42,18 @@ layout(set = 0, binding = MSAA16_LUT_BINDING, std430) readonly buffer MsaaMaskLu
   uint msaa_mask_lut[];
 };
 
+layout(set = 0, binding = MSAA16X_LUT_BINDING, std430) readonly buffer MsaaXMaskLut {
+  uint msaa_x_mask_lut[];
+};
+
+layout(set = 0, binding = MSAA16Y_LUT_BINDING, std430) readonly buffer MsaaYMaskLut {
+  uint msaa_y_mask_lut[];
+};
+
 const uint MSAA_SAMPLE_COUNT = 16u;
 const uint MSAA_FULL_MASK = 0xffffu;
 const uint MASK_LUT_DIM = 256u;
+const uint MSAA_LUT_MASKS_PER_WORD = 2u;
 
 #if CR_FILL_RULE_NONZERO
 #define MSAA_NZ_WORDS_PER_PIXEL 8u
@@ -45,6 +62,33 @@ const uint MASK_LUT_DIM = 256u;
 #else
 #error Unsupported FINE_MSAA_SAMPLE_COUNT
 #endif
+
+
+
+struct MsaaLineWalkParams {
+  vec2 xy0;
+  vec2 xy1;
+
+  float x_step_rate;
+  float x_step_start_offset;
+  float x_sign;
+  float slope_x_per_y;
+  float x0;
+  float y0;
+
+  float dx;
+  float dy;
+
+  uint count_x;
+  uint count;
+
+#if CR_FILL_RULE_NONZERO
+  int winding_delta;
+  int left_delta;
+#endif
+};
+
+
 
 const float EPS = 1e-6;
 const float FINE_TILE_SIZE_F = 16.0;
@@ -68,31 +112,108 @@ layout(set = 0, binding = IMG_BINDING, rgba8) uniform writeonly image2D img;
 const float MASK_LUT_X_MIN = -1.0;
 const float MASK_LUT_X_MAX =  2.0;
 const float MASK_LUT_X_SCALE =
-float(MASK_LUT_DIM) / (MASK_LUT_X_MAX - MASK_LUT_X_MIN);
+  float(MASK_LUT_DIM) / (MASK_LUT_X_MAX - MASK_LUT_X_MIN);
 
 uint quantize_mask_lut_x(float x) {
   float q = floor((x - MASK_LUT_X_MIN) * MASK_LUT_X_SCALE);
   return uint(clamp(q, 0.0, float(MASK_LUT_DIM - 1u)));
 }
 
-uint lookup_msaa_cell_mask(float x_top, float x_bottom) {
+uint lut_entry_ix_for_line(float x_top, float x_bottom) {
   uint top_ix = quantize_mask_lut_x(x_top);
   uint bottom_ix = quantize_mask_lut_x(x_bottom);
 
-  uint entry_ix = top_ix * MASK_LUT_DIM + bottom_ix;
-
-#if FINE_MSAA_SAMPLE_COUNT == 8
-  uint word = msaa_mask_lut[entry_ix >> 2u];
-  uint shift = (entry_ix & 3u) * 8u;
-
-  return (word >> shift) & MSAA_FULL_MASK;
-#else
-  uint word = msaa_mask_lut[entry_ix >> 1u];
-  uint shift = (entry_ix & 1u) * 16u;
-
-  return (word >> shift) & MSAA_FULL_MASK;
-#endif
+  return top_ix * MASK_LUT_DIM + bottom_ix;
 }
+
+uint unpack_msaa_lut_entry(uint word, uint entry_ix) {
+#if FINE_MSAA_SAMPLE_COUNT == 8
+  uint shift = (entry_ix & 3u) * 8u;
+#else
+  uint shift = (entry_ix & 1u) * 16u;
+#endif
+
+  return (word >> shift) & MSAA_FULL_MASK;
+}
+
+void compute_cell_line_xs(MsaaLineWalkParams lp,
+    uint px,
+    uint py,
+    out float x_top,
+    out float x_bottom
+) {
+  float pixel_top = float(py);
+  float pixel_left = float(px);
+
+  x_top =
+    lp.xy0.x +
+    lp.slope_x_per_y * (pixel_top - lp.xy0.y) -
+    pixel_left;
+
+  x_bottom = x_top + lp.slope_x_per_y;
+}
+
+uint lookup_msaa_cell_mask(float x_top, float x_bottom) {
+  uint entry_ix = lut_entry_ix_for_line(x_top, x_bottom);
+  uint word = msaa_mask_lut[entry_ix / MSAA_LUT_MASKS_PER_WORD];
+
+  return unpack_msaa_lut_entry(word, entry_ix);
+}
+
+uint lookup_msaa_cell_x_mask(float x_top, float x_bottom) {
+  uint entry_ix = lut_entry_ix_for_line(x_top, x_bottom);
+  uint word = msaa_x_mask_lut[entry_ix / MSAA_LUT_MASKS_PER_WORD];
+
+  return unpack_msaa_lut_entry(word, entry_ix);
+}
+
+uint lookup_msaa_cell_y_mask(float x_top, float x_bottom) {
+  uint entry_ix = lut_entry_ix_for_line(x_top, x_bottom);
+  uint word = msaa_y_mask_lut[entry_ix / MSAA_LUT_MASKS_PER_WORD];
+
+  return unpack_msaa_lut_entry(word, entry_ix);
+}
+
+uint compute_cell_sample_mask_lut(
+    MsaaLineWalkParams lp,
+    uint px,
+    uint py
+) {
+  float x_top;
+  float x_bottom;
+
+  compute_cell_line_xs(lp, px, py, x_top, x_bottom);
+
+  return lookup_msaa_cell_mask(x_top, x_bottom);
+}
+
+uint compute_cell_sample_x_mask_lut(
+    MsaaLineWalkParams lp,
+    uint px,
+    uint py
+) {
+  float x_top;
+  float x_bottom;
+
+  compute_cell_line_xs(lp, px, py, x_top, x_bottom);
+
+  return lookup_msaa_cell_x_mask(x_top, x_bottom);
+}
+
+uint compute_cell_sample_y_mask_lut(
+    MsaaLineWalkParams lp,
+    uint px,
+    uint py
+) {
+  float x_top;
+  float x_bottom;
+
+  compute_cell_line_xs(lp, px, py, x_top, x_bottom);
+
+  return lookup_msaa_cell_y_mask(x_top, x_bottom);
+}
+
+
 
 #if !CR_FILL_RULE_NONZERO
 
@@ -122,28 +243,6 @@ shared int sh_scan_y[FINE_TILE_SIZE];
 shared int sh_scan_x[FINE_TILE_SIZE * FINE_TILE_SIZE];
 
 #endif
-
-struct MsaaLineWalkParams {
-  vec2 xy0;
-  vec2 xy1;
-
-  float x_step_rate;
-  float x_step_start_offset;
-  float x_sign;
-  float slope_x_per_y;
-  float x0;
-  float y0;
-
-  float dx;
-  float dy;
-
-  uint count_x;
-  uint count;
-
-#if CR_FILL_RULE_NONZERO
-  int winding_delta;
-#endif
-};
 
 uint packed_x(uint packed_point) {
   return packed_point & 0xffffu;
@@ -399,23 +498,6 @@ void emit_sample_winding(uint pix, uint mask, int delta) {
 
 #endif
 
-uint compute_cell_sample_mask_lut(
-    MsaaLineWalkParams lp,
-    uint px,
-    uint py
-    ) {
-  float pixel_top = float(py);
-  float pixel_left = float(px);
-
-  float x_top =
-    lp.xy0.x +
-    lp.slope_x_per_y * (pixel_top - lp.xy0.y) -
-    pixel_left;
-
-  float x_bottom = x_top + lp.slope_x_per_y;
-
-  return lookup_msaa_cell_mask(x_top, x_bottom);
-}
 
 bool make_msaa_line_walk_params(
     vec2 p0_in,

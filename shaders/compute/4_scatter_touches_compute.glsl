@@ -334,7 +334,8 @@ void main() {
       local_p0,
       local_p1
       )) {
-    CR_STAT_ADD(invalid_edges, 1u);
+    
+    write_invalid_edge(dst);
     return;
   }
 

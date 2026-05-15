@@ -23,13 +23,20 @@
 #define DIV_UP(x, y) (((x) + (y) - 1) / (y))
 
 enum {
-  CR_BINDING_SEGMENTS      = 0,
-  CR_BINDING_PATHS         = 1,
-  CR_BINDING_STORAGE_IMAGE = 2,
-  CR_BINDING_INDIRECT      = 3,
-  CR_BINDING_MSAA8_LUT     = 4,
-  CR_BINDING_MSAA16_LUT    = 5,
-  CR_FIRST_USER_BINDING    = 6
+  CR_BINDING_SEGMENTS       = 0,
+  CR_BINDING_PATHS          = 1,
+  CR_BINDING_STORAGE_IMAGE  = 2,
+  CR_BINDING_INDIRECT       = 3,
+
+  CR_BINDING_MSAA8_LUT      = 4,
+  CR_BINDING_MSAA8X_LUT     = 5,
+  CR_BINDING_MSAA8Y_LUT     = 6,
+
+  CR_BINDING_MSAA16_LUT     = 7,
+  CR_BINDING_MSAA16X_LUT    = 8,
+  CR_BINDING_MSAA16Y_LUT    = 9,
+
+  CR_FIRST_USER_BINDING     = 10
 };
 
 static VkPipelineLayout _compute_pipeline_layout;
@@ -685,6 +692,39 @@ _vk_update_descriptors_for_frame(
     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
     .pBufferInfo = &buffer_infos[CR_BINDING_MSAA8_LUT]
   };
+  
+  buffer_infos[CR_BINDING_MSAA8X_LUT] = (VkDescriptorBufferInfo) {
+    .buffer = pipeline->msaa8_x_lut_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_MSAA8X_LUT] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_MSAA8X_LUT,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_MSAA8X_LUT]
+  };
+ 
+  buffer_infos[CR_BINDING_MSAA8Y_LUT] = (VkDescriptorBufferInfo) {
+    .buffer = pipeline->msaa8_y_lut_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_MSAA8Y_LUT] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_MSAA8Y_LUT,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_MSAA8Y_LUT]
+  };
+
 
   buffer_infos[CR_BINDING_MSAA16_LUT] = (VkDescriptorBufferInfo) {
     .buffer = pipeline->msaa16_lut_buf.buf,
@@ -700,6 +740,38 @@ _vk_update_descriptors_for_frame(
     .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
     .pBufferInfo = &buffer_infos[CR_BINDING_MSAA16_LUT]
+  };
+
+  buffer_infos[CR_BINDING_MSAA16X_LUT] = (VkDescriptorBufferInfo) {
+    .buffer = pipeline->msaa16_x_lut_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_MSAA16X_LUT] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_MSAA16X_LUT,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_MSAA16X_LUT]
+  };
+ 
+  buffer_infos[CR_BINDING_MSAA16Y_LUT] = (VkDescriptorBufferInfo) {
+    .buffer = pipeline->msaa16_y_lut_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_MSAA16Y_LUT] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_MSAA16Y_LUT,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_MSAA16Y_LUT]
   };
 
   for (uint32_t j = 0; j < pipeline->n_buffers; j++) {
@@ -1032,6 +1104,63 @@ err:
   return false;
 }
 
+static bool _create_fine_msaa16_x_lut_buffer(
+    struct cr_context_t* ctx,
+    struct cr_gpu_buffer_t* o_lut_buf
+    ) {
+  if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
+
+  const uint32_t* lut = FINE_MSAA8_CELL_X_MASK_LUT_PACKED; 
+
+  VkDeviceSize lut_size =
+    sizeof(uint32_t) * FINE_MSAA16_LUT_PACKED_WORD_COUNT;
+
+  if (!cr_mem_upload_to_device_local_gpu_buffer_static(
+        ctx,
+        lut,
+        lut_size,
+        CR_GPU_BUFFER_SSBO,
+        o_lut_buf
+        )) {
+    CR_ERROR(ctx->log, "Failed to upload fine MSAA16 LUT buffer.");
+    return false;
+  }
+
+  return true;
+
+err:
+  return false;
+}
+
+static bool _create_fine_msaa16_y_lut_buffer(
+    struct cr_context_t* ctx,
+    struct cr_gpu_buffer_t* o_lut_buf
+    ) {
+  if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
+
+  const uint32_t* lut = FINE_MSAA8_CELL_Y_MASK_LUT_PACKED; 
+
+  VkDeviceSize lut_size =
+    sizeof(uint32_t) * FINE_MSAA16_LUT_PACKED_WORD_COUNT;
+
+  if (!cr_mem_upload_to_device_local_gpu_buffer_static(
+        ctx,
+        lut,
+        lut_size,
+        CR_GPU_BUFFER_SSBO,
+        o_lut_buf
+        )) {
+    CR_ERROR(ctx->log, "Failed to upload fine MSAA16 LUT buffer.");
+    return false;
+  }
+
+  return true;
+
+err:
+  return false;
+}
+
+
 static bool _create_fine_msaa8_lut_buffer(
     struct cr_context_t* ctx,
     struct cr_gpu_buffer_t* o_lut_buf
@@ -1039,8 +1168,6 @@ static bool _create_fine_msaa8_lut_buffer(
   if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
 
   const uint32_t* lut = FINE_MSAA8_CELL_MASK_LUT_PACKED;
-
-
 
   VkDeviceSize lut_size =
     sizeof(uint32_t) * FINE_MSAA8_LUT_PACKED_WORD_COUNT;
@@ -1062,6 +1189,61 @@ err:
   return false;
 }
 
+static bool _create_fine_msaa8_x_lut_buffer(
+    struct cr_context_t* ctx,
+    struct cr_gpu_buffer_t* o_lut_buf
+    ) {
+  if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
+
+  const uint32_t* lut = FINE_MSAA8_CELL_X_MASK_LUT_PACKED;
+
+  VkDeviceSize lut_size =
+    sizeof(uint32_t) * FINE_MSAA8_LUT_PACKED_WORD_COUNT;
+
+  if (!cr_mem_upload_to_device_local_gpu_buffer_static(
+        ctx,
+        lut,
+        lut_size,
+        CR_GPU_BUFFER_SSBO,
+        o_lut_buf
+        )) {
+    CR_ERROR(ctx->log, "Failed to upload fine MSAA8 LUT buffer.");
+    return false;
+  }
+
+  return true;
+
+err:
+  return false;
+}
+
+static bool _create_fine_msaa8_y_lut_buffer(
+    struct cr_context_t* ctx,
+    struct cr_gpu_buffer_t* o_lut_buf
+    ) {
+  if (!ctx || !o_lut_buf) _PARAM_CHECK_FAIL();
+
+  const uint32_t* lut = FINE_MSAA8_CELL_Y_MASK_LUT_PACKED;
+
+  VkDeviceSize lut_size =
+    sizeof(uint32_t) * FINE_MSAA8_LUT_PACKED_WORD_COUNT;
+
+  if (!cr_mem_upload_to_device_local_gpu_buffer_static(
+        ctx,
+        lut,
+        lut_size,
+        CR_GPU_BUFFER_SSBO,
+        o_lut_buf
+        )) {
+    CR_ERROR(ctx->log, "Failed to upload fine MSAA8 LUT buffer.");
+    return false;
+  }
+
+  return true;
+
+err:
+  return false;
+}
 
 bool 
 cr_compute_pipeline_init(
@@ -1929,7 +2111,6 @@ bool cr_compute_pipeline_insert_path(struct cr_context_t* ctx, struct cr_compute
 
   return true;
 }
-
 
 bool 
 cr_compute_pipeline_begin_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx) {

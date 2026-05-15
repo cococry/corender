@@ -38,25 +38,49 @@ void accumulate_msaa_cell_direct(
 #endif
   }
 
+
+    uint pix = pixel_ix(uint(x), uint(y));
+
+#if CR_FILL_RULE_NONZERO
+  uint x_mask = compute_cell_sample_x_mask_lut(
+      lp,
+      uint(x),
+      uint(y)
+      );
+
+  uint y_mask = compute_cell_sample_y_mask_lut(
+      lp,
+      uint(x),
+      uint(y)
+      );
+
+  if (x_mask != 0u) {
+    emit_sample_winding(
+        pix,
+        x_mask,
+        lp.winding_delta
+        );
+  }
+
+  if (y_mask != 0u) {
+    emit_sample_winding(
+        pix,
+        y_mask,
+        lp.left_delta
+        );
+  }
+#else
   uint mask = compute_cell_sample_mask_lut(
       lp,
       uint(x),
       uint(y)
       );
 
-#if CR_FILL_RULE_NONZERO
   if (mask != 0u) {
-    emit_sample_winding(
-        pixel_ix(uint(x), uint(y)),
-        mask,
-        lp.winding_delta
-        );
-  }
-#else
-  if (mask != 0u) {
-    atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
+    atomicXor(sh_samples[pix], mask);
   }
 #endif
+
 }
 
 void shade_fine_tile_msaa_dense(
@@ -94,6 +118,9 @@ void shade_fine_tile_msaa_dense(
     MsaaLineWalkParams lp;
 
     if (make_msaa_line_walk_params(p0, p1, lp)) {
+#if CR_FILL_RULE_NONZERO
+      lp.left_delta = left_delta;
+#endif
       float prev_n_x_steps = 0.0;
 
       for (uint local_tile = 0u; local_tile < lp.count; local_tile++) {

@@ -25,11 +25,11 @@ layout(set = 0, binding = SUBGROUP_TMP_BINDING, std430) buffer SubgroupTmp {
 };
 
 #ifdef PREFIX_OUTPUT
-layout(set = 0, binding = 8, std430) buffer PrefixOutput {
+layout(set = 0, binding = 12, std430) buffer PrefixOutput {
     T tile_events[];
 };
 #else
-layout(set = 0, binding = 8, std430) buffer PrefixInput {
+layout(set = 0, binding = 12, std430) buffer PrefixInput {
     T tile_events[];
 };
 #endif
