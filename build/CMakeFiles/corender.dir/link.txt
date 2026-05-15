@@ -1,2 +1,0 @@
-/usr/bin/ar qc libcorender.a CMakeFiles/corender.dir/src/compute.c.o CMakeFiles/corender.dir/src/corender.c.o CMakeFiles/corender.dir/src/mem.c.o CMakeFiles/corender.dir/src/profiler.c.o CMakeFiles/corender.dir/src/raster.c.o CMakeFiles/corender.dir/src/util.c.o CMakeFiles/corender.dir/vendor/vma/vma_impl.cpp.o
-/usr/bin/ranlib libcorender.a

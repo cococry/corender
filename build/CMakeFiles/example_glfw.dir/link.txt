@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG -flto -Wl,--dependency-file=CMakeFiles/example_glfw.dir/link.d CMakeFiles/example_glfw.dir/examples/glfw.c.o -o example_glfw  libcorender.a /usr/lib64/libglfw.so.3.4 /lib/libvulkan.so -lstdc++ /usr/lib/libGLX.so /usr/lib/libOpenGL.so
