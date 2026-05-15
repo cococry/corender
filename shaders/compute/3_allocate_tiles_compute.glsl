@@ -90,7 +90,23 @@ void main() {
 
     bool has_edges = n_segments != 0u;
 
-    uint flags = TILE_FINE;
+    uint flags = TILE_EMPTY;
+
+#if CR_FILL_RULE_NONZERO
+    bool winding_inside = winding != 0;
+#else
+    bool winding_inside = (winding & 1) != 0;
+#endif
+
+    if (has_edges) {
+      flags |= TILE_FINE;
+    } else if (winding_inside) {
+      // if the tile does not have edges touching it 
+      // but the winding rule says it is inside, it is
+      // a solid tile.
+      flags |= TILE_SOLID;
+    }
+
 #if CR_ENABLE_GPU_STATS
     if (flags == TILE_EMPTY) {
       CR_STAT_ADD(empty_tiles, 1u);

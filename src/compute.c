@@ -16,7 +16,7 @@
 #define CR_DISPATCH_DENSE_OFFSET    sizeof(struct cr_compute_indirect_dispatch_cmd_t)
 #define CR_DISPATCH_ANALYTIC_OFFSET (sizeof(struct cr_compute_indirect_dispatch_cmd_t) * 2u)
 
-#define USE_MSAA 1 
+#define USE_MSAA 0 
 
 #define _SUBSYS_NAME "COMPUTE"
 

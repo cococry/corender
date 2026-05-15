@@ -148,7 +148,7 @@ int main(void) {
 
     double start_time = glfwGetTime();
 
-#define N_STARS 40000
+#define N_STARS 40000 
 
     float* star_x = malloc(N_STARS * sizeof(float));
     float* star_y = malloc(N_STARS * sizeof(float));

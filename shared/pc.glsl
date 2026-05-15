@@ -35,7 +35,7 @@
 
 #define TILE_DENSE_THRESHOLD 32
 
-#define CR_FILL_RULE_NONZERO 0 
+#define CR_FILL_RULE_NONZERO 1 
 
 struct GpuStats {
   uint failed;
