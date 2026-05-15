@@ -92,10 +92,10 @@ void main() {
 
     uint flags = TILE_EMPTY;
 
-#if EVEN_ODD_WINDING
-    bool winding_inside = (winding & 1) != 0;
-#else
+#if CR_FILL_RULE_NONZERO
     bool winding_inside = winding != 0;
+#else
+    bool winding_inside = (winding & 1) != 0;
 #endif
 
     if (has_edges) {

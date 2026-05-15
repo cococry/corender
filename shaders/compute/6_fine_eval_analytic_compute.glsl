@@ -14,7 +14,6 @@ const uint EDGE_CHUNK_SIZE = WORKGROUP_SIZE;
 const float EPS = 1e-6;
 const float FINE_TILE_SIZE_F = 16.0;
 
-const bool USE_EVEN_ODD_FILL = true;
 
 const vec4 CLEAR_COLOR = vec4(0.0, 0.0, 0.0, 1.0);
 const vec4 FILL_COLOR  = vec4(1.0, 1.0, 1.0, 1.0);
@@ -117,7 +116,7 @@ vec4 resolve_nonzero(vec4 a) {
 }
 
 vec4 resolve_coverage(vec4 a) {
-    vec4 coverage = USE_EVEN_ODD_FILL
+    vec4 coverage = CR_FILL_RULE_NONZERO 
         ? resolve_even_odd(a)
         : resolve_nonzero(a);
 

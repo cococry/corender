@@ -27,7 +27,8 @@
 #define STATS_HIST_BINS 32u
 
 #define TILE_DENSE_THRESHOLD 32
-#define EVEN_ODD_WINDING 1
+
+#define CR_FILL_RULE_NONZERO true
 
 struct GpuStats {
   uint failed;
@@ -133,4 +134,3 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 0, std430) buffer Bump {
   uint n_tile_segment_slots;
   uint failed;
 } bump;
-

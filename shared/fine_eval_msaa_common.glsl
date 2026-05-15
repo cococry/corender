@@ -1,4 +1,3 @@
-
 layout(local_size_x = 4, local_size_y = 16, local_size_z = 1) in;
 
 const uint FINE_TILE_SIZE = 16u;
@@ -25,6 +24,10 @@ const uint MSAA_SAMPLE_COUNT = 8u;
 const uint MSAA_FULL_MASK = 0xffu;
 const uint MASK_LUT_DIM = 128u;
 
+#if CR_FILL_RULE_NONZERO
+#define MSAA_NZ_WORDS_PER_PIXEL 4u
+#endif
+
 #elif FINE_MSAA_SAMPLE_COUNT == 16
 
 layout(set = 0, binding = MSAA16_LUT_BINDING, std430) readonly buffer MsaaMaskLut {
@@ -34,6 +37,10 @@ layout(set = 0, binding = MSAA16_LUT_BINDING, std430) readonly buffer MsaaMaskLu
 const uint MSAA_SAMPLE_COUNT = 16u;
 const uint MSAA_FULL_MASK = 0xffffu;
 const uint MASK_LUT_DIM = 256u;
+
+#if CR_FILL_RULE_NONZERO
+#define MSAA_NZ_WORDS_PER_PIXEL 8u
+#endif
 
 #else
 #error Unsupported FINE_MSAA_SAMPLE_COUNT
@@ -87,6 +94,8 @@ uint lookup_msaa_cell_mask(float x_top, float x_bottom) {
 #endif
 }
 
+#if !CR_FILL_RULE_NONZERO
+
 // One bit per row of this tile.
 // Bit y means row parity toggles starting at row y
 shared uint sh_winding_y;
@@ -99,6 +108,20 @@ shared uint sh_samples[FINE_TILE_SIZE * FINE_TILE_SIZE];
 
 shared uint sh_scan_y;
 shared uint sh_scan_x[FINE_TILE_SIZE];
+
+#else
+
+shared int sh_winding_y[FINE_TILE_SIZE];
+shared int sh_winding_x[FINE_TILE_SIZE * FINE_TILE_SIZE];
+
+shared uint sh_samples_pos[FINE_TILE_SIZE * FINE_TILE_SIZE * MSAA_NZ_WORDS_PER_PIXEL];
+shared uint sh_samples_neg[FINE_TILE_SIZE * FINE_TILE_SIZE * MSAA_NZ_WORDS_PER_PIXEL];
+shared uint sh_samples_touched[FINE_TILE_SIZE * FINE_TILE_SIZE];
+
+shared int sh_scan_y[FINE_TILE_SIZE];
+shared int sh_scan_x[FINE_TILE_SIZE * FINE_TILE_SIZE];
+
+#endif
 
 struct MsaaLineWalkParams {
   vec2 xy0;
@@ -116,6 +139,10 @@ struct MsaaLineWalkParams {
 
   uint count_x;
   uint count;
+
+#if CR_FILL_RULE_NONZERO
+  int winding_delta;
+#endif
 };
 
 uint packed_x(uint packed_point) {
@@ -159,6 +186,24 @@ float get_left_y_edge_from_packed(uint packed_p0, uint packed_p1) {
 
   return ts;
 }
+
+#if CR_FILL_RULE_NONZERO
+
+int winding_delta_from_points(vec2 p0, vec2 p1) {
+  return p1.y >= p0.y ? -1 : 1;
+}
+
+int left_y_edge_delta_from_points(vec2 p0, vec2 p1) {
+  float dx = p1.x - p0.x;
+
+  if (abs(dx) <= EPS) {
+    return 0;
+  }
+
+  return dx > 0.0 ? 1 : -1;
+}
+
+#endif
 
 bool is_grid_aligned_x(float x) {
   return x == floor(x) && x != 0.0;
@@ -223,6 +268,7 @@ bool tile_is_fully_inside_screen(uint tile_x, uint tile_y) {
 }
 
 void clear_msaa_shared(uint lane) {
+#if !CR_FILL_RULE_NONZERO
   if (lane == 0u) {
     sh_winding_y = 0u;
   }
@@ -234,9 +280,32 @@ void clear_msaa_shared(uint lane) {
   for (uint i = lane; i < FINE_TILE_SIZE * FINE_TILE_SIZE; i += WORKGROUP_SIZE) {
     sh_samples[i] = 0u;
   }
+#else
+  for (uint i = lane; i < FINE_TILE_SIZE; i += WORKGROUP_SIZE) {
+    sh_winding_y[i] = 0;
+    sh_scan_y[i] = 0;
+  }
+
+  for (uint i = lane; i < FINE_TILE_SIZE * FINE_TILE_SIZE; i += WORKGROUP_SIZE) {
+    sh_winding_x[i] = 0;
+    sh_scan_x[i] = 0;
+    sh_samples_touched[i] = 0u;
+  }
+
+  for (
+      uint i = lane;
+      i < FINE_TILE_SIZE * FINE_TILE_SIZE * MSAA_NZ_WORDS_PER_PIXEL;
+      i += WORKGROUP_SIZE
+      ) {
+    sh_samples_pos[i] = 0u;
+    sh_samples_neg[i] = 0u;
+  }
+#endif
 
   barrier();
 }
+
+#if !CR_FILL_RULE_NONZERO
 
 void emit_left_y_edge_event(float left_y_edge) {
   if (left_y_edge <= EPS || left_y_edge >= FINE_TILE_SIZE_F) {
@@ -257,6 +326,78 @@ void emit_x_winding_event(uint x, uint y) {
 
   atomicXor(sh_winding_x[y], 2u << x);
 }
+
+#else
+
+void emit_left_y_edge_event(float left_y_edge, int delta) {
+  if (delta == 0) {
+    return;
+  }
+
+  if (left_y_edge <= EPS || left_y_edge >= FINE_TILE_SIZE_F) {
+    return;
+  }
+
+  uint row = uint(ceil(left_y_edge));
+
+  if (row < FINE_TILE_SIZE) {
+    atomicAdd(sh_winding_y[row], delta);
+  }
+}
+
+void emit_x_winding_event(uint x, uint y, int delta) {
+  if (x >= FINE_TILE_SIZE - 1u || y >= FINE_TILE_SIZE) {
+    return;
+  }
+
+  uint event_x = x + 1u;
+
+  atomicAdd(sh_winding_x[y * FINE_TILE_SIZE + event_x], delta);
+}
+
+uint spread2_to_halfwords(uint mask) {
+  mask &= 0x3u;
+
+  uint r = 0u;
+  r |= ((mask >> 0u) & 1u) << 0u;
+  r |= ((mask >> 1u) & 1u) << 16u;
+
+  return r;
+}
+
+uint halfword_lane(uint word, uint lane) {
+  return (word >> (lane * 16u)) & 0xffffu;
+}
+
+void emit_sample_winding(uint pix, uint mask, int delta) {
+  mask &= MSAA_FULL_MASK;
+
+  if (mask == 0u) {
+    return;
+  }
+
+  atomicOr(sh_samples_touched[pix], mask);
+
+  uint base = pix * MSAA_NZ_WORDS_PER_PIXEL;
+
+  for (uint word_ix = 0u; word_ix < MSAA_NZ_WORDS_PER_PIXEL; word_ix++) {
+    uint bits2 = (mask >> (word_ix * 2u)) & 0x3u;
+
+    if (bits2 == 0u) {
+      continue;
+    }
+
+    uint inc = spread2_to_halfwords(bits2);
+
+    if (delta > 0) {
+      atomicAdd(sh_samples_pos[base + word_ix], inc);
+    } else {
+      atomicAdd(sh_samples_neg[base + word_ix], inc);
+    }
+  }
+}
+
+#endif
 
 uint compute_cell_sample_mask_lut(
     MsaaLineWalkParams lp,
@@ -287,6 +428,10 @@ bool make_msaa_line_walk_params(
   }
 
   bool is_down = p1_in.y >= p0_in.y;
+
+#if CR_FILL_RULE_NONZERO
+  lp.winding_delta = is_down ? -1 : 1;
+#endif
 
   lp.xy0 = is_down ? p0_in : p1_in;
   lp.xy1 = is_down ? p1_in : p0_in;
@@ -416,6 +561,7 @@ void shade_solid_tile(
 }
 
 void prepare_msaa_scan_tables(uint lane) {
+#if !CR_FILL_RULE_NONZERO
   if (lane == 0u) {
     sh_scan_y = prefix_even_odd_16(sh_winding_y);
   }
@@ -423,9 +569,32 @@ void prepare_msaa_scan_tables(uint lane) {
   if (lane < FINE_TILE_SIZE) {
     sh_scan_x[lane] = prefix_even_odd_16(sh_winding_x[lane]);
   }
+#else
+  if (lane == 0u) {
+    int acc = 0;
+
+    for (uint y = 0u; y < FINE_TILE_SIZE; y++) {
+      acc += sh_winding_y[y];
+      sh_scan_y[y] = acc;
+    }
+  }
+
+  if (lane < FINE_TILE_SIZE) {
+    uint y = lane;
+    int acc = 0;
+
+    for (uint x = 0u; x < FINE_TILE_SIZE; x++) {
+      uint ix = y * FINE_TILE_SIZE + x;
+      acc += sh_winding_x[ix];
+      sh_scan_x[ix] = acc;
+    }
+  }
+#endif
 
   barrier();
 }
+
+#if !CR_FILL_RULE_NONZERO
 
 void write_one_msaa_pixel(
     TileInfo info,
@@ -451,6 +620,60 @@ void write_one_msaa_pixel(
   store_pixel_maybe_checked(pixel, color, tile_fully_inside);
 }
 
+#else
+
+uint resolve_nonzero_msaa_mask(uint pix, int base_winding) {
+  uint touched = sh_samples_touched[pix];
+
+  if (touched == 0u) {
+    return base_winding != 0 ? MSAA_FULL_MASK : 0u;
+  }
+
+  uint base = pix * MSAA_NZ_WORDS_PER_PIXEL;
+  uint mask = 0u;
+
+  for (uint word_ix = 0u; word_ix < MSAA_NZ_WORDS_PER_PIXEL; word_ix++) {
+    uint pos_word = sh_samples_pos[base + word_ix];
+    uint neg_word = sh_samples_neg[base + word_ix];
+
+    for (uint lane = 0u; lane < 2u; lane++) {
+      uint sample_ix = word_ix * 2u + lane;
+
+      int pos = int(halfword_lane(pos_word, lane));
+      int neg = int(halfword_lane(neg_word, lane));
+
+      int winding = base_winding + pos - neg;
+
+      if (winding != 0) {
+        mask |= 1u << sample_ix;
+      }
+    }
+  }
+
+  return mask & MSAA_FULL_MASK;
+}
+
+void write_one_msaa_pixel(
+    TileInfo info,
+    ivec2 pixel,
+    uint x,
+    uint y,
+    bool tile_fully_inside
+    ) {
+  int base_winding =
+    info.winding +
+    sh_scan_y[y] +
+    sh_scan_x[y * FINE_TILE_SIZE + x];
+
+  uint mask = resolve_nonzero_msaa_mask(pixel_ix(x, y), base_winding);
+  float c = float(bitCount(mask)) * (1.0 / float(MSAA_SAMPLE_COUNT));
+
+  vec4 color = coverage_color(c);
+  store_pixel_maybe_checked(pixel, color, tile_fully_inside);
+}
+
+#endif
+
 void write_msaa_pixels(
     TileInfo info,
     uint tile_x,
@@ -470,6 +693,7 @@ void write_msaa_pixels(
   uint y = local_base.y;
   uint x0 = local_base.x;
 
+#if !CR_FILL_RULE_NONZERO
   uint scan_y = sh_scan_y;
   uint scan_x = sh_scan_x[y];
 
@@ -528,4 +752,53 @@ void write_msaa_pixels(
         tile_fully_inside
         );
   }
+#else
+  {
+    uint x = x0 + 0u;
+
+    write_one_msaa_pixel(
+        info,
+        pixel + ivec2(0, 0),
+        x,
+        y,
+        tile_fully_inside
+        );
+  }
+
+  {
+    uint x = x0 + 1u;
+
+    write_one_msaa_pixel(
+        info,
+        pixel + ivec2(1, 0),
+        x,
+        y,
+        tile_fully_inside
+        );
+  }
+
+  {
+    uint x = x0 + 2u;
+
+    write_one_msaa_pixel(
+        info,
+        pixel + ivec2(2, 0),
+        x,
+        y,
+        tile_fully_inside
+        );
+  }
+
+  {
+    uint x = x0 + 3u;
+
+    write_one_msaa_pixel(
+        info,
+        pixel + ivec2(3, 0),
+        x,
+        y,
+        tile_fully_inside
+        );
+  }
+#endif
 }

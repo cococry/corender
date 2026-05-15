@@ -31,7 +31,11 @@ void accumulate_msaa_cell_direct(
   }
 
   if (changed_pixel_row) {
+#if CR_FILL_RULE_NONZERO
+    emit_x_winding_event(uint(x), uint(y), lp.winding_delta);
+#else
     emit_x_winding_event(uint(x), uint(y));
+#endif
   }
 
   uint mask = compute_cell_sample_mask_lut(
@@ -40,9 +44,19 @@ void accumulate_msaa_cell_direct(
       uint(y)
       );
 
+#if CR_FILL_RULE_NONZERO
+  if (mask != 0u) {
+    emit_sample_winding(
+        pixel_ix(uint(x), uint(y)),
+        mask,
+        lp.winding_delta
+        );
+  }
+#else
   if (mask != 0u) {
     atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
   }
+#endif
 }
 
 void shade_fine_tile_msaa_dense(
@@ -70,6 +84,10 @@ void shade_fine_tile_msaa_dense(
 
     vec2 p0 = unpack_point(edge.p0);
     vec2 p1 = unpack_point(edge.p1);
+
+#if CR_FILL_RULE_NONZERO
+    int left_delta = left_y_edge_delta_from_points(p0, p1);
+#endif
 
     apply_grid_x_nudge(p0, p1);
 
@@ -101,7 +119,11 @@ void shade_fine_tile_msaa_dense(
       }
     }
 
+#if CR_FILL_RULE_NONZERO
+    emit_left_y_edge_event(left_y_edge, left_delta);
+#else
     emit_left_y_edge_event(left_y_edge);
+#endif
   }
 
   barrier();

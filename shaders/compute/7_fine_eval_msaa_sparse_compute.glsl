@@ -55,7 +55,11 @@ void accumulate_msaa_cell(
 
   // emit parity event only if row changed
   if (changed_pixel_row) {
+#if CR_FILL_RULE_NONZERO
+    emit_x_winding_event(uint(x), uint(y), lp.winding_delta);
+#else
     emit_x_winding_event(uint(x), uint(y));
+#endif
   }
 
   // compute this edge's 16 sample coverage mask for the pixel cell
@@ -65,10 +69,20 @@ void accumulate_msaa_cell(
       uint(y)
       );
 
+#if CR_FILL_RULE_NONZERO
+  if (mask != 0u) {
+    emit_sample_winding(
+        pixel_ix(uint(x), uint(y)),
+        mask,
+        lp.winding_delta
+        );
+  }
+#else
   // xor edge coverage into the shared per-pixel MSAA mask
   if (mask != 0u) {
     atomicXor(sh_samples[pixel_ix(uint(x), uint(y))], mask);
   }
+#endif
 }
 
 void prefix_counts(uint lane, uint count) {
@@ -139,6 +153,10 @@ void shade_fine_tile_msaa(
       vec2 p0 = unpack_point(edge.p0);
       vec2 p1 = unpack_point(edge.p1);
 
+#if CR_FILL_RULE_NONZERO
+      int left_delta = left_y_edge_delta_from_points(p0, p1);
+#endif
+
       apply_grid_x_nudge(p0, p1);
 
       MsaaLineWalkParams lp;
@@ -151,7 +169,11 @@ void shade_fine_tile_msaa(
       }
 
       // emit the parity event per edge
+#if CR_FILL_RULE_NONZERO
+      emit_left_y_edge_event(left_y_edge, left_delta);
+#else
       emit_left_y_edge_event(left_y_edge);
+#endif
     }
 
     prefix_counts(lane, pixel_count);

@@ -40,12 +40,9 @@ CMakeFiles/example_glfw.dir/examples/glfw.c.o: \
  /usr/include/bits/flt-eval-method.h /usr/include/bits/fp-logb.h \
  /usr/include/bits/fp-fast.h /usr/include/bits/mathcalls-macros.h \
  /usr/include/bits/mathcalls-helper-functions.h \
- /usr/include/bits/mathcalls.h /usr/include/time.h \
- /usr/include/bits/time.h /usr/include/bits/types/struct_tm.h \
- /usr/include/bits/types/struct_itimerspec.h \
- /usr/include/bits/types/locale_t.h /usr/include/bits/types/__locale_t.h \
- /usr/include/GLFW/glfw3.h /usr/include/vulkan/vulkan.h \
- /usr/include/vulkan/vk_platform.h /usr/include/vulkan/vulkan_core.h \
+ /usr/include/bits/mathcalls.h /usr/include/GLFW/glfw3.h \
+ /usr/include/vulkan/vulkan.h /usr/include/vulkan/vk_platform.h \
+ /usr/include/vulkan/vulkan_core.h \
  /usr/include/vk_video/vulkan_video_codec_h264std.h \
  /usr/include/vk_video/vulkan_video_codecs_common.h \
  /usr/include/vk_video/vulkan_video_codec_h264std_encode.h \
