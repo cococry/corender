@@ -18,7 +18,8 @@ struct cr_segment_range_t {
 
 struct cr_compute_pipeline_push_constant_t {
   uint32_t screen_w,  screen_h;
-  uint32_t n_tiles_x, n_tiles_y, n_tiles;
+  uint32_t n_tiles_x, n_tiles_y, n_tiles,
+           n_macrotiles_x, n_macrotiles_y, n_macrotiles;
 
   uint32_t tile_size; 
 
@@ -33,6 +34,7 @@ struct cr_compute_bump_t {
   uint32_t n_active_tiles_sparse;
   uint32_t n_active_tiles_dense;
   uint32_t n_tile_segment_slots;
+  uint32_t n_binned_paths;
   uint32_t failed;
 };
 
@@ -104,17 +106,19 @@ enum cr_compute_pipeline_fill_rule_t {
   CR_COMPUTE_FILL_RULE_NON_ZERO
 };
 
-struct cr_compute_macrotile_metadata_t {
-  uint32_t offset, count;
-};
 
 struct cr_compute_draw_path_t {
-  uint32_t segment_offset;
-  uint32_t segment_count;
-
-  vec2 min, max;
-
   uint32_t id;
+};
+
+struct cr_compute_macrotile_metadata_t {
+  uint32_t off;
+  uint32_t count;
+};
+
+struct cr_compute_path_bbox_t {
+  vec2 mn;
+  vec2 mx;
 };
 
 struct cr_compute_pipeline_init_info_t {
@@ -145,13 +149,14 @@ struct cr_compute_pipeline_layout_buffer_t {
 
 struct cr_compute_pipeline_dynamic_state_t {
   struct cr_gpu_buffer_t segment_buf, 
-                         path_buf, indirect_buf, 
+                         path_buf, path_bbox_buf, indirect_buf, 
                          gpu_stats_readback_buf; 
   uint32_t n_segments, n_paths;
 
   struct cr_segment_t* segment_data;
   struct cr_compute_draw_path_t* path_data;
   struct cr_compute_indirect_dispatch_cmd_t* indirect_data;
+  struct cr_compute_path_bbox_t* path_bbox_data;
 
   size_t segment_capacity;
   size_t path_capacity;

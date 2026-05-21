@@ -14,9 +14,8 @@ const uint EDGE_CHUNK_SIZE = WORKGROUP_SIZE;
 const float EPS = 1e-6;
 const float FINE_TILE_SIZE_F = 16.0;
 
-
 const vec4 CLEAR_COLOR = vec4(0.0, 0.0, 0.0, 1.0);
-const vec4 FILL_COLOR  = vec4(1.0, 1.0, 1.0, 1.0);
+const vec4 FILL_COLOR  = vec4(0.8, 0.2, 0.3, 1.0);
 
 const vec4 PIXEL_OFFSETS = vec4(0.0, 1.0, 2.0, 3.0);
 

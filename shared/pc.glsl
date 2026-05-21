@@ -1,17 +1,18 @@
 #define SEGMENTS_BINDING            0
 #define PATHS_BINDING               1
-#define IMG_BINDING                 2
-#define INDIRECT_BINDING            3
+#define PATH_BBOXS_BINDING          2
+#define IMG_BINDING                 3
+#define INDIRECT_BINDING            4
 
-#define MSAA8_LUT_BINDING           4
-#define MSAA8X_LUT_BINDING          5
-#define MSAA8Y_LUT_BINDING          6
+#define MSAA8_LUT_BINDING           5
+#define MSAA8X_LUT_BINDING          6
+#define MSAA8Y_LUT_BINDING          7
 
-#define MSAA16_LUT_BINDING          7
-#define MSAA16X_LUT_BINDING         8
-#define MSAA16Y_LUT_BINDING         9
+#define MSAA16_LUT_BINDING          8
+#define MSAA16X_LUT_BINDING         9
+#define MSAA16Y_LUT_BINDING         10
 
-#define COMP_PIPELINE_BINDING_BASE  10
+#define COMP_PIPELINE_BINDING_BASE  11
 #define SUBGROUP_TMP_BINDING        (COMP_PIPELINE_BINDING_BASE + 3)
 
 #define FAIL_TOUCH_OVERFLOW         1u << 0
@@ -30,12 +31,12 @@
 #define CR_ENABLE_GPU_STATS 0
 #endif
 
-#define STATS_BINDING (COMP_PIPELINE_BINDING_BASE + 9)
+#define STATS_BINDING (COMP_PIPELINE_BINDING_BASE + 11)
 #define STATS_HIST_BINS 32u
 
 #define TILE_DENSE_THRESHOLD 32
 
-#define CR_FILL_RULE_NONZERO 1 
+#define CR_FILL_RULE_NONZERO 0 
 
 struct GpuStats {
   uint failed;
@@ -94,9 +95,23 @@ struct TileInfo {
   uint flags;
 };
 
+struct MacrotileMetadata {
+    uint off;
+    uint count;
+};
+
 struct TileEdge {
   uint p0; 
   uint p1; 
+};
+
+struct DrawPath {
+  uint path_id;
+};
+
+struct PathBBOX {
+  vec2 mn;
+  vec2 mx;
 };
 
 #define TOUCH_SEG_BITS   20u
@@ -124,7 +139,8 @@ struct Segment {
 #define TILE_FINE  (1u << 1)
 layout(push_constant) uniform push_constant {
   uint screen_w, screen_h;
-  uint n_tiles_x, n_tiles_y, n_tiles;
+  uint n_tiles_x, n_tiles_y, n_tiles,
+       n_macrotiles_x, n_macrotiles_y, n_macrotiles;
 
   uint tile_size;
 
@@ -139,5 +155,6 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 0, std430) buffer Bump {
   uint n_active_tiles_sparse;
   uint n_active_tiles_dense;
   uint n_tile_segment_slots;
+  uint n_binned_paths;
   uint failed;
 } bump;

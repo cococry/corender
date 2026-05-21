@@ -25,18 +25,19 @@
 enum {
   CR_BINDING_SEGMENTS       = 0,
   CR_BINDING_PATHS          = 1,
-  CR_BINDING_STORAGE_IMAGE  = 2,
-  CR_BINDING_INDIRECT       = 3,
+  CR_BINDING_PATH_BBOXS     = 2,
+  CR_BINDING_STORAGE_IMAGE  = 3,
+  CR_BINDING_INDIRECT       = 4,
 
-  CR_BINDING_MSAA8_LUT      = 4,
-  CR_BINDING_MSAA8X_LUT     = 5,
-  CR_BINDING_MSAA8Y_LUT     = 6,
+  CR_BINDING_MSAA8_LUT      = 5,
+  CR_BINDING_MSAA8X_LUT     = 6,
+  CR_BINDING_MSAA8Y_LUT     = 7,
 
-  CR_BINDING_MSAA16_LUT     = 7,
-  CR_BINDING_MSAA16X_LUT    = 8,
-  CR_BINDING_MSAA16Y_LUT    = 9,
+  CR_BINDING_MSAA16_LUT     = 8,
+  CR_BINDING_MSAA16X_LUT    = 9,
+  CR_BINDING_MSAA16Y_LUT    = 10,
 
-  CR_FIRST_USER_BINDING     = 10
+  CR_FIRST_USER_BINDING     = 11
 };
 
 static VkPipelineLayout _compute_pipeline_layout;
@@ -650,6 +651,23 @@ _vk_update_descriptors_for_frame(
     .imageView = pipeline->storage_img.view,
     .imageLayout = VK_IMAGE_LAYOUT_GENERAL
   };
+  
+  buffer_infos[CR_BINDING_PATH_BBOXS] = (VkDescriptorBufferInfo) {
+    .buffer = dyn->path_bbox_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_PATH_BBOXS] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_PATH_BBOXS,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_PATH_BBOXS]
+  };
+
 
   writes[CR_BINDING_STORAGE_IMAGE] = (VkWriteDescriptorSet) {
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -989,6 +1007,23 @@ _vk_pipeline_layout_init(
       CR_ERROR(ctx->log, "Failed to create paths buffer.");
       return false;
     }
+  
+    dyn->path_bbox_data = cr_util_alloc(ctx, dyn->path_capacity, sizeof(*dyn->path_bbox_data));
+
+    if (!dyn->path_bbox_data)
+      goto err;
+
+    if(!cr_mem_create_gpu_buffer(
+          ctx,
+          sizeof(*dyn->path_bbox_data) * dyn->path_capacity,
+          CR_GPU_BUFFER_SSBO,
+          CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+          &dyn->path_bbox_buf
+          )) {
+      CR_ERROR(ctx->log, "Failed to create paths BBOX buffer.");
+      return false;
+    }
+
 
     dyn->indirect_data =
       cr_util_alloc(ctx, 3, sizeof(*dyn->indirect_data));
@@ -1269,6 +1304,11 @@ cr_compute_pipeline_init(
   uint32_t tiles_x = (screen_w + tile_size - 1) / tile_size;
   uint32_t tiles_y = (screen_h + tile_size - 1) / tile_size;
 
+  const uint32_t max_path_storage = 65536;
+
+  uint macrotiles_x = DIV_UP(tiles_x, 16);
+  uint macrotiles_y = DIV_UP(tiles_y, 16);
+
   struct cr_compute_pipeline_layout_binding_t bindings[] = {
     (struct cr_compute_pipeline_layout_binding_t) {
       .buffer_size = sizeof(struct cr_compute_bump_t), 
@@ -1305,6 +1345,18 @@ cr_compute_pipeline_init(
     (struct cr_compute_pipeline_layout_binding_t) {
       .buffer_size = sizeof(struct cr_compute_tile_edge_t) * tiles_x * tiles_y * max_touch_capacity_per_tile, 
       .name = "tile_edges"  
+    },
+    (struct cr_compute_pipeline_layout_binding_t) {
+      .buffer_size = sizeof(struct cr_compute_draw_path_t) * max_path_storage, 
+      .name = "binned_paths"  
+    },
+    (struct cr_compute_pipeline_layout_binding_t) {
+      .buffer_size = sizeof(struct cr_compute_macrotile_metadata_t) * macrotiles_x * macrotiles_y, 
+      .name = "macrotile_metas"  
+    },
+    (struct cr_compute_pipeline_layout_binding_t) {
+      .buffer_size = sizeof(struct cr_compute_path_bbox_t) * max_path_storage, 
+      .name = "path_bboxes"  
     },
 #if CR_ENABLE_GPU_STATS
     (struct cr_compute_pipeline_layout_binding_t) {
@@ -1589,6 +1641,11 @@ cr_compute_pipeline_dispatch(
         pipeline->dynamic[swapchain_image_idx].n_paths * 
         sizeof(struct cr_compute_draw_path_t),
         &pipeline->dynamic[swapchain_image_idx].path_buf);
+
+    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].path_bbox_data,
+        pipeline->dynamic[swapchain_image_idx].n_paths * 
+        sizeof(struct cr_compute_path_bbox_t),
+        &pipeline->dynamic[swapchain_image_idx].path_bbox_buf);
   }
 
   uint32_t screen_w = ctx->swapchain.dimensions.width;
@@ -1598,16 +1655,25 @@ cr_compute_pipeline_dispatch(
   uint32_t tiles_x = (screen_w + tile_size - 1) / tile_size;
   uint32_t tiles_y = (screen_h + tile_size - 1) / tile_size;
 
+  uint macrotiles_x = DIV_UP(tiles_x, 16);
+  uint macrotiles_y = DIV_UP(tiles_y, 16);
+
   uint32_t n_segments = pipeline->dynamic[swapchain_image_idx].n_segments;
 
   struct cr_compute_pipeline_push_constant_t pc = {
     .tile_size = tile_size,
     .n_tiles_x = tiles_x,
     .n_tiles_y = tiles_y,
+
     .n_tiles = tiles_x * tiles_y,
+    .n_macrotiles_x = macrotiles_x,
+    .n_macrotiles_y = macrotiles_y,
+    .n_macrotiles = macrotiles_x * macrotiles_y,
+
     .n_segments = n_segments,
     .screen_w = screen_w,
     .screen_h = screen_h,
+
     .max_tile_storage = tiles_x * tiles_y * max_touch_capacity_per_tile,
     .n_paths =  pipeline->dynamic[swapchain_image_idx].n_paths, 
   };
@@ -1648,6 +1714,40 @@ cr_compute_pipeline_dispatch(
 
   {
     uint32_t scope_id = 0;
+
+    if (profiler != NULL) {
+      scope_id = cr_gpu_profiler_begin(
+          profiler,
+          swapchain_image_idx,
+          frame->cmd_buf,
+          "bin_paths"
+          );
+    }
+
+    _vk_dispatch_compute(
+        frame,
+        _kernel_by_name(ctx, pipeline, "bin_paths"),
+        swapchain_image_idx,
+        &pc,
+        DIV_UP(pc.n_paths, 256),
+        DIV_UP(macrotiles_x * macrotiles_y, 256),
+        1,
+        (struct cr_gpu_buffer_t[]){
+        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "binned_paths"),
+        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "macrotile_metas"),
+        },
+        2
+        );
+
+    if (profiler != NULL) {
+      cr_gpu_profiler_end(
+          profiler,
+          swapchain_image_idx,
+          frame->cmd_buf,
+          scope_id
+          );
+    }
+
 
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
@@ -2066,17 +2166,25 @@ _ensure_path_capacity(
 
   struct cr_compute_draw_path_t* path_data =
     realloc(dyn->path_data, sizeof(*dyn->path_data) * new_capacity);
+  
+  struct cr_compute_path_bbox_t* path_bbox_data =
+    realloc(dyn->path_bbox_data, sizeof(*dyn->path_bbox_data) * new_capacity);
 
-  if (!path_data)
+  if (!path_data || !path_bbox_data)
     return false;
 
   dyn->path_data = path_data;
+  dyn->path_bbox_data = path_bbox_data;
   dyn->path_capacity = new_capacity;
 
+  // TODO: sus
   vkDeviceWaitIdle(ctx->logical_dev);
 
   if (dyn->path_buf.buf != VK_NULL_HANDLE)
     cr_mem_destroy_gpu_buffer(ctx, &dyn->path_buf);
+  
+  if (dyn->path_bbox_buf.buf != VK_NULL_HANDLE)
+    cr_mem_destroy_gpu_buffer(ctx, &dyn->path_bbox_buf);
 
   cr_mem_create_gpu_buffer(
       ctx,
@@ -2084,6 +2192,14 @@ _ensure_path_capacity(
       CR_GPU_BUFFER_SSBO,
       CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
       &dyn->path_buf
+      );
+
+  cr_mem_create_gpu_buffer(
+      ctx,
+      sizeof(*dyn->path_bbox_data) * dyn->path_capacity,
+      CR_GPU_BUFFER_SSBO,
+      CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+      &dyn->path_bbox_buf
       );
 
   return _vk_update_descriptors_for_frame(ctx, pipeline, swap_idx);
@@ -2137,18 +2253,16 @@ bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pi
     path_mx[1] = CR_MAX(path_mx[1], (CR_MAX(seg->p0[1], seg->p1[1])));
   }
 
-
   pipeline->dynamic[swapchain_idx].path_data[pipeline->dynamic[swapchain_idx].n_paths] = (struct cr_compute_draw_path_t){
     .id = pipeline->dynamic[swapchain_idx].n_paths,
-    .segment_count = count,
-    .segment_offset = offset,
-    .min = {path_mn[0], path_mn[1]},
-    .max = {path_mx[0], path_mx[1]},
+  };
+    
+  pipeline->dynamic[swapchain_idx].path_bbox_data[pipeline->dynamic[swapchain_idx].n_paths] = (struct cr_compute_path_bbox_t){
+    .mn = {path_mn[0], path_mn[1]},
+    .mx = {path_mx[0], path_mx[1]},
   };
 
   pipeline->dynamic[swapchain_idx].n_paths++;
-
-
 
   return true;
 }
