@@ -1,6 +1,6 @@
 #include "compute.h"
 #include "mem.h"
-#include "fine_msaa_lut_static.h"
+#include "../static/fine_msaa_lut_static.h"
 #include "util.h"
 #include <errno.h>
 #include <linux/limits.h>
@@ -15,6 +15,8 @@
 #define CR_DISPATCH_SPARSE_OFFSET   0u
 #define CR_DISPATCH_DENSE_OFFSET    sizeof(struct cr_compute_indirect_dispatch_cmd_t)
 #define CR_DISPATCH_ANALYTIC_OFFSET (sizeof(struct cr_compute_indirect_dispatch_cmd_t) * 2u)
+#define CR_DRAW_CMD_OFFSET_MASK     0x00ffffffu
+#define CR_PTCL_INIT_CAP            64
 
 #define USE_MSAA 0 
 
@@ -23,21 +25,25 @@
 #define DIV_UP(x, y) (((x) + (y) - 1) / (y))
 
 enum {
-  CR_BINDING_SEGMENTS       = 0,
-  CR_BINDING_PATHS          = 1,
-  CR_BINDING_PATH_BBOXS     = 2,
-  CR_BINDING_STORAGE_IMAGE  = 3,
-  CR_BINDING_INDIRECT       = 4,
+  CR_BINDING_SEGMENTS         = 0,
+  CR_BINDING_PATHS            = 1,
+  CR_BINDING_PATH_BBOXS       = 2,
+  CR_BINDING_PATH_TILE_BBOXS  = 3,
+  CR_BINDING_STORAGE_IMAGE    = 4,
+  CR_BINDING_INDIRECT         = 5,
 
-  CR_BINDING_MSAA8_LUT      = 5,
-  CR_BINDING_MSAA8X_LUT     = 6,
-  CR_BINDING_MSAA8Y_LUT     = 7,
+  CR_BINDING_MSAA8_LUT        = 6,
+  CR_BINDING_MSAA8X_LUT       = 7,
+  CR_BINDING_MSAA8Y_LUT       = 8,
 
-  CR_BINDING_MSAA16_LUT     = 8,
-  CR_BINDING_MSAA16X_LUT    = 9,
-  CR_BINDING_MSAA16Y_LUT    = 10,
+  CR_BINDING_MSAA16_LUT       = 9,
+  CR_BINDING_MSAA16X_LUT      = 10,
+  CR_BINDING_MSAA16Y_LUT      = 11,
 
-  CR_FIRST_USER_BINDING     = 11
+  CR_BINDING_PATH_DRAWS       = 12,
+  CR_BINDING_DRAW_CMDS        = 13,
+
+  CR_FIRST_USER_BINDING       = 14,
 };
 
 static VkPipelineLayout _compute_pipeline_layout;
@@ -60,7 +66,7 @@ static void _vk_dispatch_compute(
     uint32_t swap_idx, const struct cr_compute_pipeline_push_constant_t* pc,
     uint32_t gc_x, uint32_t gc_y, uint32_t gc_z, const struct cr_gpu_buffer_t barrier_buffers[], uint32_t n_barrier_buffers);
 
-static void _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
+static void _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swap_idx, 
     uint32_t screen_w, uint32_t screen_h);
 
 static bool _vk_update_descriptors_for_frame(
@@ -76,18 +82,6 @@ static bool _compute_binding_size(
     uint32_t h,
     size_t fallback_size,
     size_t* o_size);
-
-static bool _ensure_segment_capacity(
-    struct cr_context_t* ctx,
-    struct cr_compute_pipeline_t* pipeline,
-    uint32_t swap_idx,
-    size_t capacity);
-
-static bool _ensure_path_capacity(
-    struct cr_context_t* ctx,
-    struct cr_compute_pipeline_t* pipeline,
-    uint32_t swap_idx,
-    size_t capacity);
 
 static const uint max_touch_capacity_per_tile = 1024;
 
@@ -409,7 +403,7 @@ _vk_dispatch_compute_indirect(
 }
 
 void 
-_vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_image_idx, 
+_vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct cr_compute_pipeline_t* pipeline, uint32_t swap_idx, 
     uint32_t screen_w, uint32_t screen_h) {
   // Barrier to prevent hazard of COMPUTE/WRITE -> TRANSFER/READ in the storage image.
   // Because the image storage data needs to  be in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL 
@@ -439,7 +433,7 @@ _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct c
     .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
     .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    .image = ctx->swapchain.imgs[swapchain_image_idx],
+    .image = ctx->swapchain.imgs[swap_idx],
     .subresourceRange = {
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
       .levelCount = 1,
@@ -482,7 +476,7 @@ _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct c
   vkCmdBlitImage(
       frame->cmd_buf,
       pipeline->storage_img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-      ctx->swapchain.imgs[swapchain_image_idx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      ctx->swapchain.imgs[swap_idx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
       1,
       &blit,
       VK_FILTER_NEAREST
@@ -496,7 +490,7 @@ _vk_compute_present(struct cr_context_t* ctx, struct cr_frame_t* frame, struct c
     .dstAccessMask = 0,
     .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    .image = ctx->swapchain.imgs[swapchain_image_idx],
+    .image = ctx->swapchain.imgs[swap_idx],
     .subresourceRange = {
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
       .levelCount = 1,
@@ -668,6 +662,22 @@ _vk_update_descriptors_for_frame(
     .pBufferInfo = &buffer_infos[CR_BINDING_PATH_BBOXS]
   };
 
+  buffer_infos[CR_BINDING_PATH_TILE_BBOXS] = (VkDescriptorBufferInfo) {
+    .buffer = dyn->path_tile_bbox_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_PATH_TILE_BBOXS] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_PATH_TILE_BBOXS,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_PATH_TILE_BBOXS]
+  };
+
 
   writes[CR_BINDING_STORAGE_IMAGE] = (VkWriteDescriptorSet) {
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -790,6 +800,38 @@ _vk_update_descriptors_for_frame(
     .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
     .pBufferInfo = &buffer_infos[CR_BINDING_MSAA16Y_LUT]
+  }; 
+
+  buffer_infos[CR_BINDING_PATH_DRAWS] = (VkDescriptorBufferInfo) {
+  .buffer = dyn->path_draws_buf.buf,
+  .offset = 0,
+  .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_PATH_DRAWS] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_PATH_DRAWS,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_PATH_DRAWS]
+  };
+
+  buffer_infos[CR_BINDING_DRAW_CMDS] = (VkDescriptorBufferInfo) {
+    .buffer = dyn->draw_cmds_buf.buf,
+    .offset = 0,
+    .range = VK_WHOLE_SIZE
+  };
+
+  writes[CR_BINDING_DRAW_CMDS] = (VkWriteDescriptorSet) {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = _global_sets[swap_idx],
+    .dstBinding = CR_BINDING_DRAW_CMDS,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    .pBufferInfo = &buffer_infos[CR_BINDING_DRAW_CMDS]
   };
 
   for (uint32_t j = 0; j < pipeline->n_buffers; j++) {
@@ -988,7 +1030,7 @@ _vk_pipeline_layout_init(
     }
 #endif
 
-    dyn->path_capacity = 5000;
+    dyn->path_capacity = 4096;
     dyn->path_data =
       cr_util_alloc(ctx, dyn->path_capacity, sizeof(*dyn->path_data));
 
@@ -1024,6 +1066,21 @@ _vk_pipeline_layout_init(
       return false;
     }
 
+    dyn->path_tile_bbox_data = cr_util_alloc(ctx, dyn->path_capacity, sizeof(*dyn->path_tile_bbox_data));
+
+    if (!dyn->path_tile_bbox_data)
+      goto err;
+
+    if(!cr_mem_create_gpu_buffer(
+          ctx,
+          sizeof(*dyn->path_tile_bbox_data) * dyn->path_capacity,
+          CR_GPU_BUFFER_SSBO,
+          CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+          &dyn->path_tile_bbox_buf
+          )) {
+      CR_ERROR(ctx->log, "Failed to create paths BBOX buffer.");
+      return false;
+    }
 
     dyn->indirect_data =
       cr_util_alloc(ctx, 3, sizeof(*dyn->indirect_data));
@@ -1044,6 +1101,37 @@ _vk_pipeline_layout_init(
 
     dyn->buffers =
       cr_util_alloc(ctx, n_bindings, sizeof(*dyn->buffers));
+
+    dyn->draw_capacity = 4096;
+    dyn->draw_data =
+      cr_util_alloc(ctx, dyn->draw_capacity, sizeof(*dyn->draw_data));
+
+    dyn->draw_cmd_capacity = 8192; // u32 words
+    dyn->draw_cmd_data =
+      cr_util_alloc(ctx, dyn->draw_cmd_capacity, sizeof(*dyn->draw_cmd_data));
+
+    dyn->n_path_draws = 0;
+    dyn->n_draw_cmds = 0;
+
+    if(!cr_mem_create_gpu_buffer(
+        ctx,
+        sizeof(*dyn->draw_data) * dyn->draw_capacity,
+        CR_GPU_BUFFER_SSBO,
+        CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+        &dyn->path_draws_buf
+        )) {
+      CR_ERROR(ctx->log, "Failed to create draw buffer.");
+    }
+
+    if(!cr_mem_create_gpu_buffer(
+        ctx,
+        sizeof(*dyn->draw_cmd_data) * dyn->draw_cmd_capacity,
+        CR_GPU_BUFFER_SSBO,
+        CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
+        &dyn->draw_cmds_buf
+        )) {
+      CR_ERROR(ctx->log, "Failed to create draw command buffer.");
+    }
 
     if (!dyn->buffers && n_bindings > 0)
       goto err;
@@ -1306,8 +1394,12 @@ cr_compute_pipeline_init(
 
   const uint32_t max_path_storage = 65536;
 
+  const uint32_t n_path_partitions = DIV_UP(max_path_storage, 256);
+
   uint macrotiles_x = DIV_UP(tiles_x, 16);
   uint macrotiles_y = DIV_UP(tiles_y, 16);
+
+  uint32_t ptcl_words = tiles_x * tiles_y * 256; 
 
   struct cr_compute_pipeline_layout_binding_t bindings[] = {
     (struct cr_compute_pipeline_layout_binding_t) {
@@ -1348,15 +1440,15 @@ cr_compute_pipeline_init(
     },
     (struct cr_compute_pipeline_layout_binding_t) {
       .buffer_size = sizeof(struct cr_compute_draw_path_t) * max_path_storage, 
-      .name = "binned_paths"  
+      .name = "binned_path_draws"  
     },
     (struct cr_compute_pipeline_layout_binding_t) {
-      .buffer_size = sizeof(struct cr_compute_macrotile_metadata_t) * macrotiles_x * macrotiles_y, 
+      .buffer_size = sizeof(struct cr_compute_macrotile_metadata_t) * macrotiles_x * macrotiles_y * n_path_partitions, 
       .name = "macrotile_metas"  
     },
-    (struct cr_compute_pipeline_layout_binding_t) {
-      .buffer_size = sizeof(struct cr_compute_path_bbox_t) * max_path_storage, 
-      .name = "path_bboxes"  
+    {
+      .buffer_size = sizeof(uint32_t) * ptcl_words,
+      .name = "ptcl"
     },
 #if CR_ENABLE_GPU_STATS
     (struct cr_compute_pipeline_layout_binding_t) {
@@ -1479,7 +1571,7 @@ struct _vk_access_masks {
 static 
 bool 
 _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, struct cr_frame_t* frame,
-    uint32_t swapchain_image_idx,
+    uint32_t swap_idx,
     const struct cr_compute_pipeline_push_constant_t* pc,
     uint32_t n_elements_x, uint32_t n_rows,
     const char* pipeline_stage,
@@ -1499,14 +1591,14 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
   _vk_dispatch_compute(
       frame,
       _kernel_by_name(ctx, pipeline, step1),
-      swapchain_image_idx,
+      swap_idx,
       pc,
       blocks_per_row,
       n_rows,
       1,
       (struct cr_gpu_buffer_t[]){
-      *_buffer_by_name(ctx, pipeline, swapchain_image_idx, output_name),
-      *_buffer_by_name(ctx, pipeline, swapchain_image_idx, tmp_name),
+      *_buffer_by_name(ctx, pipeline, swap_idx, output_name),
+      *_buffer_by_name(ctx, pipeline, swap_idx, tmp_name),
       },
       2
       );
@@ -1520,13 +1612,13 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
     _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, step2),
-        swapchain_image_idx,
+        swap_idx,
         pc,
         1,
         n_rows,
         1,
         (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, tmp_name),
+        *_buffer_by_name(ctx, pipeline, swap_idx, tmp_name),
         },
         1
         );
@@ -1534,14 +1626,14 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
     _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, step3),
-        swapchain_image_idx,
+        swap_idx,
         pc,
         blocks_per_row,
         n_rows,
         1,
         (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, output_name),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, tmp_name),
+        *_buffer_by_name(ctx, pipeline, swap_idx, output_name),
+        *_buffer_by_name(ctx, pipeline, swap_idx, tmp_name),
         },
         2
         );
@@ -1554,7 +1646,7 @@ _dispatch_prefix_sum_pass(struct cr_context_t* ctx, struct cr_compute_pipeline_t
 bool
 _copy_stats_to_readback(
     struct cr_compute_pipeline_t* pipeline,
-    uint32_t swapchain_image_idx,
+    uint32_t swap_idx,
     struct cr_context_t* ctx,
     struct cr_frame_t* frame
     ) {
@@ -1568,7 +1660,7 @@ _copy_stats_to_readback(
     .dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .buffer = _buffer_by_name(ctx, pipeline, swapchain_image_idx, "stats")->buf,
+    .buffer = _buffer_by_name(ctx, pipeline, swap_idx, "stats")->buf,
     .offset = 0,
     .size = stats_size
   };
@@ -1589,8 +1681,8 @@ _copy_stats_to_readback(
 
   vkCmdCopyBuffer(
       frame->cmd_buf,
-      _buffer_by_name(ctx, pipeline, swapchain_image_idx, "stats")->buf,
-      pipeline->dynamic[swapchain_image_idx].gpu_stats_readback_buf.buf,
+      _buffer_by_name(ctx, pipeline, swap_idx, "stats")->buf,
+      pipeline->dynamic[swap_idx].gpu_stats_readback_buf.buf,
       1,
       &copy
       );
@@ -1603,7 +1695,7 @@ _copy_stats_to_readback(
     .dstAccessMask = VK_ACCESS_2_HOST_READ_BIT,
     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-    .buffer = pipeline->dynamic[swapchain_image_idx].gpu_stats_readback_buf.buf,
+    .buffer = pipeline->dynamic[swap_idx].gpu_stats_readback_buf.buf,
     .offset = 0,
     .size = stats_size
   };
@@ -1625,27 +1717,53 @@ cr_compute_pipeline_dispatch(
     struct cr_context_t* ctx,
     struct cr_compute_pipeline_t* pipeline,
     uint32_t frame_idx,
-    uint32_t swapchain_image_idx
+    uint32_t swap_idx
     ) {
   struct cr_frame_t* frame = &ctx->frameloop.frames[frame_idx];
 
-  if(pipeline->dynamic[swapchain_image_idx].n_segments > 0) {
-    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].segment_data,
-        pipeline->dynamic[swapchain_image_idx].n_segments * 
+  struct cr_compute_pipeline_dynamic_state_t* dyn =  &pipeline->dynamic[swap_idx];
+  if(dyn->n_segments > 0) {
+    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, dyn->segment_data,
+        dyn->n_segments * 
         sizeof(struct cr_segment_t),
-        &pipeline->dynamic[swapchain_image_idx].segment_buf);
+        &dyn->segment_buf);
   }
 
-  if(pipeline->dynamic[swapchain_image_idx].n_paths > 0) {
-    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].path_data,
-        pipeline->dynamic[swapchain_image_idx].n_paths * 
+  if(dyn->n_paths > 0) {
+    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, dyn->path_data,
+        dyn->n_paths * 
         sizeof(struct cr_compute_draw_path_t),
-        &pipeline->dynamic[swapchain_image_idx].path_buf);
+        &dyn->path_buf);
 
-    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, pipeline->dynamic[swapchain_image_idx].path_bbox_data,
-        pipeline->dynamic[swapchain_image_idx].n_paths * 
+    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, dyn->path_bbox_data,
+        dyn->n_paths * 
         sizeof(struct cr_compute_path_bbox_t),
-        &pipeline->dynamic[swapchain_image_idx].path_bbox_buf);
+        &dyn->path_bbox_buf);
+
+    cr_mem_transfer_to_device_local_gpu_buffer(ctx, frame, dyn->path_tile_bbox_data,
+        dyn->n_paths * 
+        sizeof(struct cr_compute_path_tile_bbox_t),
+        &dyn->path_tile_bbox_buf);
+  }
+
+  if (dyn->n_path_draws > 0) {
+    cr_mem_transfer_to_device_local_gpu_buffer(
+        ctx,
+        frame,
+        dyn->draw_data,
+        dyn->n_path_draws * sizeof(*dyn->draw_data),
+        &dyn->path_draws_buf
+        );
+  }
+
+  if (dyn->n_draw_cmds > 0) {
+    cr_mem_transfer_to_device_local_gpu_buffer(
+        ctx,
+        frame,
+        dyn->draw_cmd_data,
+        dyn->n_draw_cmds * sizeof(*dyn->draw_cmd_data),
+        &dyn->draw_cmds_buf
+        );
   }
 
   uint32_t screen_w = ctx->swapchain.dimensions.width;
@@ -1658,7 +1776,7 @@ cr_compute_pipeline_dispatch(
   uint macrotiles_x = DIV_UP(tiles_x, 16);
   uint macrotiles_y = DIV_UP(tiles_y, 16);
 
-  uint32_t n_segments = pipeline->dynamic[swapchain_image_idx].n_segments;
+  uint32_t n_segments = dyn->n_segments;
 
   struct cr_compute_pipeline_push_constant_t pc = {
     .tile_size = tile_size,
@@ -1675,11 +1793,14 @@ cr_compute_pipeline_dispatch(
     .screen_h = screen_h,
 
     .max_tile_storage = tiles_x * tiles_y * max_touch_capacity_per_tile,
-    .n_paths =  pipeline->dynamic[swapchain_image_idx].n_paths, 
+    .n_paths =  dyn->n_paths, 
+    .n_path_draws =  dyn->n_path_draws,
+
+    .ptcl_spill_offset = CR_PTCL_INIT_CAP * tiles_x * tiles_y 
   };
 
-  for(uint32_t i = 0; i < pipeline->dynamic[swapchain_image_idx].n_buffers; i++) {
-    cr_mem_clear_gpu_buffer(ctx, frame, &pipeline->dynamic[swapchain_image_idx].buffers[i].buf);
+  for(uint32_t i = 0; i < dyn->n_buffers; i++) {
+    cr_mem_clear_gpu_buffer(ctx, frame, &dyn->buffers[i].buf);
   }
 
   cr_mem_clear_storage_image_color(ctx, frame, &pipeline->storage_img,
@@ -1718,7 +1839,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "bin_paths"
           );
@@ -1727,14 +1848,14 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, "bin_paths"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
         DIV_UP(pc.n_paths, 256),
         DIV_UP(macrotiles_x * macrotiles_y, 256),
         1,
         (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "binned_paths"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "macrotile_metas"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "binned_path_draws"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "macrotile_metas"),
         },
         2
         );
@@ -1742,7 +1863,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1752,7 +1873,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "walk_segments"
           );
@@ -1761,16 +1882,16 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, "walk_segments"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
         DIV_UP(pc.n_segments, 256),
         1,
         1,
         (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "bump"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_n_segments"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_touch_records"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_events"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "bump"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "tile_n_segments"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "tile_touch_records"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "tile_events"),
         },
         4
         );
@@ -1778,7 +1899,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1787,7 +1908,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "prefix_sum_tile_events"
           );
@@ -1797,7 +1918,7 @@ cr_compute_pipeline_dispatch(
         ctx,
         pipeline,
         frame,
-        swapchain_image_idx,
+        swap_idx,
         &pc,
         pc.n_tiles_x,
         pc.n_tiles_y,
@@ -1809,7 +1930,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1818,7 +1939,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "allocate_tiles"
           );
@@ -1827,19 +1948,19 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, "allocate_tiles"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
         DIV_UP(pc.n_tiles_x * pc.n_tiles_y, 256),
         1,
         1,
         (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "bump"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_n_segments"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "active_tiles_sparse"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "active_tiles_dense"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_infos")
+        *_buffer_by_name(ctx, pipeline, swap_idx, "bump"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "tile_n_segments"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "active_tiles_sparse"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "active_tiles_dense"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "tile_infos")
 #if CR_ENABLE_GPU_STATS
-        ,*_buffer_by_name(ctx, pipeline, swapchain_image_idx, "stats")
+        ,*_buffer_by_name(ctx, pipeline, swap_idx, "stats")
 #endif
         },
 #if CR_ENABLE_GPU_STATS
@@ -1852,7 +1973,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1861,7 +1982,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "build_scatter_indirect"
           );
@@ -1870,7 +1991,7 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, "build_scatter_indirect"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
         1,
         1,
@@ -1882,7 +2003,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1891,7 +2012,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "scatter_touches"
           );
@@ -1900,15 +2021,15 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute_indirect(
         frame,
         _kernel_by_name(ctx, pipeline, "scatter_touches"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
-        &pipeline->dynamic[swapchain_image_idx].indirect_buf,
+        &dyn->indirect_buf,
         0,
         (struct cr_gpu_buffer_t[]){
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "bump"),
-        *_buffer_by_name(ctx, pipeline, swapchain_image_idx, "tile_edges")
+        *_buffer_by_name(ctx, pipeline, swap_idx, "bump"),
+        *_buffer_by_name(ctx, pipeline, swap_idx, "tile_edges")
 #if CR_ENABLE_GPU_STATS
-        ,*_buffer_by_name(ctx, pipeline, swapchain_image_idx, "stats")
+        ,*_buffer_by_name(ctx, pipeline, swap_idx, "stats")
 #endif
         },
 #if CR_ENABLE_GPU_STATS
@@ -1921,7 +2042,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1930,13 +2051,13 @@ cr_compute_pipeline_dispatch(
     /* Same indirect buffer is about to be written by build_active_tiles_indirect */
     _barrier_indirect_read_to_compute_write(
         frame->cmd_buf,
-        pipeline->dynamic[swapchain_image_idx].indirect_buf.buf
+        dyn->indirect_buf.buf
         );
 
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "build_active_tiles_indirect"
           );
@@ -1945,7 +2066,7 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute(
         frame,
         _kernel_by_name(ctx, pipeline, "build_active_tiles_indirect"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
         1,
         1,
@@ -1957,7 +2078,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1968,7 +2089,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "fine_eval_msaa_sparse"
           );
@@ -1977,9 +2098,9 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute_indirect(
         frame,
         _kernel_by_name(ctx, pipeline, "fine_eval_msaa_sparse"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
-        &pipeline->dynamic[swapchain_image_idx].indirect_buf,
+        &dyn->indirect_buf,
         CR_DISPATCH_SPARSE_OFFSET,
         NULL,
         0
@@ -1988,7 +2109,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -1997,7 +2118,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "fine_eval_msaa_dense"
           );
@@ -2006,9 +2127,9 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute_indirect(
         frame,
         _kernel_by_name(ctx, pipeline, "fine_eval_msaa_dense"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
-        &pipeline->dynamic[swapchain_image_idx].indirect_buf,
+        &dyn->indirect_buf,
         CR_DISPATCH_DENSE_OFFSET,
         NULL,
         0
@@ -2017,7 +2138,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -2027,7 +2148,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       scope_id = cr_gpu_profiler_begin(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           "fine_eval_analytic"
           );
@@ -2035,9 +2156,9 @@ cr_compute_pipeline_dispatch(
     _vk_dispatch_compute_indirect(
         frame,
         _kernel_by_name(ctx, pipeline, "fine_eval_analytic"),
-        swapchain_image_idx,
+        swap_idx,
         &pc,
-        &pipeline->dynamic[swapchain_image_idx].indirect_buf,
+        &dyn->indirect_buf,
         CR_DISPATCH_ANALYTIC_OFFSET,
         NULL,
         0
@@ -2045,7 +2166,7 @@ cr_compute_pipeline_dispatch(
     if (profiler != NULL) {
       cr_gpu_profiler_end(
           profiler,
-          swapchain_image_idx,
+          swap_idx,
           frame->cmd_buf,
           scope_id
           );
@@ -2054,13 +2175,17 @@ cr_compute_pipeline_dispatch(
   }
 
 #if CR_ENABLE_GPU_STATS
-  _copy_stats_to_readback(pipeline, swapchain_image_idx, ctx, frame);
+  _copy_stats_to_readback(pipeline, swap_idx, ctx, frame);
 #endif
 
-  _vk_compute_present(ctx, frame, pipeline, swapchain_image_idx, screen_w, screen_h);
+  _vk_compute_present(ctx, frame, pipeline, swap_idx, screen_w, screen_h);
 
-  pipeline->dynamic[swapchain_image_idx].n_segments = 0;
-  pipeline->dynamic[swapchain_image_idx].n_paths = 0;
+  dyn->n_segments   = 0;
+  dyn->n_paths      = 0;
+  dyn->n_draw_cmds  = 0;
+  dyn->n_path_draws = 0;
+  dyn->n_path_tiles = 0;
+
   return true;
 }
 
@@ -2104,102 +2229,43 @@ bool cr_compute_pipeline_get_internal_shader_paths(struct cr_context_t* ctx, con
 }
 
 bool
-_ensure_segment_capacity(
+_ensure_buffer_capacity(
     struct cr_context_t* ctx,
     struct cr_compute_pipeline_t* pipeline,
-    uint32_t swap_idx,
-    size_t capacity
+    const uint32_t swap_idx,
+    const size_t cap,
+    size_t* crnt_max_cap,
+    void** data, 
+    const size_t elem_size,
+    struct cr_gpu_buffer_t* buf
     ) {
   struct cr_compute_pipeline_dynamic_state_t* dyn =
     &pipeline->dynamic[swap_idx];
 
-  if (capacity <= dyn->segment_capacity)
+  if (cap <= *crnt_max_cap)
     return true;
 
-  size_t new_capacity = dyn->segment_capacity ? dyn->segment_capacity : 1;
+  size_t new_cap = *crnt_max_cap ? *crnt_max_cap : 1;
 
-  while (new_capacity < capacity)
-    new_capacity *= 2;
+  while (new_cap < cap)
+    new_cap *= 2;
 
-  struct cr_segment_t* segment_data =
-    realloc(dyn->segment_data, sizeof(*dyn->segment_data) * new_capacity);
+  void* new_data = realloc(*data, elem_size * new_cap);
 
-  if (!segment_data)
-    return false;
+  if (!new_data) return false;
 
-  dyn->segment_data = segment_data;
-  dyn->segment_capacity = new_capacity;
+  *data = new_data;
+  *crnt_max_cap = new_cap;
 
-  vkDeviceWaitIdle(ctx->logical_dev);
-
-  if (dyn->segment_buf.buf != VK_NULL_HANDLE)
-    cr_mem_destroy_gpu_buffer(ctx, &dyn->segment_buf);
+  if (buf->buf != VK_NULL_HANDLE)
+    cr_mem_destroy_gpu_buffer(ctx, buf);
 
   cr_mem_create_gpu_buffer(
       ctx,
-      sizeof(*dyn->segment_data) * dyn->segment_capacity,
+      (*crnt_max_cap) * elem_size,
       CR_GPU_BUFFER_SSBO,
       CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
-      &dyn->segment_buf
-      );
-
-  return _vk_update_descriptors_for_frame(ctx, pipeline, swap_idx);
-}
-
-bool
-_ensure_path_capacity(
-    struct cr_context_t* ctx,
-    struct cr_compute_pipeline_t* pipeline,
-    uint32_t swap_idx,
-    size_t capacity
-    ) {
-  struct cr_compute_pipeline_dynamic_state_t* dyn =
-    &pipeline->dynamic[swap_idx];
-
-  if (capacity <= dyn->path_capacity)
-    return true;
-
-  size_t new_capacity = dyn->path_capacity ? dyn->path_capacity : 1;
-
-  while (new_capacity < capacity)
-    new_capacity *= 2;
-
-  struct cr_compute_draw_path_t* path_data =
-    realloc(dyn->path_data, sizeof(*dyn->path_data) * new_capacity);
-  
-  struct cr_compute_path_bbox_t* path_bbox_data =
-    realloc(dyn->path_bbox_data, sizeof(*dyn->path_bbox_data) * new_capacity);
-
-  if (!path_data || !path_bbox_data)
-    return false;
-
-  dyn->path_data = path_data;
-  dyn->path_bbox_data = path_bbox_data;
-  dyn->path_capacity = new_capacity;
-
-  // TODO: sus
-  vkDeviceWaitIdle(ctx->logical_dev);
-
-  if (dyn->path_buf.buf != VK_NULL_HANDLE)
-    cr_mem_destroy_gpu_buffer(ctx, &dyn->path_buf);
-  
-  if (dyn->path_bbox_buf.buf != VK_NULL_HANDLE)
-    cr_mem_destroy_gpu_buffer(ctx, &dyn->path_bbox_buf);
-
-  cr_mem_create_gpu_buffer(
-      ctx,
-      sizeof(*dyn->path_data) * dyn->path_capacity,
-      CR_GPU_BUFFER_SSBO,
-      CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
-      &dyn->path_buf
-      );
-
-  cr_mem_create_gpu_buffer(
-      ctx,
-      sizeof(*dyn->path_bbox_data) * dyn->path_capacity,
-      CR_GPU_BUFFER_SSBO,
-      CR_GPU_BUFFER_MEM_DEVICE_LOCAL,
-      &dyn->path_bbox_buf
+      buf
       );
 
   return _vk_update_descriptors_for_frame(ctx, pipeline, swap_idx);
@@ -2207,44 +2273,129 @@ _ensure_path_capacity(
 
 bool 
 cr_compute_pipeline_insert_segment(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
-    struct cr_segment_t segment, uint32_t swapchain_idx) {
-  if(!_ensure_segment_capacity(ctx, pipeline, swapchain_idx, pipeline->dynamic[swapchain_idx].n_segments + 1))
+    struct cr_segment_t segment, uint32_t swap_idx) {
+
+  struct cr_compute_pipeline_dynamic_state_t* dyn = &pipeline->dynamic[swap_idx];
+  if(!_ensure_buffer_capacity(ctx, pipeline, swap_idx, dyn->n_segments + 1,
+        &dyn->segment_capacity,
+        (void**)&dyn->segment_data,
+        sizeof(*dyn->segment_data),
+        &dyn->segment_buf
+        ))
     return false;
 
-  pipeline->dynamic[swapchain_idx].segment_data[pipeline->dynamic[swapchain_idx].n_segments++] = segment;
-  pipeline->dynamic[swapchain_idx].n_segments_in_path++;
+  dyn->segment_data[dyn->n_segments++] = segment;
+  dyn->n_segments_in_path++;
 
   return true;
 }
 
 bool cr_compute_pipeline_insert_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline,
-    struct cr_compute_draw_path_t path, uint32_t swapchain_idx) {
+    struct cr_compute_draw_path_t path, uint32_t swap_idx) {
 
-  if(!_ensure_path_capacity(ctx, pipeline, swapchain_idx, pipeline->dynamic[swapchain_idx].n_paths + 1))
+  struct cr_compute_pipeline_dynamic_state_t* dyn = &pipeline->dynamic[swap_idx];
+  if(!_ensure_buffer_capacity(ctx, pipeline, swap_idx, dyn->n_paths + 1,
+        &dyn->path_capacity,
+        (void**)&dyn->path_data,
+        sizeof(*dyn->path_data),
+        &dyn->path_buf
+        ))
     return false;
 
-  pipeline->dynamic[swapchain_idx].path_data[pipeline->dynamic[swapchain_idx].n_paths++] = path;
+  pipeline->dynamic[swap_idx].path_data[pipeline->dynamic[swap_idx].n_paths++] = path;
+
+  return true;
+}
+
+static inline uint32_t
+cr_pack_draw_op_and_cmd_offset(uint32_t cmd_offset, uint32_t tag) {
+  return (cmd_offset & CR_DRAW_CMD_OFFSET_MASK) | ((tag & 0xffu) << 24u);
+}
+
+bool
+cr_compute_pipeline_insert_draw(
+    struct cr_context_t* ctx,
+    struct cr_compute_pipeline_t* pipeline,
+    uint32_t swap_idx,
+    uint32_t path_ix,
+    uint32_t draw_op,
+    uint32_t cmd_offset,
+    uint32_t* out_draw_ix
+) {
+  struct cr_compute_pipeline_dynamic_state_t* dyn =
+    &pipeline->dynamic[swap_idx];
+
+  if (!_ensure_buffer_capacity(
+        ctx,
+        pipeline,
+        swap_idx,
+        dyn->n_path_draws + 1,
+        &dyn->draw_capacity,
+        (void**)&dyn->draw_data,
+        sizeof(*dyn->draw_data),
+        &dyn->path_draws_buf
+      )) {
+    return false;
+  }
+
+  uint32_t draw_ix = dyn->n_path_draws++;
+
+  dyn->draw_data[draw_ix] = (struct cr_compute_draw_t) {
+    .path_ix = path_ix,
+    .draw_op_and_cmd_offset = cr_pack_draw_op_and_cmd_offset(cmd_offset, draw_op),
+  };
+
+  if (out_draw_ix)
+    *out_draw_ix = draw_ix;
 
   return true;
 }
 
 bool 
-cr_compute_pipeline_begin_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx) {
-  pipeline->dynamic[swapchain_idx].n_segments_in_path = 0;
+cr_compute_pipeline_begin_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swap_idx) {
+  pipeline->dynamic[swap_idx].n_segments_in_path = 0;
 
   return true;
 }
 
-bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swapchain_idx) {
-  uint32_t count = pipeline->dynamic[swapchain_idx].n_segments_in_path;
-  uint32_t offset = pipeline->dynamic[swapchain_idx].n_segments - pipeline->dynamic[swapchain_idx].n_segments_in_path;
+static inline uint32_t
+cr_floor_div_16_f32(float x) {
+  return (uint32_t)floorf(x / 16.0f);
+}
 
-  if(!_ensure_path_capacity(ctx, pipeline, swapchain_idx, pipeline->dynamic[swapchain_idx].n_paths + 1))
+static inline uint32_t
+cr_ceil_div_16_f32(float x) {
+  return (uint32_t)ceilf(x / 16.0f);
+}
+
+bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pipeline_t* pipeline, uint32_t swap_idx) {
+  struct cr_compute_pipeline_dynamic_state_t* dyn =
+    &pipeline->dynamic[swap_idx];
+
+  uint32_t count = dyn->n_segments_in_path;
+  uint32_t offset = dyn->n_segments - dyn->n_segments_in_path;
+
+  if(!_ensure_buffer_capacity(ctx, pipeline, swap_idx, dyn->n_paths + 1,
+        &dyn->path_capacity,
+        (void**)&dyn->path_tile_bbox_data,
+        sizeof(*dyn->path_tile_bbox_data),
+        &dyn->path_tile_bbox_buf
+        ))
     return false;
 
-  vec2 path_mn = {FLT_MAX, FLT_MAX}, path_mx = {FLT_MIN, FLT_MIN}; 
+  if(!_ensure_buffer_capacity(ctx, pipeline, swap_idx, dyn->n_paths + 1,
+        &dyn->path_capacity,
+        (void**)&dyn->path_bbox_data,
+        sizeof(*dyn->path_bbox_data),
+        &dyn->path_bbox_buf
+        ))
+    return false;
+
+  vec2 path_mn = { FLT_MAX,  FLT_MAX };
+  vec2 path_mx = { -FLT_MAX, -FLT_MAX };
+
   for(size_t i = 0; i < count; i++) {
-    const struct cr_segment_t* seg = &pipeline->dynamic[swapchain_idx].segment_data[i + offset];
+    const struct cr_segment_t* seg = &dyn->segment_data[i + offset];
 
     path_mn[0] = CR_MIN(path_mn[0], (CR_MIN(seg->p0[0], seg->p1[0])));
     path_mn[1] = CR_MIN(path_mn[1], (CR_MIN(seg->p0[1], seg->p1[1])));
@@ -2253,17 +2404,42 @@ bool cr_compute_pipeline_end_path(struct cr_context_t* ctx, struct cr_compute_pi
     path_mx[1] = CR_MAX(path_mx[1], (CR_MAX(seg->p0[1], seg->p1[1])));
   }
 
-  pipeline->dynamic[swapchain_idx].path_data[pipeline->dynamic[swapchain_idx].n_paths] = (struct cr_compute_draw_path_t){
-    .id = pipeline->dynamic[swapchain_idx].n_paths,
+  dyn->path_data[dyn->n_paths] = (struct cr_compute_draw_path_t){
+    .id = dyn->n_paths,
   };
-    
-  pipeline->dynamic[swapchain_idx].path_bbox_data[pipeline->dynamic[swapchain_idx].n_paths] = (struct cr_compute_path_bbox_t){
-    .mn = {path_mn[0], path_mn[1]},
-    .mx = {path_mx[0], path_mx[1]},
+   
+  float px_x0 = path_mn[0];
+  float px_y0 = path_mn[1];
+  float px_x1 = path_mx[0];
+  float px_y1 = path_mx[1];
+
+  dyn->path_bbox_data[dyn->n_paths] = (struct cr_compute_path_bbox_t){
+    .mn = { px_x0, px_y0 },
+    .mx = { px_x1, px_y1 },
   };
 
-  pipeline->dynamic[swapchain_idx].n_paths++;
+
+  uint32_t tile_x0 = (uint32_t)floorf(path_mn[0] / 16.0f);
+  uint32_t tile_y0 = (uint32_t)floorf(path_mn[1] / 16.0f);
+  uint32_t tile_x1 = (uint32_t)ceilf(path_mx[0] / 16.0f);
+  uint32_t tile_y1 = (uint32_t)ceilf(path_mx[1] / 16.0f);
+
+  uint32_t tile_w = tile_x1 - tile_x0;
+  uint32_t tile_h = tile_y1 - tile_y0;
+  uint32_t tile_count = tile_w * tile_h;
+
+  dyn->path_tile_bbox_data[dyn->n_paths] = (struct cr_compute_path_tile_bbox_t) {
+    .x0 = cr_floor_div_16_f32(px_x0),
+    .y0 = cr_floor_div_16_f32(px_y0),
+    .x1 = cr_ceil_div_16_f32(px_x1),
+    .y1 = cr_ceil_div_16_f32(px_y1),
+    .tiles_offset = dyn->n_path_tiles
+  };
+  
+  dyn->n_path_tiles += tile_count;
+
+
+  dyn->n_paths++;
 
   return true;
 }
-

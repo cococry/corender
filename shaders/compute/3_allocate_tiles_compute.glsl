@@ -5,7 +5,7 @@
 
 layout(local_size_x = 256) in;
 
-layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 2, std430) buffer TileEvents {
+layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 2, std430) readonly buffer TileEvents {
     int tile_events[];
 };
 

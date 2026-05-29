@@ -1,18 +1,21 @@
 #define SEGMENTS_BINDING            0
 #define PATHS_BINDING               1
 #define PATH_BBOXS_BINDING          2
-#define IMG_BINDING                 3
-#define INDIRECT_BINDING            4
+#define PATH_TILE_BBOXS_BINDING     3
+#define IMG_BINDING                 4
+#define INDIRECT_BINDING            5
 
-#define MSAA8_LUT_BINDING           5
-#define MSAA8X_LUT_BINDING          6
-#define MSAA8Y_LUT_BINDING          7
+#define MSAA8_LUT_BINDING           6
+#define MSAA8X_LUT_BINDING          7
+#define MSAA8Y_LUT_BINDING          8
 
-#define MSAA16_LUT_BINDING          8
-#define MSAA16X_LUT_BINDING         9
-#define MSAA16Y_LUT_BINDING         10
+#define MSAA16_LUT_BINDING          9
+#define MSAA16X_LUT_BINDING         10
+#define MSAA16Y_LUT_BINDING         11
+#define PATH_DRAWS_BINDING          12
+#define DRAW_CMDS_BINDING           13
 
-#define COMP_PIPELINE_BINDING_BASE  11
+#define COMP_PIPELINE_BINDING_BASE  14
 #define SUBGROUP_TMP_BINDING        (COMP_PIPELINE_BINDING_BASE + 3)
 
 #define FAIL_TOUCH_OVERFLOW         1u << 0
@@ -31,7 +34,7 @@
 #define CR_ENABLE_GPU_STATS 0
 #endif
 
-#define STATS_BINDING (COMP_PIPELINE_BINDING_BASE + 11)
+#define STATS_BINDING (COMP_PIPELINE_BINDING_BASE + 12)
 #define STATS_HIST_BINS 32u
 
 #define TILE_DENSE_THRESHOLD 32
@@ -74,6 +77,11 @@ struct GpuStats {
   uint hist_fine_segments[32];
 };
 
+struct Draw {
+  uint path_id;
+  uint draw_op_and_cmd_offset; // low 24 bits = draw_cmds offset, high 8 bits = draw op 
+};
+
 #if CR_ENABLE_GPU_STATS
 
 #define CR_STAT_ADD(field, value) atomicAdd(stats.field, value)
@@ -114,6 +122,12 @@ struct PathBBOX {
   vec2 mx;
 };
 
+struct PathTileBBOX {
+  uint x0, y0;
+  uint x1, y1; 
+  uint tiles_offset;
+};
+
 #define TOUCH_SEG_BITS   20u
 #define TOUCH_RANK_BITS  12u
 #define TOUCH_TILE_BITS  16u
@@ -148,6 +162,9 @@ layout(push_constant) uniform push_constant {
 
   uint n_segments;
   uint n_paths;
+  uint n_path_draws;
+
+  uint ptcl_spill_offset;
 } pc;
 
 layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 0, std430) buffer Bump {
@@ -155,6 +172,18 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 0, std430) buffer Bump {
   uint n_active_tiles_sparse;
   uint n_active_tiles_dense;
   uint n_tile_segment_slots;
-  uint n_binned_paths;
+  uint n_binned_path_draws;
+  uint n_ptcl;
   uint failed;
 } bump;
+
+const uint DRAW_CMD_OFFSET_MASK = 0x00ffffffu;
+const uint DRAW_OP_SHIFT = 24u;
+
+uint draw_cmd_offset(Draw draw) {
+  return draw.draw_op_and_cmd_offset & DRAW_CMD_OFFSET_MASK;
+}
+
+uint draw_op(Draw draw) {
+  return draw.draw_op_and_cmd_offset >> DRAW_OP_SHIFT;
+}

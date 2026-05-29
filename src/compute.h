@@ -27,6 +27,9 @@ struct cr_compute_pipeline_push_constant_t {
 
   uint32_t n_segments;
   uint32_t n_paths;
+  uint32_t n_path_draws;
+
+  uint32_t ptcl_spill_offset;
 };
 
 struct cr_compute_bump_t {
@@ -34,7 +37,8 @@ struct cr_compute_bump_t {
   uint32_t n_active_tiles_sparse;
   uint32_t n_active_tiles_dense;
   uint32_t n_tile_segment_slots;
-  uint32_t n_binned_paths;
+  uint32_t n_binned_path_draws;
+  uint n_ptcl;
   uint32_t failed;
 };
 
@@ -43,6 +47,11 @@ struct cr_compute_tile_info_t {
   uint32_t count;
   int32_t winding;
   uint32_t flags;
+};
+
+struct cr_compute_draw_t {
+  uint32_t path_ix;
+  uint32_t draw_op_and_cmd_offset; // low 24 bits = draw_cmds offset, high 8 bits = draw op 
 };
 
 struct cr_compute_tile_edge_t {
@@ -106,7 +115,6 @@ enum cr_compute_pipeline_fill_rule_t {
   CR_COMPUTE_FILL_RULE_NON_ZERO
 };
 
-
 struct cr_compute_draw_path_t {
   uint32_t id;
 };
@@ -119,6 +127,12 @@ struct cr_compute_macrotile_metadata_t {
 struct cr_compute_path_bbox_t {
   vec2 mn;
   vec2 mx;
+};
+
+struct cr_compute_path_tile_bbox_t {
+  uint32_t x0, y0;
+  uint32_t x1, y1;
+  uint32_t tiles_offset;
 };
 
 struct cr_compute_pipeline_init_info_t {
@@ -148,23 +162,45 @@ struct cr_compute_pipeline_layout_buffer_t {
 };
 
 struct cr_compute_pipeline_dynamic_state_t {
-  struct cr_gpu_buffer_t segment_buf, 
-                         path_buf, path_bbox_buf, indirect_buf, 
-                         gpu_stats_readback_buf; 
-  uint32_t n_segments, n_paths;
 
-  struct cr_segment_t* segment_data;
-  struct cr_compute_draw_path_t* path_data;
-  struct cr_compute_indirect_dispatch_cmd_t* indirect_data;
-  struct cr_compute_path_bbox_t* path_bbox_data;
+  struct cr_gpu_buffer_t 
+    segment_buf, 
+    path_buf, 
+    path_bbox_buf, 
+    path_tile_bbox_buf, 
+    indirect_buf, 
+    gpu_stats_readback_buf;
+
+  uint32_t n_segments;
+  uint32_t n_paths;
+
+  struct cr_segment_t*                        segment_data;
+  struct cr_compute_draw_path_t*              path_data;
+  struct cr_compute_indirect_dispatch_cmd_t*  indirect_data;
+  struct cr_compute_path_bbox_t*              path_bbox_data;
+  struct cr_compute_path_tile_bbox_t*         path_tile_bbox_data;
 
   size_t segment_capacity;
   size_t path_capacity;
 
   size_t n_segments_in_path;
 
+  struct cr_compute_draw_t* draw_data;
+  uint32_t*                 draw_cmd_data;
+
+  size_t draw_capacity;
+  size_t draw_cmd_capacity;
+
+  uint32_t n_path_draws;
+  uint32_t n_draw_cmds;
+
+  struct cr_gpu_buffer_t path_draws_buf;
+  struct cr_gpu_buffer_t draw_cmds_buf;
+
   struct cr_compute_pipeline_layout_buffer_t* buffers;
   uint32_t n_buffers;
+
+  uint32_t n_path_tiles;
 };
 
 struct cr_compute_kernel_t {

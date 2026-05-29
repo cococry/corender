@@ -34,14 +34,6 @@ bool in_tile_bounds(ivec2 tile) {
 
 
 uint reserve_touch_idx() {
-  /*
-     Subgroup-batched global touch allocation.
-
-     Every active lane calling visit_tile participates. This turns:
-     one atomicAdd(bump.n_touches) per touch
-     into approximately:
-     one atomicAdd per active subgroup batch
-   */
   uvec4 mask = subgroupBallot(true);
   uint count = subgroupBallotBitCount(mask);
   uint off = subgroupBallotExclusiveBitCount(mask);
