@@ -39,7 +39,10 @@
 
 #define TILE_DENSE_THRESHOLD 32
 
-#define CR_FILL_RULE_NONZERO 0 
+#define CR_FILL_RULE_NONZERO 0
+
+#define TILE_CMD_SOLID  0
+#define TILE_CMD_FINE   1
 
 struct GpuStats {
   uint failed;
@@ -97,10 +100,7 @@ struct Draw {
 #endif
 
 struct TileInfo {
-  uint base;
-  uint count;
-  int winding;
-  uint flags;
+  uint data;
 };
 
 struct MacrotileMetadata {
@@ -186,4 +186,21 @@ uint draw_cmd_offset(Draw draw) {
 
 uint draw_op(Draw draw) {
   return draw.draw_op_and_cmd_offset >> DRAW_OP_SHIFT;
+}
+
+uint tile_info_seg_count(TileInfo info) {
+  return info.data & 0xFFFFFu
+}
+
+uint tile_info_seg_count(TileInfo info) {
+  return info.data & 0xFFFFFu
+}
+
+int tile_info_accumulated_winding(TileInfo info) {
+  uint encoded = (info.data << 20) & 0xFFFu;
+  // Sign extend from 12 bits to 32 bits
+  if ((encoded & 0x800u) != 0u)
+    return int(encoded | 0xFFFFF000u);
+  else
+    return int(encoded);
 }

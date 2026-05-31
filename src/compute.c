@@ -1448,7 +1448,7 @@ cr_compute_pipeline_init(
     },
     {
       .buffer_size = sizeof(uint32_t) * ptcl_words,
-      .name = "ptcl"
+      .name = "ptcls"
     },
 #if CR_ENABLE_GPU_STATS
     (struct cr_compute_pipeline_layout_binding_t) {

@@ -70,12 +70,44 @@ layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 2, std430) buffer TileEve
     int tile_events[];
 };
 
+layout(set = 0, binding = COMP_PIPELINE_BINDING_BASE + 11, std430) buffer PTCLs {
+    uint ptcls[];
+};
+
 void ptcmd_alloc(uint size) {
   if(ptcmd_off + size >= ptcmd_cap) {
     // splill and write jmp command 
     uint cmd = pc.ptcl_spill_offset + atomicAdd(bump.n_ptcl, PTCL_INCREMENT);
     // TODO: check for bump overflow
+  
+    // Jump commands have no valid opcode
+    ptcls[ptcmd_off] = ~cmd;
+    ptcmd_off = cmd;
+    ptcmd_cap = ptcmd_off + (PTCL_INIT_CAP - PTCL_HEADROOM);
   }
+}
+
+void ptcmd_for_path(uint tile, uint tile_id, uint n_segs) {
+  if(n_segs == 0) {
+    uint packed_data = 0;
+    ptcls[ptcmd_off] = TILE_CMD_SOLID;
+    ptcmd_off++;
+  }
+  else {
+    // if the tile has edges, we need a base/offset into the 
+    // segments array for that tile to know which segments
+    // belong to this tile later.
+    uint base = atomicAdd(bump.n_tile_segment_slots, n_segments);
+
+    if (base + n_segments > pc.max_tile_storage) {
+      atomicOr(bump.failed, FAIL_TILE_SEGMENT_OVERFLOW);
+      return;
+    }
+
+    uint packed_data = 0;
+
+  }
+
 }
 
 uint wg_prefix_sum_inclusive(
@@ -314,7 +346,7 @@ void main() {
         (path_tile_widths[path_draw_idx_local] * local_y) + local_x;
 
       TileInfo tile_info  = tile_infos[tile_id];
-      bool has_edges      = tile_info.count > 0; 
+      bool has_edges      = tile_info_seg_count(tile_info) > 0; 
       uint path_draw_idx  = merged_path_draws[path_draw_idx_local];
       Draw path_draw      = path_draws[path_draw_idx];
 

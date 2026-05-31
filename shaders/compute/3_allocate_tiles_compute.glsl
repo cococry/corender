@@ -133,22 +133,16 @@ void main() {
 
     uint base = 0u;
 
-    // if the tile has edges, we need a base/offset into the 
-    // segments array for that tile to know which segments
-    // belong to this tile later.
-    if (has_edges) {
-        base = atomicAdd(bump.n_tile_segment_slots, n_segments);
+    n_segments  = clamp(n_segments, 0, 65536);
+    winding     = clamp(winding, -65536, 65535);
 
-        if (base + n_segments > pc.max_tile_storage) {
-            atomicOr(bump.failed, FAIL_TILE_SEGMENT_OVERFLOW);
-            return;
-        }
-    }
+    uint packed_data  = 0;
+    packed_data       = bitfieldInsert(
+        packed_data, n_segments, 0, 16);
+    packed_data       = bitfieldInsert(
+        packed_data, uint(winding), 16, 16);
 
-    tile_infos[tile_id].base = base;
-    tile_infos[tile_id].count = n_segments;
-    tile_infos[tile_id].winding = winding;
-    tile_infos[tile_id].flags = flags;
+    tile_infos[tile_id].data = packed_data; 
 
     // if the tile is not empty, it's active and we add it 
     // to the list of dispatched tiles for fine.
